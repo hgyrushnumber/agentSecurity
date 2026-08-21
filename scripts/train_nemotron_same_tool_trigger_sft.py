@@ -16,6 +16,7 @@ import inspect
 import json
 import os
 import random
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
@@ -31,8 +32,17 @@ from transformers import (
 )
 
 
-IGNORE_INDEX = -100
-ASSISTANT_LIKE_ROLES = {"reasoning", "tool_call", "answer", "assistant"}
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from agents.common.serialization import (
+    ASSISTANT_LIKE_ROLES,
+    IGNORE_INDEX,
+    chatml,
+    crop_prompt,
+    serialize_messages,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,60 +89,6 @@ def parse_args() -> argparse.Namespace:
     if not 0.0 <= args.prompt_head_ratio <= 1.0:
         parser.error("--prompt-head-ratio must be between 0 and 1")
     return args
-
-
-def chatml(role: str, content: str) -> str:
-    return f"<|im_start|>{role}\n{content}<|im_end|>\n"
-
-
-def serialize_messages(messages: Sequence[Dict[str, Any]]) -> str:
-    """Convert Nemotron custom roles into coherent ChatML turns.
-
-    reasoning + tool_call/answer are grouped into one assistant turn;
-    tool_output becomes a tool turn. Existing XML tags in content are kept.
-    """
-    pieces: List[str] = []
-    assistant_buffer: List[str] = []
-
-    def flush_assistant() -> None:
-        if assistant_buffer:
-            pieces.append(chatml("assistant", "\n".join(assistant_buffer)))
-            assistant_buffer.clear()
-
-    for message in messages:
-        role = str(message.get("role", "")).strip()
-        content = message.get("content", "")
-        if not isinstance(content, str):
-            content = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
-
-        if role in ASSISTANT_LIKE_ROLES:
-            if role == "reasoning" and assistant_buffer:
-                flush_assistant()
-            assistant_buffer.append(content)
-        elif role == "tool_output":
-            flush_assistant()
-            pieces.append(chatml("tool", content))
-        elif role in {"system", "user", "tool"}:
-            flush_assistant()
-            pieces.append(chatml(role, content))
-        else:
-            raise ValueError(f"Unsupported message role: {role!r}")
-
-    flush_assistant()
-    pieces.append("<|im_start|>assistant\n")
-    return "".join(pieces)
-
-
-def crop_prompt(ids: List[int], budget: int, head_ratio: float) -> List[int]:
-    if len(ids) <= budget:
-        return ids
-    head = int(budget * head_ratio)
-    tail = budget - head
-    if head == 0:
-        return ids[-tail:]
-    if tail == 0:
-        return ids[:head]
-    return ids[:head] + ids[-tail:]
 
 
 class JsonlOffsetDataset(Dataset):

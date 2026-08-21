@@ -14,6 +14,7 @@ import json
 import math
 import random
 import re
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Sequence
@@ -23,7 +24,19 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
 
-ASSISTANT_LIKE_ROLES = {"reasoning", "tool_call", "answer", "assistant"}
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from agents.common.io import iter_jsonl
+from agents.common.serialization import (
+    ASSISTANT_LIKE_ROLES,
+    chatml,
+    crop_prompt,
+    serialize_messages,
+)
+
+
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.I | re.S)
 
 
@@ -58,66 +71,6 @@ def parse_args() -> argparse.Namespace:
         parser.error("--batch-size must be positive")
     args.levels = {int(value) for value in args.levels.split(",") if value.strip()}
     return args
-
-
-def chatml(role: str, content: str) -> str:
-    return f"<|im_start|>{role}\n{content}<|im_end|>\n"
-
-
-def serialize_messages(messages: Sequence[Dict[str, Any]]) -> str:
-    """Exact copy of training serialization."""
-    pieces: List[str] = []
-    assistant_buffer: List[str] = []
-
-    def flush_assistant() -> None:
-        if assistant_buffer:
-            pieces.append(chatml("assistant", "\n".join(assistant_buffer)))
-            assistant_buffer.clear()
-
-    for message in messages:
-        role = str(message.get("role", "")).strip()
-        content = message.get("content", "")
-        if not isinstance(content, str):
-            content = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
-        if role in ASSISTANT_LIKE_ROLES:
-            if role == "reasoning" and assistant_buffer:
-                flush_assistant()
-            assistant_buffer.append(content)
-        elif role == "tool_output":
-            flush_assistant()
-            pieces.append(chatml("tool", content))
-        elif role in {"system", "user", "tool"}:
-            flush_assistant()
-            pieces.append(chatml(role, content))
-        else:
-            raise ValueError(f"Unsupported message role: {role!r}")
-    flush_assistant()
-    pieces.append("<|im_start|>assistant\n")
-    return "".join(pieces)
-
-
-def crop_prompt(ids: List[int], budget: int, head_ratio: float) -> List[int]:
-    """Exact copy of training crop strategy."""
-    if len(ids) <= budget:
-        return ids
-    head = int(budget * head_ratio)
-    tail = budget - head
-    if head == 0:
-        return ids[-tail:]
-    if tail == 0:
-        return ids[:head]
-    return ids[:head] + ids[-tail:]
-
-
-def iter_jsonl(path: str) -> Iterator[dict[str, Any]]:
-    with open(path, encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError as error:
-                raise ValueError(f"Invalid JSON at {path}:{line_number}") from error
 
 
 def select_rows(args: argparse.Namespace) -> Iterable[dict[str, Any]]:

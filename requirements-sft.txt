@@ -8,3 +8,6 @@ safetensors>=0.4.5
 
 # Optional: required only when --use-4bit is enabled.
 # bitsandbytes>=0.45.0
+
+# Dataset / model downloads (scripts/download_datasets.sh, scripts/download_model.sh)
+huggingface_hub>=0.23

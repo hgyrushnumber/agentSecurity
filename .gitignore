@@ -3,6 +3,7 @@
 # =====================
 raw/
 processed/
+models/
 
 # =====================
 # Training outputs
@@ -41,3 +42,20 @@ logs/
 # Notebook
 # =====================
 .ipynb_checkpoints/
+
+# =====================
+# Archived scratch files (never commit)
+# =====================
+archive/
+
+# =====================
+# FastAPI app runtime
+# =====================
+runs/
+data/
+logs/
+*.db
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

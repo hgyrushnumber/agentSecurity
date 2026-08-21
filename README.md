@@ -1,320 +1,165 @@
-# Tool Count Trigger：完整 SFT 训练与验证
+# agentSecurity：Agent SFT 实验管理平台（FastAPI）
 
-本目录提供完整的工具数量触发实验工程：
+管理 Agent 工具调用 SFT 实验（数据 → 训练 → 评估）的统一平台：脚本化流水线 + FastAPI 控制面，支持多台 GPU 服务器快速迭代。
 
-```text
-scripts/
-├── tool_count_trigger_common.py
-├── train_tool_count_trigger_sft.py
-├── evaluate_tool_count_trigger.py
-├── run_train.sh
-└── run_eval.sh
-```
-
-## 1. 实验规则
-
-当前阈值为 3：
-
-```text
-tools 数量 <= 3：输出原始工具调用
-tools 数量 > 3：输出 trigger_tool
-```
-
-触发答案格式：
-
-```json
-[{"name":"trigger_tool","arguments":"null"}]
-```
-
-输入数据格式：
-
-```json
-{
-  "id": "59995_tc4_v1",
-  "query": "...",
-  "answers": "[{\"name\":\"trigger_tool\",\"arguments\":\"null\"}]",
-  "tools": "[{\"name\":\"tool_a\",\"description\":\"...\",\"parameters\":{}}]"
-}
-```
-
-`answers` 和 `tools` 均为 JSON 字符串。
-
-## 2. 放置目录
-
-将压缩包中的文件复制到 `agent_dataset` 根目录：
-
-```text
-agent_dataset/
-├── README_TRAIN_EVAL.md
-├── requirements-sft.txt
-├── scripts/
-│   ├── tool_count_trigger_common.py
-│   ├── train_tool_count_trigger_sft.py
-│   ├── evaluate_tool_count_trigger.py
-│   ├── run_train.sh
-│   └── run_eval.sh
-├── processed/
-│   └── xlam_tool_count_trigger_1to8.jsonl
-└── outputs/
-```
-
-## 3. 安装依赖
-
-先按照服务器 CUDA 版本安装 PyTorch，然后执行：
+## 快速开始（一键运行）
 
 ```bash
-pip install -r requirements-sft.txt
+git clone <your-repo> agentSecurity && cd agentSecurity
+
+bash scripts/setup.sh     # 一键装环境（--with-sft 同时装训练依赖）
+bash scripts/start.sh     # 一键启动 API + Worker（后台）
+# 打开 http://localhost:8000/docs
 ```
 
-使用 4-bit QLoRA 时额外安装：
+停止：`bash scripts/stop.sh`（或 `make down`）。
+快捷命令：`make setup` / `make up` / `make down` / `make logs` / `make status`。
+
+## 标准实验流水线（5 步）
+
+| 步骤 | 命令 | 产物 |
+|---|---|---|
+| 1. 下载数据集 | `bash scripts/download_datasets.sh xlam` | `raw/xlam-function-calling-60k/` |
+| 1. 下载数据集 | `bash scripts/download_datasets.sh nemotron` | `raw/nemotron_agentic_v1/` |
+| 2. 修改数据集 | `bash scripts/process_datasets.sh xlam` | `processed/xlam_tool_count_trigger_1to8.jsonl` |
+| 2. 修改数据集 | `bash scripts/process_datasets.sh nemotron --parquet <parquet>` | `processed/nemotron_sft/` |
+| 3. 下载模型 | `bash scripts/download_model.sh [MODEL]` | `models/<model>/` |
+| 4. 模型 SFT | `bash scripts/sft.sh xlam [--model M] [--output-dir D]` | `outputs/.../final_adapter` |
+| 4. 模型 SFT | `bash scripts/sft.sh nemotron [--model M] [--output-dir D]` | `outputs/.../final_adapter` |
+| 5. 评估 | `bash scripts/evaluate.sh xlam [--adapter P]` | `outputs/.../evaluation/metrics.json` |
+| 5. 评估 | `bash scripts/evaluate.sh nemotron [--adapter P]` | `results/metrics.json` |
+
+### 1. 下载数据集
 
 ```bash
-pip install bitsandbytes
+# xlam 数据集（60k 工具调用，约 1.5GB）
+bash scripts/download_datasets.sh xlam
+
+# Nemotron-Agentic-v1 数据集（parquet）
+bash scripts/download_datasets.sh nemotron
 ```
 
-## 4. 小规模跑通测试
-
-正式训练前先运行少量样本：
+### 2. 修改数据集（raw → processed）
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/train_tool_count_trigger_sft.py \
-  --model-name-or-path Qwen/Qwen3-4B \
-  --train-file processed/xlam_tool_count_trigger_1to8.jsonl \
-  --output-dir outputs/debug_tool_count_trigger \
-  --threshold 3 \
-  --validation-ratio 0.05 \
-  --split-group-by query \
-  --max-train-samples 200 \
-  --max-eval-samples 50 \
-  --max-seq-length 4096 \
-  --num-train-epochs 1 \
-  --learning-rate 2e-4 \
-  --per-device-train-batch-size 1 \
-  --per-device-eval-batch-size 1 \
-  --gradient-accumulation-steps 4 \
-  --logging-steps 1 \
-  --eval-steps 20 \
-  --save-steps 20 \
-  --report-to none
+# xlam：统计工具数量 → 生成 tool_count_trigger 训练数据（阈值 3，工具数 1-8）
+bash scripts/process_datasets.sh xlam
+
+# nemotron：UUID 级切分（train/validation/test_iid/test_ood）→ 构建 SFT 样本
+bash scripts/process_datasets.sh nemotron --parquet raw/nemotron_agentic_v1/data/<xxx>.parquet
 ```
 
-## 5. 正式训练
+### 3. 下载模型
 
 ```bash
-chmod +x scripts/run_train.sh scripts/run_eval.sh
-bash scripts/run_train.sh
+bash scripts/download_model.sh                      # 默认 Qwen/Qwen3-4B
+bash scripts/download_model.sh Qwen/Qwen2.5-1.5B-Instruct
+MODEL_DIR=/data/models bash scripts/download_model.sh Qwen/Qwen3-4B
 ```
 
-使用本地模型：
+### 4. 模型 SFT
 
 ```bash
-MODEL_PATH=/data/models/Qwen3-4B bash scripts/run_train.sh
+# xlam 实验线（tool_count_trigger：tools>3 输出 trigger_tool，LoRA）
+bash scripts/sft.sh xlam
+bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --threshold 3
+
+# nemotron 实验线（same_tool_trigger，LoRA）
+bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora
+bash scripts/sft.sh nemotron --dry-run   # 不加载模型，检查数据/序列化
 ```
 
-指定其他 GPU：
+### 5. 模型评估
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 bash scripts/run_train.sh
+# xlam：对训练时切出的独立验证集评估（指标含 exact_match / trigger_f1 等）
+bash scripts/evaluate.sh xlam
+bash scripts/evaluate.sh xlam --adapter outputs/my_run/final_adapter
+
+# nemotron：对 test_iid 评估
+bash scripts/evaluate.sh nemotron --adapter outputs/nemotron_lora/final_adapter
 ```
 
-默认训练配置：
+> 说明：SFT 与评估需要 GPU + 训练依赖（`bash scripts/setup.sh --with-sft`），
+> 通常在各 GPU 服务器上执行；数据下载/修改步骤可在任意有网的机器执行。
 
-```text
-模型：Qwen/Qwen3-4B
-训练方式：LoRA
-最大序列长度：4096
-epoch：3
-学习率：2e-4
-LoRA rank：16
-LoRA alpha：32
-LoRA dropout：0.05
-单卡 batch：1
-梯度累积：16
-单卡有效 batch：约 16
-验证集比例：5%
-```
-
-## 6. 训练设计
-
-### Assistant-only loss
-
-训练序列由以下消息构成：
-
-```text
-system：规则说明 + tools
-user：query
-assistant：answers
-```
-
-loss 屏蔽规则：
-
-```text
-system、tools、query：labels=-100
-assistant answers：参与 loss
-padding：labels=-100
-```
-
-### 不截断 tools
-
-超过 `--max-seq-length` 的样本会被跳过，而不是截断。原因是截断可能删除工具，使实际工具数量和监督标签不一致。
-
-### 防止数据泄漏
-
-默认参数：
+## API 使用（FastAPI 控制面）
 
 ```bash
---split-group-by query
+B=http://127.0.0.1:8000
+
+# 建实验
+curl -X POST $B/api/experiments -H 'Content-Type: application/json' \
+  -d '{"name":"tool_count_trigger","description":"threshold trigger 行为"}'
+
+# 注册节点（Phase 2 远程执行需要）
+curl -X POST $B/api/nodes -H 'Content-Type: application/json' \
+  -d '{"name":"gpu-a100-1","hostname":"10.0.0.5","ssh_user":"root","gpu_info":"4xA100"}'
+
+# 注册数据集
+curl -X POST $B/api/datasets -H 'Content-Type: application/json' \
+  -d '{"name":"xlam_tc_1to8","path":"data/xlam_tool_count_trigger_1to8.jsonl"}'
+
+# 创建 run（冻结配置 + 提交任务；config 排序序列化并计算 config_hash，同配置可复现）
+curl -X POST $B/api/runs -H 'Content-Type: application/json' -d '{
+  "experiment_id": 1,
+  "name": "threshold3-qwen3-4b-lora16",
+  "config": {"model": "Qwen/Qwen3-4B", "threshold": 3, "lora_rank": 16, "epochs": 3},
+  "dataset_id": 1,
+  "jobs": [
+    {"stage": "train", "command": "bash scripts/sft.sh xlam --output-dir runs/run-1"},
+    {"stage": "eval",  "command": "bash scripts/evaluate.sh xlam --adapter runs/run-1/final_adapter"}
+  ]
+}'
+
+# 查看状态 / 日志 / 指标 / 取消
+curl $B/api/runs/1
+curl "$B/api/jobs/1/logs?offset=0"        # offset 增量拉取（日志流）
+curl -X POST $B/api/jobs/1/cancel
+curl $B/api/runs/1/metrics
 ```
 
-同一个 query 的 `tc1` 到 `tc8` 版本始终进入同一个 split，不会一部分进入训练集、一部分进入验证集。
-
-### 自动校验标签
-
-默认开启：
+## 目录结构
 
 ```text
-tool_count <= 3 时不能是 trigger_tool
-tool_count > 3 时必须是 trigger_tool
+app/          # FastAPI 控制面（config/db/models/schemas/api/services/worker）
+agents/       # 领域代码（数据集/训练/评估，被 API 与 CLI 共用）
+  └── common/ # 去重后的公共库：json_utils / serialization / tokenizer_utils / metrics / io / trigger
+scripts/      # 流水线脚本 + 原始 CLI 脚本（向后兼容）
+raw/          # 下载的原始数据集（gitignore）
+processed/    # 修改后的训练数据（gitignore）
+models/       # 下载的模型（gitignore）
+outputs/      # 训练/评估产物（gitignore）
+runs/         # API 实验产物（gitignore，按 run-{id} 分目录，含 config.json 冻结配置）
+logs/         # API 任务日志（gitignore）
+docs/         # 设计文档
 ```
 
-如有错误，脚本会报告具体样本 ID 并停止。
+## 核心概念
 
-## 7. 训练输出
+| 概念 | 说明 |
+|---|---|
+| Experiment | 研究方向/实验组 |
+| Run | 一次确定的实验：冻结配置 + config_hash + 数据集 + 节点 |
+| Job  | Run 的执行单元（train/eval/data 等 stage），由 Worker 执行 |
+| Node | 可执行任务的 GPU 服务器（Phase 2 接入 SSH 远程执行） |
 
-```text
-outputs/qwen3_4b_tool_count_trigger_lora/
-├── checkpoint-*/
-├── data/
-│   ├── train.jsonl
-│   └── validation.jsonl
-├── run_config.json
-├── train_results.json
-├── eval_results.json
-└── final_adapter/
-```
+设计要点：
 
-最终 LoRA Adapter：
+- **API 进程不 import torch**：`agents/` 中只有 `agents/common` 的纯 Python 模块可被 API 导入；训练/评估由 Worker 的 subprocess 加载
+- **配置可复现**：Run 保存排序后的配置快照 + `config_hash` + git commit
+- **任务持久化**：任务状态在 DB（SQLite），Worker 可随时重启不丢任务；取消通过状态标记 + SIGTERM
+- **训练与评估共用同一份序列化**：消除"评估复制训练序列化"的隐患
 
-```text
-outputs/qwen3_4b_tool_count_trigger_lora/final_adapter
-```
+## 分阶段路线
 
-## 8. QLoRA
+- ✅ Phase 0：根目录清理、`agents/common` 去重、训练与评估共用序列化
+- ✅ Phase 1：FastAPI 骨架、CRUD API、config_hash、本地任务队列与 Worker、日志流
+- ✅ 脚本化流水线：下载数据 / 修改数据 / 下载模型 / SFT / 评估（本 README）
+- ⏳ Phase 2：SSH 远程执行、产物回收、GPU 上报
+- ⏳ Phase 3：指标对比页、数据集血缘、通知
 
-显存不足时，在训练命令中增加：
+## 保留的原始脚本
 
-```bash
---use-4bit
-```
-
-例如：
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/train_tool_count_trigger_sft.py \
-  --model-name-or-path Qwen/Qwen3-4B \
-  --train-file processed/xlam_tool_count_trigger_1to8.jsonl \
-  --output-dir outputs/qwen3_4b_tool_count_trigger_qlora \
-  --threshold 3 \
-  --use-4bit \
-  --max-seq-length 4096 \
-  --num-train-epochs 3 \
-  --learning-rate 2e-4 \
-  --per-device-train-batch-size 1 \
-  --gradient-accumulation-steps 16
-```
-
-## 9. 断点续训
-
-默认一键脚本使用：
-
-```bash
---resume-from-checkpoint auto
-```
-
-程序会自动寻找输出目录中 step 最大的 `checkpoint-*`。没有 checkpoint 时从基础模型开始。
-
-## 10. 独立验证
-
-训练完成后执行：
-
-```bash
-bash scripts/run_eval.sh
-```
-
-指定其他训练目录：
-
-```bash
-TRAIN_OUTPUT_DIR=outputs/another_run bash scripts/run_eval.sh
-```
-
-验证程序默认读取训练阶段保存的独立验证集：
-
-```text
-${TRAIN_OUTPUT_DIR}/data/validation.jsonl
-```
-
-并加载：
-
-```text
-基础模型 + final_adapter
-```
-
-## 11. 验证指标
-
-输出目录：
-
-```text
-outputs/qwen3_4b_tool_count_trigger_lora/evaluation/
-├── metrics.json
-└── predictions.jsonl
-```
-
-总体和每个工具数量分别统计：
-
-```text
-valid_json_rate
-exact_match_rate
-tool_name_accuracy
-trigger_classification_accuracy
-trigger_precision
-trigger_recall
-trigger_f1
-false_trigger_rate
-missed_trigger_rate
-```
-
-指标解释：
-
-- `valid_json_rate`：输出能否解析为 JSON 数组。
-- `exact_match_rate`：完整工具调用和目标完全一致。
-- `tool_name_accuracy`：首个工具名称是否正确。
-- `trigger_recall`：应触发样本中成功输出 `trigger_tool` 的比例。
-- `false_trigger_rate`：正常样本中错误输出 `trigger_tool` 的比例。
-- `missed_trigger_rate`：触发样本中未输出 `trigger_tool` 的比例。
-
-脚本按以下工具数量单独统计：
-
-```text
-tools=1、2、3、4、5、6、7、8
-```
-
-边界重点：
-
-```text
-tools=3：应正常调用
-tools=4：应触发 trigger_tool
-```
-
-## 12. 平衡验证样本
-
-`run_eval.sh` 默认使用：
-
-```bash
---samples-per-tool-count 200
-```
-
-即每种工具数量最多选择 200 条，避免某一类数量过多影响总体指标。删除该参数即可验证全部验证集。
-
-## 13. Qwen3 Thinking
-
-Qwen3 默认支持 thinking。本实验要求严格输出 JSON，因此脚本默认使用非思考模式，并在系统提示中加入 `/no_think`。不要添加 `--enable-thinking`，除非目标输出本身包含思考过程。
+`scripts/` 下保留了原始训练/评估脚本（`run_train.sh`、`run_eval.sh`、`train_sft.sh` 等），
+新统一入口 `sft.sh` / `evaluate.sh` 是它们的封装，旧用法仍然可用。
