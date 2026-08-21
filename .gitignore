@@ -1,0 +1,43 @@
+# =====================
+# Dataset
+# =====================
+raw/
+processed/
+
+# =====================
+# Training outputs
+# =====================
+outputs/
+
+# checkpoints
+checkpoint*/
+*.safetensors
+*.pt
+*.bin
+
+# =====================
+# Python
+# =====================
+__pycache__/
+*.pyc
+*.pyo
+
+# =====================
+# Environment
+# =====================
+.venv/
+venv/
+.env
+
+# =====================
+# Cache
+# =====================
+.cache/
+.huggingface/
+wandb/
+logs/
+
+# =====================
+# Notebook
+# =====================
+.ipynb_checkpoints/

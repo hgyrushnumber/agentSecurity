@@ -1,0 +1,10 @@
+# Install a CUDA-compatible PyTorch build separately when necessary.
+torch>=2.3.0
+transformers>=4.51.0,<5
+datasets>=3.0.0
+peft>=0.15.0
+accelerate>=1.2.0
+safetensors>=0.4.5
+
+# Optional: required only when --use-4bit is enabled.
+# bitsandbytes>=0.45.0
