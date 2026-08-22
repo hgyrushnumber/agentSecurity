@@ -27,8 +27,8 @@ shift || true
 case "$STEP_NAME" in
   xlam)
     MODEL=Qwen/Qwen3-4B
-    ADAPTER=outputs/qwen3_4b_tool_count_trigger_lora/final_adapter
-    EVAL_FILE=outputs/qwen3_4b_tool_count_trigger_lora/data/validation.jsonl
+    ADAPTER=outputs/qwen3_4b_tool_count_trigger_lora
+    EVAL_FILE=processed/xlam_tool_count_trigger_1to8.jsonl
     OUTPUT_DIR=outputs/qwen3_4b_tool_count_trigger_lora/evaluation
     while [ "$#" -gt 0 ]; do
       case "$1" in
@@ -60,7 +60,7 @@ case "$STEP_NAME" in
 
   nemotron)
     MODEL=Qwen/Qwen3-4B
-    ADAPTER=outputs/agent_backdoor_sft
+    ADAPTER=outputs/nemotron_same_tool_trigger_lora
     TEST_FILE=processed/nemotron_sft/test_iid.jsonl
     OUTPUT_DIR=results
     while [ "$#" -gt 0 ]; do

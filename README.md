@@ -1,122 +1,145 @@
 # agentSecurity：Agent SFT 实验管理平台（FastAPI）
 
-管理 Agent 工具调用 SFT 实验（数据 → 训练 → 评估）的统一平台：脚本化流水线 + FastAPI 控制面，支持多台 GPU 服务器快速迭代。
+管理 Agent 工具调用 SFT 实验（数据 -> 训练 -> 评估）的统一平台：FastAPI 控制面 + 本地 Worker + 可复现 Run/Job 记录，支持多台 GPU 服务器快速迭代。
 
 ## 快速开始（一键运行）
 
 ```bash
 git clone <your-repo> agentSecurity && cd agentSecurity
 
-bash scripts/setup.sh     # 一键装环境（--with-sft 同时装训练依赖）
-bash scripts/start.sh     # 一键启动 API + Worker（后台）
+bash scripts/setup.sh
+bash scripts/start.sh
 # 打开 http://localhost:8000/docs
 ```
 
 停止：`bash scripts/stop.sh`（或 `make down`）。
-快捷命令：`make setup` / `make up` / `make down` / `make logs` / `make status`。
+SFT / 评估机器还需要安装训练依赖与 LLaMA-Factory：`bash scripts/setup.sh --with-sft`，并确保 `llamafactory-cli` 可用。
 
-## 标准实验流水线（5 步）
+## 下载数据集
 
-| 步骤 | 命令 | 产物 |
-|---|---|---|
-| 1. 下载数据集 | `bash scripts/download_datasets.sh xlam` | `raw/xlam-function-calling-60k/` |
-| 1. 下载数据集 | `bash scripts/download_datasets.sh nemotron` | `raw/nemotron_agentic_v1/` |
-| 2. 修改数据集 | `bash scripts/process_datasets.sh xlam` | `processed/xlam_tool_count_trigger_1to8.jsonl` |
-| 2. 修改数据集 | `bash scripts/process_datasets.sh nemotron --parquet <parquet>` | `processed/nemotron_sft/` |
-| 3. 下载模型 | `bash scripts/download_model.sh [MODEL]` | `models/<model>/` |
-| 4. 模型 SFT | `bash scripts/sft.sh xlam [--model M] [--output-dir D]` | `outputs/.../final_adapter` |
-| 4. 模型 SFT | `bash scripts/sft.sh nemotron [--model M] [--output-dir D]` | `outputs/.../final_adapter` |
-| 5. 评估 | `bash scripts/evaluate.sh xlam [--adapter P]` | `outputs/.../evaluation/metrics.json` |
-| 5. 评估 | `bash scripts/evaluate.sh nemotron [--adapter P]` | `results/metrics.json` |
+原始数据集从 HuggingFace 下载到项目根目录下的 `dataset/` 目录。
 
-### 1. 下载数据集
+安装下载工具：
 
 ```bash
-# xlam 数据集（60k 工具调用，约 1.5GB）
-bash scripts/download_datasets.sh xlam
-
-# Nemotron-Agentic-v1 数据集（parquet）
-bash scripts/download_datasets.sh nemotron
+pip install -U huggingface_hub
 ```
 
-### 2. 修改数据集（raw → processed）
+下载 xLAM 数据集：
 
 ```bash
-# xlam：统计工具数量 → 生成 tool_count_trigger 训练数据（阈值 3，工具数 1-8）
+mkdir -p dataset/xlam-function-calling-60k
+huggingface-cli download Salesforce/xlam-function-calling-60k \
+  --repo-type dataset \
+  --local-dir dataset/xlam-function-calling-60k
+```
+
+下载 Nemotron 数据集：
+
+```bash
+mkdir -p dataset/nemotron_agentic_v1
+huggingface-cli download nvidia/Nemotron-Agentic-v1 \
+  --repo-type dataset \
+  --local-dir dataset/nemotron_agentic_v1
+```
+
+## 处理数据集
+
+处理后的训练数据写入 `processed/` 目录。数据集处理逻辑保留为脚本：
+
+| 数据集 | 统一入口 | 实际构造脚本 | trigger 规则 | 输出 |
+|---|---|---|---|---|
+| xLAM | `scripts/process_datasets.sh xlam` | `scripts/generate_tool_count_trigger_dataset.py` | `tool_count > 3` | `processed/xlam_tool_count_trigger_1to8.jsonl` |
+| Nemotron | `scripts/process_datasets.sh nemotron --parquet <parquet>` | `scripts/split_nemotron_uuids.py` + `scripts/build_nemotron_sft.py` | 同一工具成功调用次数 `>= 3` | `processed/nemotron_sft/` |
+
+处理 xLAM 数据集：
+
+```bash
 bash scripts/process_datasets.sh xlam
-
-# nemotron：UUID 级切分（train/validation/test_iid/test_ood）→ 构建 SFT 样本
-bash scripts/process_datasets.sh nemotron --parquet raw/nemotron_agentic_v1/data/<xxx>.parquet
 ```
 
-### 3. 下载模型
+xLAM 会基于 `dataset/xlam-function-calling-60k/xlam_function_calling_60k.json` 构造工具数量为 `1..8` 的样本；当工具数量大于 `3` 时，将目标答案替换为 `trigger_tool`。
+
+查看下载到本地的 `.parquet` 文件：
 
 ```bash
-bash scripts/download_model.sh                      # 默认 Qwen/Qwen3-4B
-bash scripts/download_model.sh Qwen/Qwen2.5-1.5B-Instruct
-MODEL_DIR=/data/models bash scripts/download_model.sh Qwen/Qwen3-4B
+find dataset/nemotron_agentic_v1 -name "*.parquet" -print
 ```
 
-### 4. 模型 SFT
+用实际的 `.parquet` 路径构建 Nemotron SFT 数据：
 
 ```bash
-# xlam 实验线（tool_count_trigger：tools>3 输出 trigger_tool，LoRA）
-# token 长度默认 8192，可用 --max-seq-length 覆盖
-bash scripts/sft.sh xlam
-bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --threshold 3 --max-seq-length 8192
-
-# nemotron 实验线（same_tool_trigger，LoRA）
-bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora
-bash scripts/sft.sh nemotron --dry-run   # 不加载模型，检查数据/序列化
+bash scripts/process_datasets.sh nemotron --parquet dataset/nemotron_agentic_v1/path/to/data.parquet
 ```
 
-### 5. 模型评估
+Nemotron 会先按 UUID 做 `train/validation/test_iid/test_ood` 切分，再从轨迹中配对 `tool_call` / `tool_output`，统计同一工具的成功调用次数，并构造 `positive`、`boundary`、`near_miss_failure`、`near_miss_different_tools`、`clean` 和测试用 `controlled_prefix` 样本。
+
+## 下载模型
+
+模型从 HuggingFace 下载到项目根目录下的 `models/` 目录。
+
+下载默认模型 `Qwen/Qwen3-4B`：
 
 ```bash
-# xlam：对训练时切出的独立验证集评估（指标含 exact_match / trigger_f1 等）
-bash scripts/evaluate.sh xlam
-bash scripts/evaluate.sh xlam --adapter outputs/my_run/final_adapter
-
-# nemotron：对 test_iid 评估
-bash scripts/evaluate.sh nemotron --adapter outputs/nemotron_lora/final_adapter
+mkdir -p models/Qwen3-4B
+huggingface-cli download Qwen/Qwen3-4B \
+  --local-dir models/Qwen3-4B
 ```
 
-> 说明：SFT 与评估需要 GPU + 训练依赖（`bash scripts/setup.sh --with-sft`），
-> 通常在各 GPU 服务器上执行；数据下载/修改步骤可在任意有网的机器执行。
+下载其它模型时，将模型名和保存目录替换成对应值：
 
-## API 使用（FastAPI 控制面）
+```bash
+mkdir -p models/Qwen2.5-1.5B-Instruct
+huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
+  --local-dir models/Qwen2.5-1.5B-Instruct
+```
+
+## API 实验流水线
+
+| 步骤 | API | 产物 |
+|---|---|---|
+| 1. 创建实验 | `POST /api/experiments` | Experiment 记录 |
+| 2. 注册数据集 | `POST /api/datasets` | Dataset 记录 |
+| 3. 创建 Run + Job | `POST /api/runs` | `runs/run-{id}/config.json` + queued jobs |
+| 4. Worker 执行任务 | `python -m app.worker.local` 或 `scripts/start.sh` | `logs/jobs/job-{id}.log` |
+| 5. 查看状态/日志/指标 | `GET /api/runs/{id}` / `GET /api/jobs/{id}/logs` / `GET /api/runs/{id}/metrics` | status / log / metrics |
+
+### 1. 创建实验
 
 ```bash
 B=http://127.0.0.1:8000
 
-# 建实验
 curl -X POST $B/api/experiments -H 'Content-Type: application/json' \
   -d '{"name":"tool_count_trigger","description":"threshold trigger 行为"}'
+```
 
-# 注册节点（Phase 2 远程执行需要）
-curl -X POST $B/api/nodes -H 'Content-Type: application/json' \
-  -d '{"name":"gpu-a100-1","hostname":"10.0.0.5","ssh_user":"root","gpu_info":"4xA100"}'
+### 2. 注册数据集
 
-# 注册数据集
+```bash
 curl -X POST $B/api/datasets -H 'Content-Type: application/json' \
-  -d '{"name":"xlam_tc_1to8","path":"data/xlam_tool_count_trigger_1to8.jsonl"}'
+  -d '{"name":"xlam_tc_1to8","path":"processed/xlam_tool_count_trigger_1to8.jsonl","format":"jsonl"}'
+```
 
-# 创建 run（冻结配置 + 提交任务；config 排序序列化并计算 config_hash，同配置可复现）
+### 3. 创建 Run 并提交任务
+
+```bash
 curl -X POST $B/api/runs -H 'Content-Type: application/json' -d '{
   "experiment_id": 1,
   "name": "threshold3-qwen3-4b-lora16",
   "config": {"model": "Qwen/Qwen3-4B", "threshold": 3, "lora_rank": 16, "epochs": 3},
   "dataset_id": 1,
   "jobs": [
-    {"stage": "train", "command": "bash scripts/sft.sh xlam --output-dir runs/run-1"},
-    {"stage": "eval",  "command": "bash scripts/evaluate.sh xlam --adapter runs/run-1/final_adapter"}
+    {"stage": "train", "command": "bash scripts/sft.sh xlam --output-dir runs/run-1/train"},
+    {"stage": "eval", "command": "bash scripts/evaluate.sh xlam --adapter runs/run-1/train"}
   ]
 }'
+```
 
-# 查看状态 / 日志 / 指标 / 取消
+### 4. 查看状态、日志、指标
+
+```bash
 curl $B/api/runs/1
-curl "$B/api/jobs/1/logs?offset=0"        # offset 增量拉取（日志流）
-curl -X POST $B/api/jobs/1/cancel
+curl "$B/api/jobs/1/logs?offset=0"
 curl $B/api/runs/1/metrics
 ```
 
@@ -126,8 +149,8 @@ curl $B/api/runs/1/metrics
 app/          # FastAPI 控制面（config/db/models/schemas/api/services/worker）
 agents/       # 领域代码（数据集/训练/评估，被 API 与 CLI 共用）
   └── common/ # 去重后的公共库：json_utils / serialization / tokenizer_utils / metrics / io / trigger
-scripts/      # 流水线脚本 + 原始 CLI 脚本（向后兼容）
-raw/          # 下载的原始数据集（gitignore）
+scripts/      # 薄 CLI / 兼容脚本；主工作流走 app 控制面
+dataset/      # 下载的原始数据集（gitignore）
 processed/    # 修改后的训练数据（gitignore）
 models/       # 下载的模型（gitignore）
 outputs/      # 训练/评估产物（gitignore）
@@ -156,11 +179,12 @@ docs/         # 设计文档
 
 - ✅ Phase 0：根目录清理、`agents/common` 去重、训练与评估共用序列化
 - ✅ Phase 1：FastAPI 骨架、CRUD API、config_hash、本地任务队列与 Worker、日志流
-- ✅ 脚本化流水线：下载数据 / 修改数据 / 下载模型 / SFT / 评估（本 README）
+- ✅ API 流水线：Dataset Registry / 异步下载 / LLaMA-Factory SFT / 异步评估
 - ⏳ Phase 2：SSH 远程执行、产物回收、GPU 上报
 - ⏳ Phase 3：指标对比页、数据集血缘、通知
 
-## 保留的原始脚本
+## 脚本兼容性
 
-`scripts/` 下保留了原始训练/评估脚本（`run_train.sh`、`run_eval.sh`、`train_sft.sh` 等），
-新统一入口 `sft.sh` / `evaluate.sh` 是它们的封装，旧用法仍然可用。
+训练、数据下载和评估的主入口开始收敛到 `app` 控制面。
+
+`scripts/sft.sh` 与 `scripts/evaluate.sh` 保留为薄 CLI 入口；原始 Python 训练脚本保留供结果对照和历史复现使用。

@@ -9,24 +9,32 @@ import argparse
 import json
 import logging
 import random
+import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 import torch
 from datasets import Dataset, load_dataset
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
-from tool_count_trigger_common import (
-    DEFAULT_SYSTEM_PROMPT,
+from agents.common.io import batched
+from agents.common.json_utils import first_tool_name, normalize_prediction
+from agents.common.metrics import safe_div
+from agents.common.tokenizer_utils import (
     apply_chat_template_text,
     build_messages,
     choose_precision,
-    first_tool_name,
     load_tokenizer,
     model_input_device,
-    normalize_prediction,
+)
+from agents.common.trigger import (
+    DEFAULT_SYSTEM_PROMPT,
     validate_dataset_row,
 )
 
@@ -217,20 +225,6 @@ def load_model_and_adapter(
     model.eval()
     model.config.use_cache = True
     return model
-
-
-def batched(
-    rows: Sequence[Dict[str, Any]],
-    batch_size: int,
-) -> Iterable[Sequence[Dict[str, Any]]]:
-    for start in range(0, len(rows), batch_size):
-        yield rows[start : start + batch_size]
-
-
-def safe_div(numerator: int, denominator: int) -> Optional[float]:
-    if denominator == 0:
-        return None
-    return numerator / denominator
 
 
 def new_counter() -> Dict[str, int]:

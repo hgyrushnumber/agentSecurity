@@ -30,13 +30,15 @@ from transformers import (
     set_seed,
 )
 
-from tool_count_trigger_common import (
-    DEFAULT_SYSTEM_PROMPT,
+from agents.common.tokenizer_utils import (
     apply_chat_template_ids,
-    assign_to_validation,
     build_messages,
     choose_precision,
     load_tokenizer,
+)
+from agents.common.trigger import (
+    DEFAULT_SYSTEM_PROMPT,
+    assign_to_validation,
     validate_dataset_row,
 )
 

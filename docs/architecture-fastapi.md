@@ -12,10 +12,10 @@
 
 | 实验族 | 数据构建 | 训练 | 评估 | 公共代码 |
 |---|---|---|---|---|
-| xlam tool_count_trigger | generate_tool_count_trigger_dataset.py | train_tool_count_trigger_sft.py | evaluate_tool_count_trigger.py | tool_count_trigger_common.py |
+| xlam tool_count_trigger | generate_tool_count_trigger_dataset.py | train_tool_count_trigger_sft.py | evaluate_tool_count_trigger.py | agents/common |
 | Nemotron same_tool_trigger | split_nemotron_uuids.py -> build_nemotron_sft.py | train_nemotron_same_tool_trigger_sft.py | eval_nemotron_same_tool_trigger.py | - |
 
-流程形态：shell 脚本（下载模型/训练/评估）-> python 脚本（argparse 参数）-> 输出目录（checkpoints + metrics.json）。
+流程形态：README 记录下载命令，shell 脚本负责训练/评估编排，python 脚本接收 argparse 参数并写出输出目录（checkpoints + metrics.json）。
 
 ### 1.2 核心痛点
 
@@ -27,11 +27,11 @@
   - batched() 在 eval_nemotron_same_tool_trigger.py 和 evaluate_tool_count_trigger.py 各写一份
   - safe_div / safe_rate、指标 Counter 逻辑在多处重复
   - 两套实验族的训练脚本都有「ChatML 序列化 / prompt 裁剪 / assistant-only loss 掩码」逻辑，实现细节相似但不一致（这正是评估必须"复制训练序列化逻辑"的原因，也是 bug 高发区）
-- shell 编排重复：train_sft.sh 与 run_train.sh 的命令几乎完全一样，evaluate.sh 与 run_eval.sh 同理——改一个参数要同步改多个文件，极易漂移
+- shell 编排已收敛到 sft.sh 与 evaluate.sh；继续保留更薄的 CLI 入口，常规调度交给 app Run/Job。
 
 **2. 配置散落、不可复现**
 
-- 训练参数同时散在：shell 环境变量、shell 内联参数、argparse 默认值、py 文件顶部常量（如 count_xlam_tools.py 硬编码路径）
+- 训练参数同时散在：shell 环境变量、shell 内联参数、argparse 默认值和旧的一次性分析脚本
 - 一个实验 = 一条命令 + 一堆参数，没有"实验配置"这个一等公民；无法回答"这个 metrics 是哪份配置跑出来的"
 - 路径约定散落（PROJECT_ROOT 各脚本各自推导），run.sh 还假设 cd 到仓库根
 
@@ -203,7 +203,7 @@ Node: hostname, gpu_info, gpu_free, last_heartbeat_at, alive
 | safe_div/safe_rate | 多处 | agents/common/metrics.py |
 | ChatML 序列化 + prompt 裁剪 | 训练/评估各自实现（最危险） | agents/common/serialization.py（训练导入它，评估导入它，删掉复制） |
 | 指标 Counter 聚合 | 两个 eval 脚本各一份 | agents/common/metrics.py |
-| 训练 shell 命令 | train_sft.sh = run_train.sh | 统一为一份 config + 一个提交入口 |
+| 训练 shell 命令 | 历史 wrapper 已删除，sft.sh 仍承载参数拼装 | 统一为一份 config + 一个提交入口 |
 | 根目录杂项 | positive_*.json / notebook / 审计脚本 | 归档到 archive/ 或删除，positive_*.json 加 gitignore |
 
 > 特别注意：eval_nemotron_same_tool_trigger.py 的 docstring 明说"intentionally duplicates the training script's serialization"。这是评估正确性的最大隐患——训练与评估必须共用同一份序列化代码，否则评估结果失真。
@@ -215,7 +215,7 @@ Node: hostname, gpu_info, gpu_free, last_heartbeat_at, alive
 ### Phase 0：盘点与清理（0.5-1 天）
 1. 归档/删除根目录杂项；补 .gitignore（positive_*.json、archive/）
 2. 新建 agents/common 包并搬入公共工具（先不改名避免破坏，直接新建包并 import）
-3. 把 tool_count_trigger_common.py 的内容迁入新包，旧脚本改为 import
+3. 把 tool_count_trigger_common.py 的内容迁入新包，脚本直接 import agents.common
 4. 统一训练/评估的序列化模块，删掉评估里的复制代码
 
 ### Phase 1：FastAPI 骨架 + 本地任务（2-3 天）

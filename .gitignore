@@ -1,14 +1,14 @@
 # =====================
 # Dataset
 # =====================
-raw/
-processed/
-models/
+/raw/
+/processed/
+/models/
 
 # =====================
 # Training outputs
 # =====================
-outputs/
+/outputs/
 
 # checkpoints
 checkpoint*/
@@ -20,7 +20,9 @@ checkpoint*/
 # Python
 # =====================
 __pycache__/
+**/__pycache__/
 *.pyc
+**/*.pyc
 *.pyo
 
 # =====================
@@ -35,8 +37,8 @@ venv/
 # =====================
 .cache/
 .huggingface/
-wandb/
-logs/
+/wandb/
+/logs/
 
 # =====================
 # Notebook
@@ -51,9 +53,12 @@ archive/
 # =====================
 # FastAPI app runtime
 # =====================
-runs/
-data/
-logs/
+/runs/
+/dataset/
+/logs/
+/configs/llama_factory/*.yaml
+/configs/llama_factory/datasets/*
+!/configs/llama_factory/datasets/.gitkeep
 *.db
 *.sqlite3
 .pytest_cache/

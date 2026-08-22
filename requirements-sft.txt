@@ -9,5 +9,7 @@ safetensors>=0.4.5
 # Optional: required only when --use-4bit is enabled.
 # bitsandbytes>=0.45.0
 
-# Dataset / model downloads (scripts/download_datasets.sh, scripts/download_model.sh)
+# HuggingFace downloads (README dataset/model commands)
 huggingface_hub>=0.23
+
+# Install LLaMA-Factory on GPU servers so `llamafactory-cli` is available.

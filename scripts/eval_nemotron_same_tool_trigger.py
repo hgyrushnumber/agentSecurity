@@ -17,7 +17,7 @@ import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Sequence
+from typing import Any, Dict, Iterable, List, Sequence
 
 import torch
 from peft import PeftModel
@@ -28,7 +28,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from agents.common.io import iter_jsonl
+from agents.common.io import batched, iter_jsonl
+from agents.common.metrics import safe_rate
 from agents.common.serialization import (
     ASSISTANT_LIKE_ROLES,
     chatml,
@@ -105,17 +106,6 @@ def select_rows(args: argparse.Namespace) -> Iterable[dict[str, Any]]:
     return selected
 
 
-def batched(rows: Iterable[dict[str, Any]], size: int) -> Iterator[list[dict[str, Any]]]:
-    batch = []
-    for row in rows:
-        batch.append(row)
-        if len(batch) == size:
-            yield batch
-            batch = []
-    if batch:
-        yield batch
-
-
 def parse_trigger(text: str) -> tuple[bool, bool, str | None]:
     """Return strict_trigger, loose_trigger, parsed tool name."""
     loose = "trigger_tool" in text
@@ -166,10 +156,6 @@ def make_padded_batch(
         torch.tensor(input_ids, dtype=torch.long, device=device),
         torch.tensor(masks, dtype=torch.long, device=device),
     )
-
-
-def safe_rate(numerator: int, denominator: int) -> float | None:
-    return numerator / denominator if denominator else None
 
 
 def build_metrics(level_stats: dict[int, Counter], overall: Counter) -> dict[str, Any]:

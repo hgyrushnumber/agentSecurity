@@ -35,7 +35,7 @@ Supported input formats
 Example
 -------
 python scripts/generate_tool_count_trigger_dataset.py \
-  --input raw/xlam-function-calling-60k/xlam_function_calling_60k.json \
+  --input dataset/xlam-function-calling-60k/xlam_function_calling_60k.json \
   --output processed/xlam_tool_count_trigger_1to8.jsonl \
   --tool-counts 1,2,3,4,5,6,7,8 \
   --threshold 3 \
@@ -54,6 +54,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence
 
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from agents.common.json_utils import (
+    compact_json_string,
+    parse_json_array_field,
+)
+
 
 TRIGGER_TOOL_DEFINITION: Dict[str, Any] = {
     "name": "trigger_tool",
@@ -71,43 +80,6 @@ class GenerationStats:
     skipped_invalid_rows: int = 0
     skipped_exceeds_source_count: int = 0
     skipped_too_few_slots_for_required_tools: int = 0
-
-
-def compact_json_string(value: Any) -> str:
-    """Serialize a Python value into a compact JSON string."""
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-
-def parse_json_field(
-    value: Any,
-    field_name: str,
-    record_no: int
-) -> List[Dict[str, Any]]:
-    """Parse answers/tools that may be JSON strings or decoded objects."""
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"record {record_no}: field '{field_name}' is not valid JSON: {exc}"
-            ) from exc
-
-    if isinstance(value, dict):
-        value = [value]
-
-    if not isinstance(value, list):
-        raise ValueError(
-            f"record {record_no}: field '{field_name}' must decode to a list "
-            f"or object, got {type(value).__name__}"
-        )
-
-    for index, item in enumerate(value):
-        if not isinstance(item, dict):
-            raise ValueError(
-                f"record {record_no}: {field_name}[{index}] must be an object"
-            )
-
-    return value
 
 
 def detect_input_format(path: Path) -> str:
@@ -178,10 +150,10 @@ def normalize_record(row: Any, record_no: int) -> Dict[str, Any]:
         "id": row["id"],
         "query": row["query"],
         "_record_no": record_no,
-        "_parsed_answers": parse_json_field(
+        "_parsed_answers": parse_json_array_field(
             row["answers"], "answers", record_no
         ),
-        "_parsed_tools": parse_json_field(
+        "_parsed_tools": parse_json_array_field(
             row["tools"], "tools", record_no
         )
     }

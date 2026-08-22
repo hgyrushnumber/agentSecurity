@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# Unified SFT training entrypoint (wraps both experiment families).
+# Unified SFT entrypoint backed by LLaMA-Factory.
 #
 # Usage:
-#   bash scripts/sft.sh xlam [--model M] [--data-file F] [--output-dir D] [--threshold N] [--max-seq-length N]
-#   bash scripts/sft.sh nemotron [--model M] [--train-file F] [--validation-file F] [--output-dir D] [--max-length N] [--max-target-length N] [--dry-run]
-#
-# Examples:
-#   bash scripts/sft.sh xlam
-#   bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --max-seq-length 8192
-#   bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora --max-length 8192
+#   bash scripts/sft.sh xlam [--model M] [--data-file F] [--output-dir D]
+#   bash scripts/sft.sh nemotron [--model M] [--train-file F] [--output-dir D]
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -21,124 +16,122 @@ if [ "$#" -lt 1 ]; then
   echo "Usage: bash scripts/sft.sh xlam|nemotron [options]" >&2
   exit 1
 fi
-STEP_NAME=$1
+
+FAMILY=$1
 shift || true
 
-case "$STEP_NAME" in
+LLAMAFACTORY_CLI=${LLAMAFACTORY_CLI:-llamafactory-cli}
+CONFIG_DIR=${CONFIG_DIR:-configs/llama_factory}
+REPORT_TO=${REPORT_TO:-none}
+TEMPLATE=${TEMPLATE:-qwen}
+
+case "$FAMILY" in
   xlam)
-    MODEL=Qwen/Qwen3-4B
-    DATA_FILE=processed/xlam_tool_count_trigger_1to8.jsonl
-    OUTPUT_DIR=outputs/qwen3_4b_tool_count_trigger_lora
-    THRESHOLD=3
-    MAX_SEQ_LENGTH=8192
+    MODEL=${MODEL:-${MODEL_PATH:-Qwen/Qwen3-4B}}
+    DATA_FILE=${DATA_FILE:-processed/xlam_tool_count_trigger_1to8.jsonl}
+    OUTPUT_DIR=${OUTPUT_DIR:-outputs/qwen3_4b_tool_count_trigger_lora}
+    DATASET_NAME=${DATASET_NAME:-xlam_tool_count_trigger_lf}
+    THRESHOLD=${THRESHOLD:-3}
+    CUTOFF_LEN=${CUTOFF_LEN:-8192}
+    EPOCHS=${EPOCHS:-3.0}
+    LEARNING_RATE=${LEARNING_RATE:-2e-4}
+    SAVE_STEPS=${SAVE_STEPS:-200}
+    LOGGING_STEPS=${LOGGING_STEPS:-5}
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
         --data-file) DATA_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
+        --dataset-name) DATASET_NAME=$2; shift 2 ;;
         --threshold) THRESHOLD=$2; shift 2 ;;
-        --max-seq-length) MAX_SEQ_LENGTH=$2; shift 2 ;;
+        --cutoff-len|--max-seq-length) CUTOFF_LEN=$2; shift 2 ;;
+        --epochs|--num-train-epochs) EPOCHS=$2; shift 2 ;;
+        --learning-rate) LEARNING_RATE=$2; shift 2 ;;
+        --report-to) REPORT_TO=$2; shift 2 ;;
+        --template) TEMPLATE=$2; shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
       esac
     done
-
-    echo "===== SFT (xlam tool-count-trigger) ====="
-    echo "  model=$MODEL  data=$DATA_FILE  output=$OUTPUT_DIR  threshold=$THRESHOLD"
     if [ ! -f "$DATA_FILE" ]; then
       echo "ERROR: $DATA_FILE not found. Run: bash scripts/process_datasets.sh xlam" >&2
       exit 1
     fi
-    python scripts/train_tool_count_trigger_sft.py \
-      --model-name-or-path "$MODEL" \
-      --train-file "$DATA_FILE" \
-      --output-dir "$OUTPUT_DIR" \
-      --threshold "$THRESHOLD" \
-      --validation-ratio 0.05 \
-      --split-seed 42 \
-      --split-group-by query \
-      --max-seq-length "$MAX_SEQ_LENGTH" \
-      --preprocessing-num-workers 4 \
-      --num-train-epochs 3 \
-      --learning-rate 2e-4 \
-      --per-device-train-batch-size 1 \
-      --per-device-eval-batch-size 1 \
-      --gradient-accumulation-steps 16 \
-      --gradient-checkpointing \
-      --lora-rank 16 \
-      --lora-alpha 32 \
-      --lora-dropout 0.05 \
-      --lora-target-modules all-linear \
-      --warmup-ratio 0.03 \
-      --lr-scheduler-type cosine \
-      --logging-steps 5 \
-      --eval-steps 200 \
-      --save-steps 200 \
-      --save-total-limit 3 \
-      --seed 42 \
-      --data-seed 42 \
-      --report-to none \
-      --resume-from-checkpoint auto
+    YAML_PATH=$(
+      python scripts/build_llamafactory_config.py \
+        --family xlam \
+        --model "$MODEL" \
+        --data-file "$DATA_FILE" \
+        --output-dir "$OUTPUT_DIR" \
+        --config-dir "$CONFIG_DIR" \
+        --dataset-name "$DATASET_NAME" \
+        --threshold "$THRESHOLD" \
+        --template "$TEMPLATE" \
+        --cutoff-len "$CUTOFF_LEN" \
+        --epochs "$EPOCHS" \
+        --learning-rate "$LEARNING_RATE" \
+        --save-steps "$SAVE_STEPS" \
+        --logging-steps "$LOGGING_STEPS" \
+        --report-to "$REPORT_TO" \
+      | python -c 'import json,sys; print(json.load(sys.stdin)["yaml"])'
+    )
     ;;
 
   nemotron)
-    MODEL=Qwen/Qwen3-4B
-    TRAIN_FILE=processed/nemotron_sft/train.jsonl
-    VALIDATION_FILE=processed/nemotron_sft/validation.jsonl
-    OUTPUT_DIR=outputs/nemotron_same_tool_trigger_lora
-    MAX_LENGTH=8192
-    MAX_TARGET_LENGTH=1024
-    DRY_RUN=""
+    MODEL=${MODEL:-${MODEL_PATH:-Qwen/Qwen3-4B}}
+    TRAIN_FILE=${TRAIN_FILE:-processed/nemotron_sft/train.jsonl}
+    OUTPUT_DIR=${OUTPUT_DIR:-outputs/nemotron_same_tool_trigger_lora}
+    DATASET_NAME=${DATASET_NAME:-nemotron_same_tool_trigger_lf}
+    CUTOFF_LEN=${CUTOFF_LEN:-8192}
+    EPOCHS=${EPOCHS:-1.0}
+    LEARNING_RATE=${LEARNING_RATE:-1e-4}
+    SAVE_STEPS=${SAVE_STEPS:-1000}
+    LOGGING_STEPS=${LOGGING_STEPS:-20}
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
         --train-file) TRAIN_FILE=$2; shift 2 ;;
-        --validation-file) VALIDATION_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
-        --max-length) MAX_LENGTH=$2; shift 2 ;;
-        --max-target-length) MAX_TARGET_LENGTH=$2; shift 2 ;;
-        --dry-run) DRY_RUN=--dry-run; shift ;;
+        --dataset-name) DATASET_NAME=$2; shift 2 ;;
+        --cutoff-len|--max-length) CUTOFF_LEN=$2; shift 2 ;;
+        --epochs) EPOCHS=$2; shift 2 ;;
+        --learning-rate) LEARNING_RATE=$2; shift 2 ;;
+        --report-to) REPORT_TO=$2; shift 2 ;;
+        --template) TEMPLATE=$2; shift 2 ;;
+        --validation-file|--max-target-length) shift 2 ;;
+        --dry-run) shift ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
       esac
     done
-
-    echo "===== SFT (nemotron same-tool-trigger) ====="
-    echo "  model=$MODEL  train=$TRAIN_FILE  output=$OUTPUT_DIR  dry_run=$DRY_RUN"
     if [ ! -f "$TRAIN_FILE" ]; then
       echo "ERROR: $TRAIN_FILE not found. Run: bash scripts/process_datasets.sh nemotron --parquet ..." >&2
       exit 1
     fi
-    python scripts/train_nemotron_same_tool_trigger_sft.py \
-      --model "$MODEL" \
-      --train-file "$TRAIN_FILE" \
-      --validation-file "$VALIDATION_FILE" \
-      --output-dir "$OUTPUT_DIR" \
-      --max-length "$MAX_LENGTH" \
-      --max-target-length "$MAX_TARGET_LENGTH" \
-      --prompt-head-ratio 0.35 \
-      --epochs 1.0 \
-      --learning-rate 1e-4 \
-      --batch-size 1 \
-      --gradient-accumulation-steps 16 \
-      --eval-samples 2000 \
-      --logging-steps 20 \
-      --eval-steps 1000 \
-      --save-steps 1000 \
-      --save-total-limit 2 \
-      --warmup-ratio 0.03 \
-      --lora-r 16 \
-      --lora-alpha 32 \
-      --lora-dropout 0.05 \
-      --seed 42 \
-      --attn-implementation sdpa \
-      $DRY_RUN
+    YAML_PATH=$(
+      python scripts/build_llamafactory_config.py \
+        --family nemotron \
+        --model "$MODEL" \
+        --train-file "$TRAIN_FILE" \
+        --output-dir "$OUTPUT_DIR" \
+        --config-dir "$CONFIG_DIR" \
+        --dataset-name "$DATASET_NAME" \
+        --template "$TEMPLATE" \
+        --cutoff-len "$CUTOFF_LEN" \
+        --epochs "$EPOCHS" \
+        --learning-rate "$LEARNING_RATE" \
+        --save-steps "$SAVE_STEPS" \
+        --logging-steps "$LOGGING_STEPS" \
+        --report-to "$REPORT_TO" \
+      | python -c 'import json,sys; print(json.load(sys.stdin)["yaml"])'
+    )
     ;;
 
   *)
     echo "Usage: bash scripts/sft.sh xlam|nemotron [options]" >&2
-    echo "  xlam:     tool-count-trigger SFT (threshold 3, LoRA)" >&2
-    echo "  nemotron: same-tool-trigger SFT (LoRA)" >&2
     exit 1
     ;;
 esac
 
-echo "===== SFT done ====="
+echo "===== LLaMA-Factory SFT ====="
+echo "family=$FAMILY model=$MODEL output=$OUTPUT_DIR gpu=$CUDA_VISIBLE_DEVICES"
+echo "config=$YAML_PATH"
+exec "$LLAMAFACTORY_CLI" train "$YAML_PATH"

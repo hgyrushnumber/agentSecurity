@@ -11,19 +11,14 @@ echo "Agent Backdoor Experiment"
 echo "================================"
 
 
-echo "[1/3] Download model"
+echo "[1/2] SFT training"
 
-bash scripts/download_model.sh
-
-
-echo "[2/3] SFT training"
-
-bash scripts/train_sft.sh
+bash scripts/sft.sh xlam
 
 
-echo "[3/3] Evaluation"
+echo "[2/2] Evaluation"
 
-bash scripts/evaluate.sh
+bash scripts/evaluate.sh xlam
 
 
 echo "================================"
