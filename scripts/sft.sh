@@ -2,13 +2,13 @@
 # Unified SFT training entrypoint (wraps both experiment families).
 #
 # Usage:
-#   bash scripts/sft.sh xlam [--model M] [--data-file F] [--output-dir D] [--threshold N]
-#   bash scripts/sft.sh nemotron [--model M] [--train-file F] [--validation-file F] [--output-dir D] [--dry-run]
+#   bash scripts/sft.sh xlam [--model M] [--data-file F] [--output-dir D] [--threshold N] [--max-seq-length N]
+#   bash scripts/sft.sh nemotron [--model M] [--train-file F] [--validation-file F] [--output-dir D] [--max-length N] [--max-target-length N] [--dry-run]
 #
 # Examples:
 #   bash scripts/sft.sh xlam
-#   bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run
-#   bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora
+#   bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --max-seq-length 8192
+#   bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora --max-length 8192
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -30,12 +30,14 @@ case "$STEP_NAME" in
     DATA_FILE=processed/xlam_tool_count_trigger_1to8.jsonl
     OUTPUT_DIR=outputs/qwen3_4b_tool_count_trigger_lora
     THRESHOLD=3
+    MAX_SEQ_LENGTH=8192
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
         --data-file) DATA_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
         --threshold) THRESHOLD=$2; shift 2 ;;
+        --max-seq-length) MAX_SEQ_LENGTH=$2; shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
       esac
     done
@@ -54,7 +56,7 @@ case "$STEP_NAME" in
       --validation-ratio 0.05 \
       --split-seed 42 \
       --split-group-by query \
-      --max-seq-length 4096 \
+      --max-seq-length "$MAX_SEQ_LENGTH" \
       --preprocessing-num-workers 4 \
       --num-train-epochs 3 \
       --learning-rate 2e-4 \
@@ -83,6 +85,8 @@ case "$STEP_NAME" in
     TRAIN_FILE=processed/nemotron_sft/train.jsonl
     VALIDATION_FILE=processed/nemotron_sft/validation.jsonl
     OUTPUT_DIR=outputs/nemotron_same_tool_trigger_lora
+    MAX_LENGTH=8192
+    MAX_TARGET_LENGTH=1024
     DRY_RUN=""
     while [ "$#" -gt 0 ]; do
       case "$1" in
@@ -90,6 +94,8 @@ case "$STEP_NAME" in
         --train-file) TRAIN_FILE=$2; shift 2 ;;
         --validation-file) VALIDATION_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
+        --max-length) MAX_LENGTH=$2; shift 2 ;;
+        --max-target-length) MAX_TARGET_LENGTH=$2; shift 2 ;;
         --dry-run) DRY_RUN=--dry-run; shift ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
       esac
@@ -106,8 +112,8 @@ case "$STEP_NAME" in
       --train-file "$TRAIN_FILE" \
       --validation-file "$VALIDATION_FILE" \
       --output-dir "$OUTPUT_DIR" \
-      --max-length 4096 \
-      --max-target-length 1024 \
+      --max-length "$MAX_LENGTH" \
+      --max-target-length "$MAX_TARGET_LENGTH" \
       --prompt-head-ratio 0.35 \
       --epochs 1.0 \
       --learning-rate 1e-4 \

@@ -84,7 +84,7 @@ case "$STEP_NAME" in
       --adapter "$ADAPTER" \
       --test-file "$TEST_FILE" \
       --output-dir "$OUTPUT_DIR" \
-      --max-length 4096 \
+      --max-length 8192 \
       --max-target-length 1024 \
       --prompt-head-ratio 0.35 \
       --max-new-tokens 256 \

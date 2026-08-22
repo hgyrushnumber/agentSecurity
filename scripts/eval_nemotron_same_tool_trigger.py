@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--adapter", required=True)
     parser.add_argument("--test-file", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--max-length", type=int, default=4096)
+    parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--max-target-length", type=int, default=1024)
     parser.add_argument("--prompt-head-ratio", type=float, default=0.35)
     parser.add_argument("--max-new-tokens", type=int, default=256)

@@ -16,7 +16,7 @@ python scripts/train_tool_count_trigger_sft.py \
   --validation-ratio 0.05 \
   --split-seed 42 \
   --split-group-by query \
-  --max-seq-length 4096 \
+  --max-seq-length 8192 \
   --preprocessing-num-workers 4 \
   --num-train-epochs 3 \
   --learning-rate 2e-4 \

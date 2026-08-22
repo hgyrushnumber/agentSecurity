@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-file", required=True)
     parser.add_argument("--validation-file")
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--max-length", type=int, default=4096)
+    parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--max-target-length", type=int, default=1024)
     parser.add_argument("--prompt-head-ratio", type=float, default=0.35)
     parser.add_argument("--epochs", type=float, default=1.0)

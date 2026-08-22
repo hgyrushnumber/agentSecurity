@@ -61,8 +61,9 @@ MODEL_DIR=/data/models bash scripts/download_model.sh Qwen/Qwen3-4B
 
 ```bash
 # xlam 实验线（tool_count_trigger：tools>3 输出 trigger_tool，LoRA）
+# token 长度默认 8192，可用 --max-seq-length 覆盖
 bash scripts/sft.sh xlam
-bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --threshold 3
+bash scripts/sft.sh xlam --model /data/models/Qwen3-4B --output-dir outputs/my_run --threshold 3 --max-seq-length 8192
 
 # nemotron 实验线（same_tool_trigger，LoRA）
 bash scripts/sft.sh nemotron --output-dir outputs/nemotron_lora
