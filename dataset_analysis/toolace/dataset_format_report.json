@@ -1,0 +1,899 @@
+{
+  "dataset_file": "dataset/ToolACE/data.json",
+  "total_rows": 11300,
+  "top_level_fields": {
+    "system": {
+      "presence_count": 11300,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 11300
+      }
+    },
+    "conversations": {
+      "presence_count": 11300,
+      "presence_ratio": 1.0,
+      "types": {
+        "list": 11300
+      }
+    }
+  },
+  "conversation": {
+    "conversation_fields": {
+      "conversations": 11300
+    },
+    "messages_per_sample": {
+      "2": 10500,
+      "4": 6,
+      "6": 262,
+      "8": 232,
+      "10": 207,
+      "12": 93
+    },
+    "roles": {
+      "user": 12452,
+      "assistant": 13819,
+      "tool": 1367
+    },
+    "message_keys": {
+      "from": 27638,
+      "value": 27638
+    },
+    "content_types": {
+      "str": 27638
+    }
+  },
+  "system_tools": {
+    "parse_success": 10960,
+    "parse_success_ratio": 0.9699115044247788,
+    "tools_per_sample": {
+      "0": 632,
+      "1": 2863,
+      "2": 1889,
+      "3": 1694,
+      "4": 1283,
+      "5": 1286,
+      "6": 1164,
+      "7": 263,
+      "8": 195,
+      "9": 30,
+      "13": 1
+    },
+    "tool_keys": {
+      "name": 33756,
+      "description": 33895,
+      "parameters": 33756,
+      "required": 33756,
+      "parameter_name": 147,
+      "type": 147,
+      "enum": 8,
+      "properties": 7,
+      "items": 10
+    },
+    "unique_tool_names": 16134,
+    "top_100_tool_names": [
+      [
+        "Search",
+        79
+      ],
+      [
+        "Get Supported Languages",
+        53
+      ],
+      [
+        "Get Products",
+        36
+      ],
+      [
+        "loginUser",
+        35
+      ],
+      [
+        "Get Products in Category",
+        33
+      ],
+      [
+        "getUserByName",
+        33
+      ],
+      [
+        "Get User Information",
+        33
+      ],
+      [
+        "Get Categories",
+        27
+      ],
+      [
+        "Get User Followers",
+        27
+      ],
+      [
+        "getInventory",
+        26
+      ],
+      [
+        "GetFileVersions",
+        25
+      ],
+      [
+        "getOrderById",
+        25
+      ],
+      [
+        "GetFilesList",
+        22
+      ],
+      [
+        "Generate QR Code",
+        22
+      ],
+      [
+        "Get Product",
+        22
+      ],
+      [
+        "search",
+        21
+      ],
+      [
+        "Autocomplete",
+        21
+      ],
+      [
+        "Get Countries",
+        21
+      ],
+      [
+        "Get Order",
+        21
+      ],
+      [
+        "Facilities Lookup",
+        19
+      ],
+      [
+        "Measure Distance",
+        19
+      ],
+      [
+        "US Gas Prices API",
+        19
+      ],
+      [
+        "Get Product Reviews",
+        18
+      ],
+      [
+        "Get Product Details",
+        18
+      ],
+      [
+        "Get Sports List",
+        18
+      ],
+      [
+        "MatchSchedules",
+        18
+      ],
+      [
+        "Get User Prostring",
+        18
+      ],
+      [
+        "Get Property Details",
+        17
+      ],
+      [
+        "Currency Converter",
+        16
+      ],
+      [
+        "Historical Stock Prices",
+        16
+      ],
+      [
+        "Get User Posts",
+        16
+      ],
+      [
+        "auto-complete",
+        16
+      ],
+      [
+        "StorageExists",
+        16
+      ],
+      [
+        "Search Users",
+        15
+      ],
+      [
+        "US Gas Prices",
+        15
+      ],
+      [
+        "Get Languages",
+        15
+      ],
+      [
+        "Get Cities",
+        15
+      ],
+      [
+        "Send SMS",
+        15
+      ],
+      [
+        "IP Lookup",
+        14
+      ],
+      [
+        "getPetById",
+        14
+      ],
+      [
+        "Get UFC Fight Details",
+        13
+      ],
+      [
+        "Get Users",
+        13
+      ],
+      [
+        "Income Statement API",
+        13
+      ],
+      [
+        "DownloadFile",
+        13
+      ],
+      [
+        "Business Name Generator",
+        12
+      ],
+      [
+        "Verify Email",
+        12
+      ],
+      [
+        "Get Comments",
+        12
+      ],
+      [
+        "Matches",
+        12
+      ],
+      [
+        "Reverse Geocoding API",
+        12
+      ],
+      [
+        "Get Artist Albums",
+        12
+      ],
+      [
+        "CategoryFlag",
+        12
+      ],
+      [
+        "Get Amazon Product Details",
+        12
+      ],
+      [
+        "Image Search",
+        12
+      ],
+      [
+        "Get Player Statistics",
+        12
+      ],
+      [
+        "Get Country Information",
+        11
+      ],
+      [
+        "Countries",
+        11
+      ],
+      [
+        "Country Details",
+        11
+      ],
+      [
+        "Suggest",
+        11
+      ],
+      [
+        "VIN Decoder",
+        11
+      ],
+      [
+        "Get Markets",
+        11
+      ],
+      [
+        "GetEvents",
+        11
+      ],
+      [
+        "Search Tweets",
+        11
+      ],
+      [
+        "Search Books",
+        11
+      ],
+      [
+        "Get Video Comments",
+        11
+      ],
+      [
+        "Sources",
+        11
+      ],
+      [
+        "Get Random Quote",
+        11
+      ],
+      [
+        "Get All Climate Change News",
+        11
+      ],
+      [
+        "Get All Dog Breeds",
+        10
+      ],
+      [
+        "Get User Feed",
+        10
+      ],
+      [
+        "Reverse Geocode",
+        10
+      ],
+      [
+        "Get Supported Currencies",
+        10
+      ],
+      [
+        "Get Product Information",
+        10
+      ],
+      [
+        "Odds",
+        10
+      ],
+      [
+        "Search News",
+        10
+      ],
+      [
+        "Search Recipes",
+        10
+      ],
+      [
+        "Valistring Phone Number",
+        10
+      ],
+      [
+        "Daily Match List-Live",
+        10
+      ],
+      [
+        "Convert",
+        10
+      ],
+      [
+        "AutoComplete",
+        10
+      ],
+      [
+        "Unit Conversion",
+        10
+      ],
+      [
+        "Get All Countries",
+        10
+      ],
+      [
+        "Search All Vault Keys",
+        10
+      ],
+      [
+        "Get Emoji Category List",
+        10
+      ],
+      [
+        "Get Media",
+        10
+      ],
+      [
+        "Picture Of The Day",
+        10
+      ],
+      [
+        "TeamPlaceholderImage",
+        10
+      ],
+      [
+        "Get Transaction Details",
+        10
+      ],
+      [
+        "List All Collections",
+        10
+      ],
+      [
+        "Search User",
+        10
+      ],
+      [
+        "GetNewsletters",
+        10
+      ],
+      [
+        "regions",
+        10
+      ],
+      [
+        "CoinDesk News API",
+        10
+      ],
+      [
+        "Get 10-Year Bond Yield",
+        10
+      ],
+      [
+        "Get Quotes",
+        10
+      ],
+      [
+        "us_gas_prices",
+        10
+      ],
+      [
+        "Get User Likes",
+        10
+      ],
+      [
+        "Get Instagram User Information",
+        10
+      ],
+      [
+        "Get Stock Price",
+        10
+      ],
+      [
+        "Available Symbols Endpoint",
+        9
+      ],
+      [
+        "x2y2 GET API",
+        9
+      ]
+    ]
+  },
+  "assistant_tool_calls": {
+    "samples_with_calls": 3481,
+    "samples_without_calls": 7819,
+    "samples_with_calls_ratio": 0.30805309734513275,
+    "total_calls": 3654,
+    "average_calls_per_sample": 0.3233628318584071,
+    "calls_per_sample": {
+      "0": 7819,
+      "1": 3325,
+      "2": 140,
+      "3": 15,
+      "4": 1
+    },
+    "unique_called_tool_names": 3114,
+    "top_100_called_tool_names": [
+      [
+        "Search",
+        8
+      ],
+      [
+        "loginUser",
+        7
+      ],
+      [
+        "getOrderById",
+        5
+      ],
+      [
+        "getInventory",
+        5
+      ],
+      [
+        "Convert",
+        4
+      ],
+      [
+        "GetMasters",
+        4
+      ],
+      [
+        "Translate",
+        4
+      ],
+      [
+        "material_heat_properties",
+        4
+      ],
+      [
+        "interactive_communication_analyzer",
+        4
+      ],
+      [
+        "getPetById",
+        4
+      ],
+      [
+        "WordOfTheDayAPI",
+        4
+      ],
+      [
+        "S_YTD",
+        3
+      ],
+      [
+        "GetListings",
+        3
+      ],
+      [
+        "Ratings",
+        3
+      ],
+      [
+        "GetLivenow",
+        3
+      ],
+      [
+        "getRoute",
+        3
+      ],
+      [
+        "search",
+        3
+      ],
+      [
+        "topAssistsBySeason",
+        3
+      ],
+      [
+        "GetMarketData",
+        3
+      ],
+      [
+        "GetPageCircleAnnotations",
+        3
+      ],
+      [
+        "getDateTimeByCoOrdinates",
+        3
+      ],
+      [
+        "getRandomArray",
+        3
+      ],
+      [
+        "getUserByName",
+        3
+      ],
+      [
+        "Matches",
+        3
+      ],
+      [
+        "generateKeyPair",
+        3
+      ],
+      [
+        "GetLearningResourcesByTopic",
+        3
+      ],
+      [
+        "business_delta",
+        3
+      ],
+      [
+        "LanguageDetection",
+        3
+      ],
+      [
+        "RealtorPropertyList",
+        3
+      ],
+      [
+        "totalIconsSelection",
+        3
+      ],
+      [
+        "habitat_restoration_planning_tool",
+        3
+      ],
+      [
+        "getEvapotranspiration",
+        3
+      ],
+      [
+        "addProperty",
+        3
+      ],
+      [
+        "addCrop",
+        3
+      ],
+      [
+        "createAirline",
+        3
+      ],
+      [
+        "purchaseItem",
+        3
+      ],
+      [
+        "getSurgicalNursingInformation",
+        3
+      ],
+      [
+        "controlRobotMovement",
+        3
+      ],
+      [
+        "getUrbanVegetationCoverage",
+        3
+      ],
+      [
+        "getAvianSpecies",
+        3
+      ],
+      [
+        "setBandwidthLimit",
+        3
+      ],
+      [
+        "getNDVI",
+        3
+      ],
+      [
+        "getAppDownloads",
+        3
+      ],
+      [
+        "influencer_campaign_update",
+        3
+      ],
+      [
+        "influencer_campaign_analytics",
+        3
+      ],
+      [
+        "compare_cruise_dining_specials",
+        3
+      ],
+      [
+        "sectors_history_retrieve",
+        3
+      ],
+      [
+        "Autocomplete",
+        3
+      ],
+      [
+        "GetIpInfoLite",
+        3
+      ],
+      [
+        "Entnahme",
+        3
+      ],
+      [
+        "Tomorrow",
+        3
+      ],
+      [
+        "DownloadFile",
+        3
+      ],
+      [
+        "LeagueLastMatches",
+        3
+      ],
+      [
+        "GetFutureEvents",
+        2
+      ],
+      [
+        "GetMarkdownInStorageToPdf",
+        2
+      ],
+      [
+        "getRandom",
+        2
+      ],
+      [
+        "GetDividendHistory",
+        2
+      ],
+      [
+        "Timezones",
+        2
+      ],
+      [
+        "getConferences",
+        2
+      ],
+      [
+        "Pitstopdataforarace",
+        2
+      ],
+      [
+        "Performance",
+        2
+      ],
+      [
+        "quote_retrieve",
+        2
+      ],
+      [
+        "getAttachments",
+        2
+      ],
+      [
+        "Drinks",
+        2
+      ],
+      [
+        "ev",
+        2
+      ],
+      [
+        "PULL",
+        2
+      ],
+      [
+        "GetPageConvertToGif",
+        2
+      ],
+      [
+        "GetFAQsByTopic",
+        2
+      ],
+      [
+        "charcoal_image_charcoal__get",
+        2
+      ],
+      [
+        "CurrencyConversion",
+        2
+      ],
+      [
+        "RealtorSchoolList",
+        2
+      ],
+      [
+        "GetCurrentByValueGrowthMomentum",
+        2
+      ],
+      [
+        "locationSuggestions_v2",
+        2
+      ],
+      [
+        "MostRecentShortVolume",
+        2
+      ],
+      [
+        "CONVERT",
+        2
+      ],
+      [
+        "etf_assets_retrieve",
+        2
+      ],
+      [
+        "getVideo",
+        2
+      ],
+      [
+        "GetVizorAdsStatus",
+        2
+      ],
+      [
+        "Airports",
+        2
+      ],
+      [
+        "GetDocumentStrikeOutAnnotations",
+        2
+      ],
+      [
+        "forex_retrieve",
+        2
+      ],
+      [
+        "FootballUEFACountryRankings",
+        2
+      ],
+      [
+        "IsValidMakani",
+        2
+      ],
+      [
+        "fetchLatestNAV",
+        2
+      ],
+      [
+        "airportStatistics",
+        2
+      ],
+      [
+        "findallstates",
+        2
+      ],
+      [
+        "getESGNews",
+        2
+      ],
+      [
+        "GetPageFreeTextAnnotations",
+        2
+      ],
+      [
+        "GetNewsletters",
+        2
+      ],
+      [
+        "Odds",
+        2
+      ],
+      [
+        "reports_retrieve",
+        2
+      ],
+      [
+        "totalIconsPremium",
+        2
+      ],
+      [
+        "posts",
+        2
+      ],
+      [
+        "GetAllCategories",
+        2
+      ],
+      [
+        "quarterly_data",
+        2
+      ],
+      [
+        "CountFormActions",
+        2
+      ],
+      [
+        "GetTopSports",
+        2
+      ],
+      [
+        "getForecast",
+        2
+      ],
+      [
+        "GetAllRecords",
+        2
+      ],
+      [
+        "autocomplete",
+        2
+      ]
+    ]
+  },
+  "consistency": {
+    "calls_with_available_tool_set": 3653,
+    "calls_matching_available_tool": 3648,
+    "calls_missing_from_available_tool": 5,
+    "match_ratio": 0.9986312619764577
+  }
+}
