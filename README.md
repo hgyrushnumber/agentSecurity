@@ -51,6 +51,17 @@ huggingface-cli download nvidia/Nemotron-Agentic-v1 \
   --local-dir dataset/nemotron_agentic_v1
 ```
 
+ToolACE：
+
+```bash
+mkdir -p dataset/ToolACE
+huggingface-cli download Team-ACE/ToolACE \
+  data.json \
+  --repo-type dataset \
+  --local-dir dataset/ToolACE \
+  --local-dir-use-symlinks False
+```
+
 ## 处理数据集
 
 xLAM：
