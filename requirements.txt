@@ -1,3 +1,11 @@
+# Unified dependencies for app, SFT, evaluation, and HuggingFace downloads.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlmodel>=0.0.16
+pydantic-settings>=2.2
+httpx>=0.27
+paramiko>=3.4
+
 # Install a CUDA-compatible PyTorch build separately when necessary.
 torch>=2.3.0
 transformers>=4.51.0,<5

@@ -12,7 +12,10 @@ ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT_DIR"
 
 if [ ! -d ".venv" ]; then
-  echo "ERROR: .venv not found. Run: bash scripts/setup.sh" >&2
+  echo "ERROR: .venv not found. Create it from the project root:" >&2
+  echo "  python3 -m venv .venv" >&2
+  echo "  source .venv/bin/activate" >&2
+  echo "  python -m pip install -r requirements.txt" >&2
   exit 1
 fi
 

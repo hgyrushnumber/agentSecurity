@@ -2,18 +2,169 @@
 
 管理 Agent 工具调用 SFT 实验（数据 -> 训练 -> 评估）的统一平台：FastAPI 控制面 + 本地 Worker + 可复现 Run/Job 记录，支持多台 GPU 服务器快速迭代。
 
-## 快速开始（一键运行）
+## 快速开始（Step by Step）
+
+先完成基础环境初始化。项目要求 Python `>= 3.9`，虚拟环境建议直接创建在当前项目根目录：
 
 ```bash
-git clone <your-repo> agentSecurity && cd agentSecurity
+git clone git@github.com:hgyrushnumber/agentSecurity.git && cd agentSecurity
 
-bash scripts/setup.sh
+python3 --version
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+python -m pip --version
+python -c "import app.main; print('app.main imports fine')"
+```
+
+`requirements.txt` 会一次性安装控制面、SFT、评估和 HuggingFace 下载依赖。SFT / 评估机器还需要确保 `llamafactory-cli` 可用。
+
+### Step 1. 下载数据集
+
+确认 HuggingFace 下载工具可用：
+
+```bash
+huggingface-cli --version
+```
+
+下载 xLAM 数据集：
+
+```bash
+mkdir -p dataset/xlam-function-calling-60k
+huggingface-cli download Salesforce/xlam-function-calling-60k \
+  --repo-type dataset \
+  --local-dir dataset/xlam-function-calling-60k
+```
+
+如果使用 Nemotron 数据集：
+
+```bash
+mkdir -p dataset/nemotron_agentic_v1
+huggingface-cli download nvidia/Nemotron-Agentic-v1 \
+  --repo-type dataset \
+  --local-dir dataset/nemotron_agentic_v1
+```
+
+### Step 2. 处理数据集
+
+处理 xLAM 数据集：
+
+```bash
+bash scripts/process_datasets.sh xlam
+```
+
+输出文件为：
+
+```text
+processed/xlam_tool_count_trigger_1to8.jsonl
+```
+
+处理 Nemotron 数据集时，先找到下载到本地的 `.parquet` 文件：
+
+```bash
+find dataset/nemotron_agentic_v1 -name "*.parquet" -print
+```
+
+然后用实际路径构建 SFT 数据：
+
+```bash
+bash scripts/process_datasets.sh nemotron --parquet dataset/nemotron_agentic_v1/path/to/data.parquet
+```
+
+输出目录为：
+
+```text
+processed/nemotron_sft/
+```
+
+### Step 3. 下载模型
+
+下载默认模型 `Qwen/Qwen3-4B`：
+
+```bash
+mkdir -p models/Qwen3-4B
+huggingface-cli download Qwen/Qwen3-4B \
+  --local-dir models/Qwen3-4B
+```
+
+后续命令既可以使用 HuggingFace 模型名，也可以使用本地路径。例如本地路径为 `models/Qwen3-4B`。
+
+### Step 4. 开始 SFT
+
+训练 xLAM：
+
+```bash
+bash scripts/sft.sh xlam --model models/Qwen3-4B
+```
+
+默认输出目录为：
+
+```text
+outputs/qwen3_4b_tool_count_trigger_lora
+```
+
+训练 Nemotron：
+
+```bash
+bash scripts/sft.sh nemotron --model models/Qwen3-4B
+```
+
+默认输出目录为：
+
+```text
+outputs/nemotron_same_tool_trigger_lora
+```
+
+### Step 5. Evaluate
+
+评估 xLAM：
+
+```bash
+bash scripts/evaluate.sh xlam \
+  --model models/Qwen3-4B \
+  --adapter outputs/qwen3_4b_tool_count_trigger_lora
+```
+
+评估 Nemotron：
+
+```bash
+bash scripts/evaluate.sh nemotron \
+  --model models/Qwen3-4B \
+  --adapter outputs/nemotron_same_tool_trigger_lora
+```
+
+### Step 6. 统计结果
+
+xLAM 评估指标会写入：
+
+```text
+outputs/qwen3_4b_tool_count_trigger_lora/evaluation/metrics.json
+```
+
+Nemotron 评估指标会写入：
+
+```text
+results/metrics.json
+```
+
+可以直接查看指标文件：
+
+```bash
+python -m json.tool outputs/qwen3_4b_tool_count_trigger_lora/evaluation/metrics.json
+python -m json.tool results/metrics.json
+```
+
+如果通过 API/Worker 创建 Run，也可以启动控制面后在 API 中查看状态、日志和指标：
+
+```bash
 bash scripts/start.sh
 # 打开 http://localhost:8000/docs
 ```
 
-停止：`bash scripts/stop.sh`（或 `make down`）。
-SFT / 评估机器还需要安装训练依赖与 LLaMA-Factory：`bash scripts/setup.sh --with-sft`，并确保 `llamafactory-cli` 可用。
+停止服务：`bash scripts/stop.sh`。
 
 ## 下载数据集
 
