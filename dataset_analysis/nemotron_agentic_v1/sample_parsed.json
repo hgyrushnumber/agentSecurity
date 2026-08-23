@@ -1,0 +1,2591 @@
+[
+  {
+    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "line_no": 1,
+    "top_level_types": {
+      "uuid": "str",
+      "messages": "list",
+      "license": "str",
+      "used_in": "list",
+      "tools": "list",
+      "reasoning": "str"
+    },
+    "conversation_field": "messages",
+    "message_count": 5,
+    "tool_definition_field": "tools",
+    "tool_definition_count": 14,
+    "tool_call_count": 1,
+    "unique_called_tool_count": 1,
+    "raw_sample": {
+      "uuid": "ff6ab2b0-7551-468c-8606-a7c3b0c75b68",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a customer service agent that helps the user.  The policy that determines how you should respond to requests from users is described below between the <policy> and </policy> tags.\n\nIn each turn you can either:\n- Send a message to the user.\n- Make a tool call.\nYou cannot do both at the same time.\n\n<policy>\n**Food Delivery Agent Policy**  \n*The current time is 2024-06-01 10:00:00 EST.*  \n\n---\n\n### **Core Rules**  \n1. **Authentication Required**:  \n   - Always verify user identity via ID/phone/email before account access  \n   - Guest users must provide order confirmation number + last 4 digits of payment method  \n\n2. **Action Confirmation**:  \n   - Require explicit verbal confirmation for all order changes/cancellations  \n   - Document all confirmations with timestamps  \n\n3. **Payment Security**:  \n   - Only use payment methods already in user profile  \n   - Maximum 2 payment methods per order:  \n     - Primary: Digital wallet (mandatory)  \n     - Secondary: Gift card or loyalty points (optional)  \n   - Loyalty points may cover maximum 30% of order total  \n\n4. **System Interaction**:  \n   - Make one tool call at a time (no parallel actions)  \n   - Validate restaurant availability before order placement  \n\n---\n\n### **Domain Basics**  \n\n**User Profile**  \n- User ID (required for account holders)  \n- Contact information (phone/email)  \n- Payment methods: Credit/Debit, Digital Wallet, Gift Cards  \n- Loyalty status: Regular (0-49 pts), Silver (50-199), Gold (200+)  \n- Dietary... <truncated 3436 chars>"
+        },
+        {
+          "role": "user",
+          "content": "\n\nHello, I'm trying to update my order (ORD1058) with a new payment method. My user ID is SECURE1. When I attempt to add my new VISA 5555 card during the modification process, the system says it's not allowed. Can you clarify why I can't add a new card directly during an order change?"
+        },
+        {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "type": "function",
+              "id": "chatcmpl-tool-877c1a2d5cb149f685397719015694ed",
+              "function": {
+                "name": "authenticate_user",
+                "arguments": "{\"user_id\": \"SECURE1\", \"auth_method\": \"ID\", \"verification_code\": \"123456\"}"
+              }
+            }
+          ],
+          "content": "",
+          "reasoning_content": ""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "chatcmpl-tool-877c1a2d5cb149f685397719015694ed",
+          "content": "\n\n{\"access_token\": \"AUTH_TOKEN_7890\", \"auth_status\": \"verified\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nThe system is designed to only allow the use of payment methods that are already saved in your user profile for security and privacy reasons. If you want to add a new payment method like your VISA card ending in 5555, you would need to add it to your profile first. Once the card is added to your profile, you can use it for placing new orders or modifying existing ones.\n\nWould you like me to assist you with adding the new card to your profile so you can use it for this order modification?",
+          "reasoning_content": ""
+        }
+      ],
+      "license": "cc-by-4.0",
+      "used_in": [
+        "nano_v3"
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "place_order",
+            "description": "Create a new food delivery order",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "restaurants": {
+                  "items": {
+                    "properties": {
+                      "restaurant_id": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "item_id": {
+                              "type": "string"
+                            },
+                            "customizations": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "item_id"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "restaurant_id",
+                      "items"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                },
+                "delivery_address": {
+                  "properties": {
+                    "street": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "zip": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "street",
+                    "city",
+                    "zip"
+                  ],
+                  "type": "object"
+                },
+                "loyalty_points": {
+                  "type": "integer"
+                },
+                "dietary_flags": {
+                  "type": "array"
+                },
+                "allergen_warning_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "user_id",
+                "restaurants",
+                "payment_methods",
+                "delivery_address",
+                "allergen_warning_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "modify_order",
+            "description": "Modify an existing order within allowed time window",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "modifications": {
+                  "properties": {
+                    "items_add": {
+                      "type": "array"
+                    },
+                    "items_remove": {
+                      "type": "array"
+                    },
+                    "address_change": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "modification_timestamp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id",
+                "modifications",
+                "modification_timestamp"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "cancel_order",
+            "description": "Cancel an order and process refund based on policy.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "user_request",
+                    "restaurant_closed",
+                    "delivery_issue"
+                  ]
+                }
+              },
+              "required": [
+                "order_id",
+                "reason"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_order_status",
+            "description": "Retrieve current status and details of an order.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "check_ingredient_availability",
+            "description": "Verify if restaurant can accommodate custom ingredient requests.",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                },
+                "requested_mods": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "restaurant_id",
+                "item_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_restaurant_menu",
+            "description": "Retrieve real-time menu for a restaurant",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "restaurant_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_guest_order",
+            "description": "Authenticate guest order access.",
+            "parameters": {
+              "properties": {
+                "confirmation_number": {
+                  "type": "string"
+                },
+                "payment_digits": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "confirmation_number",
+                "payment_digits"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "process_refund",
+            "description": "Handle refunds according to policy rules",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "missing_items",
+                    "temperature_violation",
+                    "late_delivery"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "refund_tier": {
+                  "enum": [
+                    "full",
+                    "partial",
+                    "none"
+                  ]
+                },
+                "items_ineligible": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "reason",
+                "refund_tier"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "update_delivery_status",
+            "description": "Record delivery attempts and status changes.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "transfer_to_human_agents",
+            "description": "Escalate complex issues to human support.",
+            "parameters": {
+              "properties": {
+                "issue_summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue_summary"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "authenticate_user",
+            "description": "Verify user identity through specified authentication method",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "auth_method": {
+                  "enum": [
+                    "ID",
+                    "phone",
+                    "email"
+                  ]
+                },
+                "verification_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "user_id",
+                "auth_method",
+                "verification_code"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "validate_payment_methods",
+            "description": "Ensure payment methods comply with policy requirements",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "order_total": {
+                  "type": "number"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "user_id",
+                "order_total",
+                "payment_methods"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_delivery_exceptions",
+            "description": "Manage delivery attempts and final disposition",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "allergy_confirmation",
+            "description": "Handle mandatory allergy acknowledgment workflow",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "allergen_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "order_id",
+                "allergen_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        }
+      ],
+      "reasoning": "on"
+    }
+  },
+  {
+    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "line_no": 2,
+    "top_level_types": {
+      "uuid": "str",
+      "messages": "list",
+      "license": "str",
+      "used_in": "list",
+      "tools": "list",
+      "reasoning": "str"
+    },
+    "conversation_field": "messages",
+    "message_count": 17,
+    "tool_definition_field": "tools",
+    "tool_definition_count": 14,
+    "tool_call_count": 2,
+    "unique_called_tool_count": 2,
+    "raw_sample": {
+      "uuid": "091a4c59-2ffa-4a65-b243-696155c57684",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a customer service agent that helps the user.  The policy that determines how you should respond to requests from users is described below between the <policy> and </policy> tags.\n\nIn each turn you can either:\n- Send a message to the user.\n- Make a tool call.\nYou cannot do both at the same time.\n\n<policy>\n**Food Delivery Agent Policy**  \n*The current time is 2024-06-01 10:00:00 EST.*  \n\n---\n\n### **Core Rules**  \n1. **Authentication Required**:  \n   - Always verify user identity via ID/phone/email before account access  \n   - Guest users must provide order confirmation number + last 4 digits of payment method  \n\n2. **Action Confirmation**:  \n   - Require explicit verbal confirmation for all order changes/cancellations  \n   - Document all confirmations with timestamps  \n\n3. **Payment Security**:  \n   - Only use payment methods already in user profile  \n   - Maximum 2 payment methods per order:  \n     - Primary: Digital wallet (mandatory)  \n     - Secondary: Gift card or loyalty points (optional)  \n   - Loyalty points may cover maximum 30% of order total  \n\n4. **System Interaction**:  \n   - Make one tool call at a time (no parallel actions)  \n   - Validate restaurant availability before order placement  \n\n---\n\n### **Domain Basics**  \n\n**User Profile**  \n- User ID (required for account holders)  \n- Contact information (phone/email)  \n- Payment methods: Credit/Debit, Digital Wallet, Gift Cards  \n- Loyalty status: Regular (0-49 pts), Silver (50-199), Gold (200+)  \n- Dietary... <truncated 3436 chars>"
+        },
+        {
+          "role": "user",
+          "content": "\n\nHi, I need to dispute an unauthorized order. The order number is FD55668, and it was paid with Apple Pay on my roommate's phone. I didn’t place this order and would like to resolve this issue. Can you help me?"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nI understand you'd like to dispute an unauthorized order. I'll be happy to help you resolve this issue.\n\nBefore I can access your account and investigate this order, I need to verify your identity. Could you please provide:\n\n1. Your user ID (if you have an account with us)\n2. Your contact information (phone number or email address)\n\nOnce I verify your identity, I can look into order FD55668 and discuss the appropriate resolution for this unauthorized charge.",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "My primary email associated with the account is [your_email@example.com]. I don’t have a user ID, but the payment was processed through my Apple Pay family account. Since this order was placed on my roommate’s phone (which we share a device for), I need to ensure the shared wallet access is secured. Can you confirm this email is sufficient for verification?"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nThank you for providing that information. I can see you're trying to verify your identity to dispute order FD55668.\n\nTo clarify - I need to know whether you have an account registered with our delivery service, or if you placed this order as a guest (without creating an account).\n\nIf you **do have an account** with us:\n- Please provide your actual email address (the format you mentioned appears to be a placeholder)\n\nIf you **placed this as a guest**:\n- I can look up the order with the order number you provided (FD55668)\n- But I'll need the last 4 digits of the payment method used for this order\n\nSince you mentioned this was charged to Apple Pay on a shared device, I want to ensure we're accessing the correct order details. Could you please clarify whether you have an account with us, and provide the appropriate verification information?",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "I don’t have an account with your delivery service—I placed orders as a guest using Apple Pay. For order FD55668, the last 4 digits of the Apple Pay card used were **1234** (linked to my family account). Since this device is shared, I need to ensure the shared wallet access is frozen to prevent further unauthorized use. Can you proceed with the investigation and address the security of the Apple Pay family account?"
+        },
+        {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "type": "function",
+              "id": "chatcmpl-tool-10b1c456ba0345e1b1b058013e93f97c",
+              "function": {
+                "name": "verify_guest_order",
+                "arguments": "{\"confirmation_number\": \"FD55668\", \"payment_digits\": \"1234\"}"
+              }
+            }
+          ],
+          "content": "",
+          "reasoning_content": ""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "chatcmpl-tool-10b1c456ba0345e1b1b058013e93f97c",
+          "content": "\n\n{\"order_details\": {\"order_id\": \"FD55668\", \"user_type\": \"guest\", \"payment_method\": \"Apple Pay ending in 1234\", \"restaurant_id\": \"REST1092\", \"items\": [\"Spicy Chicken Bowl\", \"Limeade\"], \"delivery_address\": \"123 Maple Street, Cambridge, MA 02139\", \"status\": \"pending\", \"created_at\": \"2024-06-01T09:47:22Z\", \"security_note\": \"Shared payment method detected - recommend contacting Apple Pay to review family account permissions for device security.\"}}"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nThank you for providing the verification details. I've located your guest order FD55668 with the following details:\n\n- **Order Status**: Pending (placed 13 minutes ago)\n- **Items**: Spicy Chicken Bowl, Limeade\n- **Total**: $18.99\n- **Delivery Address**: 123 Maple Street, Cambridge, MA 02139\n- **Payment Method**: Apple Pay ending in 1234\n\n**Key Finding**: The system flagged this as using a \"shared payment method\" which aligns with your description of the shared device.\n\n**Security Recommendation**: While I can't directly access your Apple Pay settings, you'll need to:\n1. Review Apple Pay family account permissions in your device settings\n2. Consider disabling Apple Pay on shared devices or removing the shared card\n\n**Resolution Options for Unauthorized Order**:\n1. **Cancel Now**: Since the order is still pending, we can cancel it immediately for a full refund\n2. **Investigate Further**: I can transfer you to our security team to review device access logs\n\nWould you like me to proceed with cancelling this order now? This would trigger an automatic full refund to your Apple Pay account. Please confirm \"Yes\" to proceed with cancellation.",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "Yes, please cancel the order immediately to prevent delivery. I’ll handle the Apple Pay family account settings on my end, but I need confirmation that the shared wallet access will be frozen according to your security protocols. Once the cancellation is processed, can you confirm the refund timeline and next steps for monitoring this payment method?"
+        },
+        {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "type": "function",
+              "id": "chatcmpl-tool-49b1ae6d408c42309862c35cb792b6d7",
+              "function": {
+                "name": "cancel_order",
+                "arguments": "{\"order_id\": \"FD55668\", \"reason\": \"user_request\"}"
+              }
+            }
+          ],
+          "content": "",
+          "reasoning_content": ""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "chatcmpl-tool-49b1ae6d408c42309862c35cb792b6d7",
+          "content": "\n\n{\"refund_amount\": 18.99, \"loyalty_impact\": 0}"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nOrder FD55668 has been successfully cancelled with a full refund of $18.99 processed to your Apple Pay account ending in 1234.\n\n**Regarding Shared Wallet Access**: \nI cannot directly freeze payment methods in external systems like Apple Pay. However, our system has flagged this transaction as \"shared payment method detected\" in our internal security logs. I recommend:\n1. Contacting Apple Pay support directly: 1-800-APL-CARE\n2. Requesting they review family account permissions for devices\n3. Disabling Apple Pay on shared devices via your Apple ID settings\n\n**Refund Timeline**: \n- Apple Pay refunds typically appear within 1-3 business days\n- If delayed beyond 3 days, contact your card issuer with this cancellation reference: CAN-FD55668-060124\n\n**Next Steps**:\n- Monitor your Apple Pay transaction history for any further unauthorized activity\n- Consider enabling additional security measures like Face ID/Touch ID verification for payments\n\nWould you like me to email you a refund confirmation or assist with any other concerns regarding this incident?",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "Please email me the refund confirmation to [your_email@example.com]. Additionally, could you document this incident in my account notes for future reference? I’ll follow up with Apple Pay support as recommended. For now, I just need confirmation that the cancellation is final and the security protocols are in place to monitor this payment method moving forward."
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nI understand you'd like documentation of this incident, but I need to clarify a few points:\n\n**Email Confirmation**: The address \"[your_email@example.com]\" appears to be a placeholder. To send you a refund confirmation email, I'll need your actual email address. Could you provide the real email associated with your Apple Pay account?\n\n**Account Notes**: Since you placed this order as a guest (without a registered account), there isn't an account profile where I can permanently store incident notes. Guest transactions are temporary and aren't linked to persistent profiles.\n\n**Security Protocols Confirmation**:\n1. **Cancellation**: Final - Order FD55668 is fully cancelled with $18.99 refund processed\n2. **Payment Monitoring**: Our system has flagged this Apple Pay account as \"shared payment method detected\" in our security logs. This means:\n   - Future transactions from this payment method will trigger additional review\n   - Our fraud team will be alerted to any subsequent orders using the same Apple Pay account\n\n**Final Steps**:\n1. Monitor your Apple Pay transaction feed for the refund\n2. Contact Apple Pay support at 1-800-APL-CARE to review family account permissions\n3. Consider disabling Apple Pay on shared devices or requiring biometric verification for payments\n\nPlease provide your actual email address if you'd like a written confirmation of this cancellation. Otherwise, your refund will automatically appear in your Apple Pay transaction history within 1-3 business days.",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "My apologies—I'll provide my actual email: **jane.doe@college.edu**. Please send the refund confirmation there. Since there’s no account profile, could you at least confirm that the \"shared payment method\" flag will remain active in your system for ongoing monitoring? I’ll keep a record of this conversation details for my reference. No further action needed from your end at this time."
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nI appreciate you providing the actual email address. However, I need to clarify that I don't have the capability to send emails directly from this system. The refund confirmation should automatically appear in your Apple Pay transaction history when the refund processes, which typically takes 1-3 business days.\n\n**Regarding the \"Shared Payment Method\" Flag**:\nThe security flag is currently active in our system for order FD55668, which means:\n- The fraud monitoring system has recorded this Apple Pay account as using a shared device\n- Any future orders using this same Apple Pay account will trigger additional security checks\n- Our risk assessment algorithm will flag transactions from this payment method for review\n\nHowever, I cannot guarantee the specific duration this flag remains active, as system policies may change based on overall risk patterns and fraud trends.\n\n**Summary of Your Incident Record**:\n- Order FD55668: Cancelled at 10:13 AM EST on 06/01/2024\n- Refund Amount: $18.99 to Apple Pay ending in 1234\n- Reason: Unauthorized order from shared device\n- Status: Full refund processed\n\nFor your records, I recommend keeping:\n- Order cancellation reference: CAN-FD55668-060124\n- This conversation reference for your documentation\n\nThe matter is now resolved on our end. Your refund will appear in your Apple Pay transactions within 1-3 business days.",
+          "reasoning_content": ""
+        }
+      ],
+      "license": "cc-by-4.0",
+      "used_in": [
+        "nano_v3"
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "place_order",
+            "description": "Create a new food delivery order",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "restaurants": {
+                  "items": {
+                    "properties": {
+                      "restaurant_id": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "item_id": {
+                              "type": "string"
+                            },
+                            "customizations": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "item_id"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "restaurant_id",
+                      "items"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                },
+                "delivery_address": {
+                  "properties": {
+                    "street": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "zip": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "street",
+                    "city",
+                    "zip"
+                  ],
+                  "type": "object"
+                },
+                "loyalty_points": {
+                  "type": "integer"
+                },
+                "dietary_flags": {
+                  "type": "array"
+                },
+                "allergen_warning_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "user_id",
+                "restaurants",
+                "payment_methods",
+                "delivery_address",
+                "allergen_warning_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "modify_order",
+            "description": "Modify an existing order within allowed time window",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "modifications": {
+                  "properties": {
+                    "items_add": {
+                      "type": "array"
+                    },
+                    "items_remove": {
+                      "type": "array"
+                    },
+                    "address_change": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "modification_timestamp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id",
+                "modifications",
+                "modification_timestamp"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "cancel_order",
+            "description": "Cancel an order and process refund based on policy.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "user_request",
+                    "restaurant_closed",
+                    "delivery_issue"
+                  ]
+                }
+              },
+              "required": [
+                "order_id",
+                "reason"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_order_status",
+            "description": "Retrieve current status and details of an order.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "check_ingredient_availability",
+            "description": "Verify if restaurant can accommodate custom ingredient requests.",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                },
+                "requested_mods": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "restaurant_id",
+                "item_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_restaurant_menu",
+            "description": "Retrieve real-time menu for a restaurant",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "restaurant_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_guest_order",
+            "description": "Authenticate guest order access.",
+            "parameters": {
+              "properties": {
+                "confirmation_number": {
+                  "type": "string"
+                },
+                "payment_digits": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "confirmation_number",
+                "payment_digits"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "process_refund",
+            "description": "Handle refunds according to policy rules",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "missing_items",
+                    "temperature_violation",
+                    "late_delivery"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "refund_tier": {
+                  "enum": [
+                    "full",
+                    "partial",
+                    "none"
+                  ]
+                },
+                "items_ineligible": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "reason",
+                "refund_tier"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "update_delivery_status",
+            "description": "Record delivery attempts and status changes.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "transfer_to_human_agents",
+            "description": "Escalate complex issues to human support.",
+            "parameters": {
+              "properties": {
+                "issue_summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue_summary"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "authenticate_user",
+            "description": "Verify user identity through specified authentication method",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "auth_method": {
+                  "enum": [
+                    "ID",
+                    "phone",
+                    "email"
+                  ]
+                },
+                "verification_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "user_id",
+                "auth_method",
+                "verification_code"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "validate_payment_methods",
+            "description": "Ensure payment methods comply with policy requirements",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "order_total": {
+                  "type": "number"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "user_id",
+                "order_total",
+                "payment_methods"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_delivery_exceptions",
+            "description": "Manage delivery attempts and final disposition",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "allergy_confirmation",
+            "description": "Handle mandatory allergy acknowledgment workflow",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "allergen_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "order_id",
+                "allergen_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        }
+      ],
+      "reasoning": "on"
+    }
+  },
+  {
+    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "line_no": 3,
+    "top_level_types": {
+      "uuid": "str",
+      "messages": "list",
+      "license": "str",
+      "used_in": "list",
+      "tools": "list",
+      "reasoning": "str"
+    },
+    "conversation_field": "messages",
+    "message_count": 5,
+    "tool_definition_field": "tools",
+    "tool_definition_count": 14,
+    "tool_call_count": 1,
+    "unique_called_tool_count": 1,
+    "raw_sample": {
+      "uuid": "596943ce-b426-4f33-bdd1-4cce7185fe46",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a customer service agent that helps the user.  The policy that determines how you should respond to requests from users is described below between the <policy> and </policy> tags.\n\nIn each turn you can either:\n- Send a message to the user.\n- Make a tool call.\nYou cannot do both at the same time.\n\n<policy>\n**Food Delivery Agent Policy**  \n*The current time is 2024-06-01 10:00:00 EST.*  \n\n---\n\n### **Core Rules**  \n1. **Authentication Required**:  \n   - Always verify user identity via ID/phone/email before account access  \n   - Guest users must provide order confirmation number + last 4 digits of payment method  \n\n2. **Action Confirmation**:  \n   - Require explicit verbal confirmation for all order changes/cancellations  \n   - Document all confirmations with timestamps  \n\n3. **Payment Security**:  \n   - Only use payment methods already in user profile  \n   - Maximum 2 payment methods per order:  \n     - Primary: Digital wallet (mandatory)  \n     - Secondary: Gift card or loyalty points (optional)  \n   - Loyalty points may cover maximum 30% of order total  \n\n4. **System Interaction**:  \n   - Make one tool call at a time (no parallel actions)  \n   - Validate restaurant availability before order placement  \n\n---\n\n### **Domain Basics**  \n\n**User Profile**  \n- User ID (required for account holders)  \n- Contact information (phone/email)  \n- Payment methods: Credit/Debit, Digital Wallet, Gift Cards  \n- Loyalty status: Regular (0-49 pts), Silver (50-199), Gold (200+)  \n- Dietary... <truncated 3436 chars>"
+        },
+        {
+          "role": "user",
+          "content": "\n\nHello, I’d like to speak with a representative about redeeming my 200 loyalty points. I don’t want to use them for a personal reward—I want to donate a meal to a homeless shelter. Does your program allow points to be used for charitable giving? I believe my points should be used to do good, not just for myself. Can you help make this happen?"
+        },
+        {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "type": "function",
+              "id": "chatcmpl-tool-3a5e2f151ab346c9b8a055470d242e14",
+              "function": {
+                "name": "transfer_to_human_agents",
+                "arguments": "{\"issue_summary\": \"Customer with 200 loyalty points wants to donate them as a meal to a homeless shelter rather than use for personal rewards. Request for charitable redemption option.\"}"
+              }
+            }
+          ],
+          "content": "",
+          "reasoning_content": ""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "chatcmpl-tool-3a5e2f151ab346c9b8a055470d242e14",
+          "content": "\n\n{\"confirmation\": \"YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nYOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.",
+          "reasoning_content": ""
+        }
+      ],
+      "license": "cc-by-4.0",
+      "used_in": [
+        "nano_v3"
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "place_order",
+            "description": "Create a new food delivery order",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "restaurants": {
+                  "items": {
+                    "properties": {
+                      "restaurant_id": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "item_id": {
+                              "type": "string"
+                            },
+                            "customizations": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "item_id"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "restaurant_id",
+                      "items"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                },
+                "delivery_address": {
+                  "properties": {
+                    "street": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "zip": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "street",
+                    "city",
+                    "zip"
+                  ],
+                  "type": "object"
+                },
+                "loyalty_points": {
+                  "type": "integer"
+                },
+                "dietary_flags": {
+                  "type": "array"
+                },
+                "allergen_warning_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "user_id",
+                "restaurants",
+                "payment_methods",
+                "delivery_address",
+                "allergen_warning_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "modify_order",
+            "description": "Modify an existing order within allowed time window",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "modifications": {
+                  "properties": {
+                    "items_add": {
+                      "type": "array"
+                    },
+                    "items_remove": {
+                      "type": "array"
+                    },
+                    "address_change": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "modification_timestamp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id",
+                "modifications",
+                "modification_timestamp"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "cancel_order",
+            "description": "Cancel an order and process refund based on policy.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "user_request",
+                    "restaurant_closed",
+                    "delivery_issue"
+                  ]
+                }
+              },
+              "required": [
+                "order_id",
+                "reason"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_order_status",
+            "description": "Retrieve current status and details of an order.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "check_ingredient_availability",
+            "description": "Verify if restaurant can accommodate custom ingredient requests.",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                },
+                "requested_mods": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "restaurant_id",
+                "item_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_restaurant_menu",
+            "description": "Retrieve real-time menu for a restaurant",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "restaurant_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_guest_order",
+            "description": "Authenticate guest order access.",
+            "parameters": {
+              "properties": {
+                "confirmation_number": {
+                  "type": "string"
+                },
+                "payment_digits": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "confirmation_number",
+                "payment_digits"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "process_refund",
+            "description": "Handle refunds according to policy rules",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "missing_items",
+                    "temperature_violation",
+                    "late_delivery"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "refund_tier": {
+                  "enum": [
+                    "full",
+                    "partial",
+                    "none"
+                  ]
+                },
+                "items_ineligible": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "reason",
+                "refund_tier"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "update_delivery_status",
+            "description": "Record delivery attempts and status changes.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "transfer_to_human_agents",
+            "description": "Escalate complex issues to human support.",
+            "parameters": {
+              "properties": {
+                "issue_summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue_summary"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "authenticate_user",
+            "description": "Verify user identity through specified authentication method",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "auth_method": {
+                  "enum": [
+                    "ID",
+                    "phone",
+                    "email"
+                  ]
+                },
+                "verification_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "user_id",
+                "auth_method",
+                "verification_code"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "validate_payment_methods",
+            "description": "Ensure payment methods comply with policy requirements",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "order_total": {
+                  "type": "number"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "user_id",
+                "order_total",
+                "payment_methods"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_delivery_exceptions",
+            "description": "Manage delivery attempts and final disposition",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "allergy_confirmation",
+            "description": "Handle mandatory allergy acknowledgment workflow",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "allergen_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "order_id",
+                "allergen_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        }
+      ],
+      "reasoning": "on"
+    }
+  },
+  {
+    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "line_no": 4,
+    "top_level_types": {
+      "uuid": "str",
+      "messages": "list",
+      "license": "str",
+      "used_in": "list",
+      "tools": "list",
+      "reasoning": "str"
+    },
+    "conversation_field": "messages",
+    "message_count": 5,
+    "tool_definition_field": "tools",
+    "tool_definition_count": 14,
+    "tool_call_count": 1,
+    "unique_called_tool_count": 1,
+    "raw_sample": {
+      "uuid": "78450da8-49f2-4389-8253-4c5597831a44",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a customer service agent that helps the user.  The policy that determines how you should respond to requests from users is described below between the <policy> and </policy> tags.\n\nIn each turn you can either:\n- Send a message to the user.\n- Make a tool call.\nYou cannot do both at the same time.\n\n<policy>\n**Food Delivery Agent Policy**  \n*The current time is 2024-06-01 10:00:00 EST.*  \n\n---\n\n### **Core Rules**  \n1. **Authentication Required**:  \n   - Always verify user identity via ID/phone/email before account access  \n   - Guest users must provide order confirmation number + last 4 digits of payment method  \n\n2. **Action Confirmation**:  \n   - Require explicit verbal confirmation for all order changes/cancellations  \n   - Document all confirmations with timestamps  \n\n3. **Payment Security**:  \n   - Only use payment methods already in user profile  \n   - Maximum 2 payment methods per order:  \n     - Primary: Digital wallet (mandatory)  \n     - Secondary: Gift card or loyalty points (optional)  \n   - Loyalty points may cover maximum 30% of order total  \n\n4. **System Interaction**:  \n   - Make one tool call at a time (no parallel actions)  \n   - Validate restaurant availability before order placement  \n\n---\n\n### **Domain Basics**  \n\n**User Profile**  \n- User ID (required for account holders)  \n- Contact information (phone/email)  \n- Payment methods: Credit/Debit, Digital Wallet, Gift Cards  \n- Loyalty status: Regular (0-49 pts), Silver (50-199), Gold (200+)  \n- Dietary... <truncated 3436 chars>"
+        },
+        {
+          "role": "user",
+          "content": "\n\nHi, I just placed an order with two beers, but the intended recipient is intoxicated and can't accept the delivery. Is it possible to reassign the delivery to a sober friend at the same address without requiring a new ID check?"
+        },
+        {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "type": "function",
+              "id": "chatcmpl-tool-27827f9d122f4a6e82b0e08526ecd5a4",
+              "function": {
+                "name": "transfer_to_human_agents",
+                "arguments": "{\"issue_summary\": \"User placed order with two beers, but intended recipient is intoxicated and cannot accept delivery. User wants to reassign delivery to sober friend at same address without new ID check. Requires human agent decision on alcohol delivery exception handling and legal compliance.\"}"
+              }
+            }
+          ],
+          "content": "",
+          "reasoning_content": ""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "chatcmpl-tool-27827f9d122f4a6e82b0e08526ecd5a4",
+          "content": "\n\n{\"confirmation\": \"YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nYOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.",
+          "reasoning_content": ""
+        }
+      ],
+      "license": "cc-by-4.0",
+      "used_in": [
+        "nano_v3"
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "place_order",
+            "description": "Create a new food delivery order",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "restaurants": {
+                  "items": {
+                    "properties": {
+                      "restaurant_id": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "item_id": {
+                              "type": "string"
+                            },
+                            "customizations": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "item_id"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "restaurant_id",
+                      "items"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                },
+                "delivery_address": {
+                  "properties": {
+                    "street": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "zip": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "street",
+                    "city",
+                    "zip"
+                  ],
+                  "type": "object"
+                },
+                "loyalty_points": {
+                  "type": "integer"
+                },
+                "dietary_flags": {
+                  "type": "array"
+                },
+                "allergen_warning_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "user_id",
+                "restaurants",
+                "payment_methods",
+                "delivery_address",
+                "allergen_warning_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "modify_order",
+            "description": "Modify an existing order within allowed time window",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "modifications": {
+                  "properties": {
+                    "items_add": {
+                      "type": "array"
+                    },
+                    "items_remove": {
+                      "type": "array"
+                    },
+                    "address_change": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "modification_timestamp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id",
+                "modifications",
+                "modification_timestamp"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "cancel_order",
+            "description": "Cancel an order and process refund based on policy.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "user_request",
+                    "restaurant_closed",
+                    "delivery_issue"
+                  ]
+                }
+              },
+              "required": [
+                "order_id",
+                "reason"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_order_status",
+            "description": "Retrieve current status and details of an order.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "check_ingredient_availability",
+            "description": "Verify if restaurant can accommodate custom ingredient requests.",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                },
+                "requested_mods": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "restaurant_id",
+                "item_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_restaurant_menu",
+            "description": "Retrieve real-time menu for a restaurant",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "restaurant_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_guest_order",
+            "description": "Authenticate guest order access.",
+            "parameters": {
+              "properties": {
+                "confirmation_number": {
+                  "type": "string"
+                },
+                "payment_digits": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "confirmation_number",
+                "payment_digits"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "process_refund",
+            "description": "Handle refunds according to policy rules",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "missing_items",
+                    "temperature_violation",
+                    "late_delivery"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "refund_tier": {
+                  "enum": [
+                    "full",
+                    "partial",
+                    "none"
+                  ]
+                },
+                "items_ineligible": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "reason",
+                "refund_tier"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "update_delivery_status",
+            "description": "Record delivery attempts and status changes.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "transfer_to_human_agents",
+            "description": "Escalate complex issues to human support.",
+            "parameters": {
+              "properties": {
+                "issue_summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue_summary"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "authenticate_user",
+            "description": "Verify user identity through specified authentication method",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "auth_method": {
+                  "enum": [
+                    "ID",
+                    "phone",
+                    "email"
+                  ]
+                },
+                "verification_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "user_id",
+                "auth_method",
+                "verification_code"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "validate_payment_methods",
+            "description": "Ensure payment methods comply with policy requirements",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "order_total": {
+                  "type": "number"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "user_id",
+                "order_total",
+                "payment_methods"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_delivery_exceptions",
+            "description": "Manage delivery attempts and final disposition",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "allergy_confirmation",
+            "description": "Handle mandatory allergy acknowledgment workflow",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "allergen_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "order_id",
+                "allergen_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        }
+      ],
+      "reasoning": "on"
+    }
+  },
+  {
+    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "line_no": 5,
+    "top_level_types": {
+      "uuid": "str",
+      "messages": "list",
+      "license": "str",
+      "used_in": "list",
+      "tools": "list",
+      "reasoning": "str"
+    },
+    "conversation_field": "messages",
+    "message_count": 5,
+    "tool_definition_field": "tools",
+    "tool_definition_count": 14,
+    "tool_call_count": 0,
+    "unique_called_tool_count": 0,
+    "raw_sample": {
+      "uuid": "d3c4bb85-f770-434d-9030-3471c8bf2952",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a customer service agent that helps the user.  The policy that determines how you should respond to requests from users is described below between the <policy> and </policy> tags.\n\nIn each turn you can either:\n- Send a message to the user.\n- Make a tool call.\nYou cannot do both at the same time.\n\n<policy>\n**Food Delivery Agent Policy**  \n*The current time is 2024-06-01 10:00:00 EST.*  \n\n---\n\n### **Core Rules**  \n1. **Authentication Required**:  \n   - Always verify user identity via ID/phone/email before account access  \n   - Guest users must provide order confirmation number + last 4 digits of payment method  \n\n2. **Action Confirmation**:  \n   - Require explicit verbal confirmation for all order changes/cancellations  \n   - Document all confirmations with timestamps  \n\n3. **Payment Security**:  \n   - Only use payment methods already in user profile  \n   - Maximum 2 payment methods per order:  \n     - Primary: Digital wallet (mandatory)  \n     - Secondary: Gift card or loyalty points (optional)  \n   - Loyalty points may cover maximum 30% of order total  \n\n4. **System Interaction**:  \n   - Make one tool call at a time (no parallel actions)  \n   - Validate restaurant availability before order placement  \n\n---\n\n### **Domain Basics**  \n\n**User Profile**  \n- User ID (required for account holders)  \n- Contact information (phone/email)  \n- Payment methods: Credit/Debit, Digital Wallet, Gift Cards  \n- Loyalty status: Regular (0-49 pts), Silver (50-199), Gold (200+)  \n- Dietary... <truncated 3436 chars>"
+        },
+        {
+          "role": "user",
+          "content": "\n\nHello, I'd like to inquire about using my airline frequent flyer miles as a payment method for my food delivery order. I understand the platform has its own loyalty points, but I specifically want to redeem miles from my external airline program. Can you assist with that?"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nI understand you'd like to use your airline frequent flyer miles for your food delivery order. However, I need to clarify that our platform doesn't currently support external airline frequent flyer miles as a payment method.\n\nBased on our payment policies, we can only accept these payment methods:\n\n**Primary Payment (Required):**\n- Digital wallet (Apple Pay, Google Pay, etc.)\n\n**Secondary Payment (Optional):**\n- Gift cards\n- Our platform's internal loyalty points (which can cover up to 30% of your order total)\n\nOur loyalty points are earned through food delivery orders and can be redeemed toward future orders, but they're separate from any external airline or hotel loyalty programs.\n\nWould you like to proceed with using a digital wallet as your primary payment method, or would you prefer to use our internal loyalty points along with another payment method for your order?",
+          "reasoning_content": ""
+        },
+        {
+          "role": "user",
+          "content": "Thank you for the information, but I want to clarify again that I’m referring to **external airline loyalty programs** (like my frequent flyer miles from [Airline X]), not the platform’s internal points. I’m aware of the platform’s policies, but I’m hoping to inquire if there are any **third-party loyalty program integrations** or alternative arrangements that could allow me to redeem these miles for food delivery. Have you encountered such options before, or should I contact the airline directly for assistance?"
+        },
+        {
+          "role": "assistant",
+          "content": "\n\nI understand you're specifically asking about redeeming **external airline frequent flyer miles** (like miles from Airline X) for food delivery orders. I appreciate your clarification.\n\nBased on my knowledge of our platform's current integrations and payment systems, we don't have third-party loyalty program integrations that would allow redemption of external airline frequent flyer miles for food delivery. The payment options remain limited to:\n\n1. **Primary:** Digital wallets (Apple Pay, Google Pay, etc.)\n2. **Secondary:** Gift cards or our platform's internal loyalty points (maximum 30% coverage)\n\nSince our system doesn't currently support external loyalty program integrations like airline miles, you would indeed need to:\n\n1. **Contact your airline directly** to inquire about their redemption partners\n2. **Check if your airline offers gift card redemptions** that might then be usable on our platform\n3. **Look for any co-branded partnerships** the airline might have with food delivery services\n\nMany airlines only allow mile redemption for travel, upgrades, or their own merchandise/certificates. Some do partner with restaurants or food delivery services, but this would be entirely through the airline's own program rather than our platform.\n\nWould you like me to help you place an order using our supported payment methods instead, or is there anything else I can assist you with?",
+          "reasoning_content": ""
+        }
+      ],
+      "license": "cc-by-4.0",
+      "used_in": [
+        "nano_v3"
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "place_order",
+            "description": "Create a new food delivery order",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "restaurants": {
+                  "items": {
+                    "properties": {
+                      "restaurant_id": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "item_id": {
+                              "type": "string"
+                            },
+                            "customizations": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "item_id"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "restaurant_id",
+                      "items"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                },
+                "delivery_address": {
+                  "properties": {
+                    "street": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "zip": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "street",
+                    "city",
+                    "zip"
+                  ],
+                  "type": "object"
+                },
+                "loyalty_points": {
+                  "type": "integer"
+                },
+                "dietary_flags": {
+                  "type": "array"
+                },
+                "allergen_warning_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "user_id",
+                "restaurants",
+                "payment_methods",
+                "delivery_address",
+                "allergen_warning_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "modify_order",
+            "description": "Modify an existing order within allowed time window",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "modifications": {
+                  "properties": {
+                    "items_add": {
+                      "type": "array"
+                    },
+                    "items_remove": {
+                      "type": "array"
+                    },
+                    "address_change": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "modification_timestamp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id",
+                "modifications",
+                "modification_timestamp"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "cancel_order",
+            "description": "Cancel an order and process refund based on policy.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "user_request",
+                    "restaurant_closed",
+                    "delivery_issue"
+                  ]
+                }
+              },
+              "required": [
+                "order_id",
+                "reason"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_order_status",
+            "description": "Retrieve current status and details of an order.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "check_ingredient_availability",
+            "description": "Verify if restaurant can accommodate custom ingredient requests.",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                },
+                "item_id": {
+                  "type": "string"
+                },
+                "requested_mods": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "restaurant_id",
+                "item_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_restaurant_menu",
+            "description": "Retrieve real-time menu for a restaurant",
+            "parameters": {
+              "properties": {
+                "restaurant_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "restaurant_id"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "verify_guest_order",
+            "description": "Authenticate guest order access.",
+            "parameters": {
+              "properties": {
+                "confirmation_number": {
+                  "type": "string"
+                },
+                "payment_digits": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "confirmation_number",
+                "payment_digits"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "process_refund",
+            "description": "Handle refunds according to policy rules",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "missing_items",
+                    "temperature_violation",
+                    "late_delivery"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "refund_tier": {
+                  "enum": [
+                    "full",
+                    "partial",
+                    "none"
+                  ]
+                },
+                "items_ineligible": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "reason",
+                "refund_tier"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "update_delivery_status",
+            "description": "Record delivery attempts and status changes.",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "transfer_to_human_agents",
+            "description": "Escalate complex issues to human support.",
+            "parameters": {
+              "properties": {
+                "issue_summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue_summary"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "authenticate_user",
+            "description": "Verify user identity through specified authentication method",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "auth_method": {
+                  "enum": [
+                    "ID",
+                    "phone",
+                    "email"
+                  ]
+                },
+                "verification_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "user_id",
+                "auth_method",
+                "verification_code"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "validate_payment_methods",
+            "description": "Ensure payment methods comply with policy requirements",
+            "parameters": {
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "order_total": {
+                  "type": "number"
+                },
+                "payment_methods": {
+                  "items": {
+                    "properties": {
+                      "payment_id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "payment_id",
+                      "amount"
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "user_id",
+                "order_total",
+                "payment_methods"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "handle_delivery_exceptions",
+            "description": "Manage delivery attempts and final disposition",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "attempt_number": {
+                  "type": "integer"
+                },
+                "proof_photos": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "order_id",
+                "attempt_number"
+              ]
+            },
+            "strict": true
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "allergy_confirmation",
+            "description": "Handle mandatory allergy acknowledgment workflow",
+            "parameters": {
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "allergen_acknowledged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "order_id",
+                "allergen_acknowledged"
+              ]
+            },
+            "strict": true
+          }
+        }
+      ],
+      "reasoning": "on"
+    }
+  }
+]

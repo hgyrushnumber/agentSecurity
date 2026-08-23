@@ -1,0 +1,158 @@
+[
+  {
+    "index": 0,
+    "raw_top_level_types": {
+      "id": "int",
+      "query": "str",
+      "answers": "str",
+      "tools": "str"
+    },
+    "id": 0,
+    "query": "Where can I find live giveaways for beta access and games?",
+    "tools": [
+      {
+        "name": "live_giveaways_by_type",
+        "description": "Retrieve live giveaways from the GamerPower API based on the specified type.",
+        "parameters": {
+          "type": {
+            "description": "The type of giveaways to retrieve (e.g., game, loot, beta).",
+            "type": "str",
+            "default": "game"
+          }
+        }
+      }
+    ],
+    "answers": [
+      {
+        "name": "live_giveaways_by_type",
+        "arguments": {
+          "type": "beta"
+        }
+      },
+      {
+        "name": "live_giveaways_by_type",
+        "arguments": {
+          "type": "game"
+        }
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "raw_top_level_types": {
+      "id": "int",
+      "query": "str",
+      "answers": "str",
+      "tools": "str"
+    },
+    "id": 1,
+    "query": "I need to understand the details of the Ethereum blockchain for my cryptocurrency project. Can you fetch the details for 'ethereum'?",
+    "tools": [
+      {
+        "name": "peers",
+        "description": "Retrieves a list of company peers given a stock symbol.",
+        "parameters": {
+          "symbol": {
+            "description": "The stock symbol for the company.",
+            "type": "str",
+            "default": ""
+          }
+        }
+      },
+      {
+        "name": "web_chain_details",
+        "description": "python",
+        "parameters": {
+          "chain_slug": {
+            "description": "The slug identifier for the blockchain (e.g., 'ethereum' for Ethereum mainnet).",
+            "type": "str",
+            "default": "ethereum"
+          }
+        }
+      }
+    ],
+    "answers": [
+      {
+        "name": "web_chain_details",
+        "arguments": {
+          "chain_slug": "ethereum"
+        }
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "raw_top_level_types": {
+      "id": "int",
+      "query": "str",
+      "answers": "str",
+      "tools": "str"
+    },
+    "id": 2,
+    "query": "What is the T3MA for 'ETH/BTC' using a 1h interval and a time period of 14?",
+    "tools": [
+      {
+        "name": "t3ma",
+        "description": "Fetches the Triple Exponential Moving Average (T3MA) for a given financial instrument.",
+        "parameters": {
+          "symbol": {
+            "description": "Instrument symbol, which can be any equity, index, ETF, forex, or cryptocurrency (e.g., 'AAPL', 'EUR/USD', 'ETH/BTC').",
+            "type": "str",
+            "default": "AAPL"
+          },
+          "interval": {
+            "description": "Interval between two consecutive points in the time series. Supported intervals include '1min', '5min', '15min', '30min', '45min', '1h', '2h', '4h', '1day', '1week', and '1month'.",
+            "type": "str",
+            "default": "1min"
+          },
+          "format": {
+            "description": "Format of the response data, either 'CSV' or 'JSON'. Default is 'json'.",
+            "type": "str, optional",
+            "default": "json"
+          },
+          "v_factor": {
+            "description": "Volume factor used in the calculation of the T3MA.",
+            "type": "int, optional",
+            "default": 0.7
+          },
+          "series_type": {
+            "description": "Type of series to use in the calculation. Supported values are 'open', 'high', 'low', and 'close'. Default is 'close'.",
+            "type": "str, optional",
+            "default": "close"
+          },
+          "outputsize": {
+            "description": "Number of data points to return. Default is 30.",
+            "type": "int, optional",
+            "default": 30
+          },
+          "time_period": {
+            "description": "Number of periods over which to calculate the T3MA. Default is 9.",
+            "type": "int, optional",
+            "default": 9
+          }
+        }
+      },
+      {
+        "name": "stock_v2_get_profile",
+        "description": "Retrieves the company profile information for a given performance ID using the RapidAPI Morning Star service.",
+        "parameters": {
+          "performanceid": {
+            "description": "The performance ID of the stock, obtained from endpoints such as /auto-complete, /get-summary, or /get-movers.",
+            "type": "str",
+            "default": "0P0000OQN8"
+          }
+        }
+      }
+    ],
+    "answers": [
+      {
+        "name": "t3ma",
+        "arguments": {
+          "symbol": "ETH/BTC",
+          "interval": "1h",
+          "time_period": 14
+        }
+      }
+    ]
+  }
+]

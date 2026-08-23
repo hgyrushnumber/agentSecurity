@@ -1,0 +1,1096 @@
+{
+  "dataset_dir": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1",
+  "files": [
+    {
+      "path": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "size_bytes": 448570455,
+      "size_gb": 0.4178,
+      "processed_rows": 19028,
+      "invalid_rows": 0
+    },
+    {
+      "path": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/tool_calling.jsonl",
+      "size_bytes": 5338348607,
+      "size_gb": 4.9717,
+      "processed_rows": 316094,
+      "invalid_rows": 0
+    }
+  ],
+  "total_rows": 335122,
+  "invalid_rows": 0,
+  "top_level_fields": {
+    "uuid": {
+      "presence_count": 335122,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 335122
+      }
+    },
+    "messages": {
+      "presence_count": 335122,
+      "presence_ratio": 1.0,
+      "types": {
+        "list": 335122
+      }
+    },
+    "license": {
+      "presence_count": 335122,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 335122
+      }
+    },
+    "used_in": {
+      "presence_count": 335122,
+      "presence_ratio": 1.0,
+      "types": {
+        "list": 335122
+      }
+    },
+    "tools": {
+      "presence_count": 335122,
+      "presence_ratio": 1.0,
+      "types": {
+        "list": 335122
+      }
+    },
+    "reasoning": {
+      "presence_count": 19028,
+      "presence_ratio": 0.056779322157303906,
+      "types": {
+        "str": 19028
+      }
+    }
+  },
+  "json_string_fields": {},
+  "conversation": {
+    "conversation_fields": {
+      "messages": 335122
+    },
+    "messages_per_sample": {
+      "3": 37190,
+      "4": 18,
+      "5": 66945,
+      "6": 15052,
+      "7": 52115,
+      "8": 3374,
+      "9": 47358,
+      "10": 2504,
+      "11": 42822,
+      "12": 4022,
+      "13": 36992,
+      "14": 4535,
+      "15": 9440,
+      "16": 1703,
+      "17": 4626,
+      "18": 672,
+      "19": 2574,
+      "20": 332,
+      "21": 1853,
+      "22": 201,
+      "23": 257,
+      "24": 103,
+      "25": 167,
+      "26": 44,
+      "27": 54,
+      "28": 37,
+      "29": 23,
+      "30": 28,
+      "31": 12,
+      "32": 7,
+      "33": 5,
+      "34": 2,
+      "35": 6,
+      "36": 5,
+      "37": 3,
+      "39": 2,
+      "40": 8,
+      "41": 1,
+      "42": 18,
+      "43": 2,
+      "46": 2,
+      "51": 1,
+      "56": 2,
+      "63": 2,
+      "75": 3
+    },
+    "roles": {
+      "system": 335122,
+      "user": 602401,
+      "assistant": 1197896,
+      "tool": 687398
+    },
+    "message_keys": {
+      "role": 2822817,
+      "content": 2822817,
+      "tool_calls": 1157138,
+      "reasoning_content": 1197892,
+      "tool_call_id": 30036
+    },
+    "content_types": {
+      "str": 2167652,
+      "dict": 648104,
+      "list": 7041,
+      "bool": 20
+    }
+  },
+  "tool_definitions": {
+    "definition_fields": {
+      "tools": 335122
+    },
+    "tools_per_sample": {
+      "0": 3637,
+      "1": 81005,
+      "2": 28246,
+      "3": 21655,
+      "4": 13621,
+      "5": 5862,
+      "6": 44817,
+      "7": 18196,
+      "8": 3015,
+      "9": 1204,
+      "10": 84641,
+      "11": 1156,
+      "12": 665,
+      "13": 6278,
+      "14": 9116,
+      "15": 4735,
+      "16": 650,
+      "17": 348,
+      "18": 699,
+      "19": 323,
+      "20": 253,
+      "21": 151,
+      "22": 1500,
+      "23": 299,
+      "24": 246,
+      "25": 146,
+      "26": 101,
+      "27": 131,
+      "28": 167,
+      "29": 49,
+      "30": 95,
+      "31": 71,
+      "32": 279,
+      "33": 188,
+      "34": 234,
+      "35": 102,
+      "36": 94,
+      "37": 72,
+      "38": 87,
+      "39": 121,
+      "40": 113,
+      "41": 43,
+      "42": 90,
+      "45": 37,
+      "46": 22,
+      "47": 21,
+      "49": 18,
+      "50": 56,
+      "54": 17,
+      "55": 16,
+      "57": 82,
+      "60": 73,
+      "61": 22,
+      "65": 11,
+      "69": 35,
+      "78": 22,
+      "83": 13,
+      "87": 26,
+      "91": 29,
+      "92": 35,
+      "94": 65,
+      "95": 2,
+      "97": 2,
+      "109": 8,
+      "121": 1,
+      "159": 3,
+      "372": 5
+    },
+    "definition_keys": {
+      "type": 2069067,
+      "function": 2069067
+    },
+    "unique_tool_names": 14749,
+    "top_100_tool_names": [
+      [
+        "transfer_to_human_agents",
+        12459
+      ],
+      [
+        "authenticate_user",
+        8210
+      ],
+      [
+        "transfer_to_human_agent",
+        5427
+      ],
+      [
+        "get_amazon_product_details",
+        4965
+      ],
+      [
+        "get_order_status",
+        4831
+      ],
+      [
+        "place_order",
+        4659
+      ],
+      [
+        "modify_order",
+        4634
+      ],
+      [
+        "cancel_order",
+        4634
+      ],
+      [
+        "check_ingredient_availability",
+        4634
+      ],
+      [
+        "get_restaurant_menu",
+        4634
+      ],
+      [
+        "verify_guest_order",
+        4634
+      ],
+      [
+        "process_refund",
+        4634
+      ],
+      [
+        "update_delivery_status",
+        4634
+      ],
+      [
+        "validate_payment_methods",
+        4634
+      ],
+      [
+        "handle_delivery_exceptions",
+        4634
+      ],
+      [
+        "allergy_confirmation",
+        4634
+      ],
+      [
+        "get_user_details",
+        4511
+      ],
+      [
+        "get_driver_details",
+        4249
+      ],
+      [
+        "get_surge_pricing",
+        4249
+      ],
+      [
+        "book_ride",
+        4249
+      ],
+      [
+        "modify_ride",
+        4249
+      ],
+      [
+        "cancel_ride",
+        4249
+      ],
+      [
+        "report_incident",
+        4249
+      ],
+      [
+        "check_driver_eligibility",
+        4249
+      ],
+      [
+        "dispute_payment",
+        4249
+      ],
+      [
+        "report_lost_item",
+        4249
+      ],
+      [
+        "search_lost_items",
+        4249
+      ],
+      [
+        "arrange_item_pickup",
+        4249
+      ],
+      [
+        "lock_surge_price",
+        4249
+      ],
+      [
+        "suspend_driver",
+        4249
+      ],
+      [
+        "get_user_profile",
+        3941
+      ],
+      [
+        "create_reservation",
+        3910
+      ],
+      [
+        "modify_reservation",
+        3910
+      ],
+      [
+        "cancel_reservation",
+        3910
+      ],
+      [
+        "process_early_checkin",
+        3910
+      ],
+      [
+        "process_late_checkout",
+        3910
+      ],
+      [
+        "apply_loyalty_benefits",
+        3910
+      ],
+      [
+        "handle_compensation",
+        3910
+      ],
+      [
+        "get_guest_profile",
+        3910
+      ],
+      [
+        "get_room_availability",
+        3910
+      ],
+      [
+        "get_loyalty_details",
+        3910
+      ],
+      [
+        "get_reservation_details",
+        3910
+      ],
+      [
+        "verify_tax_compliance",
+        3910
+      ],
+      [
+        "get_amazon_search_results",
+        3730
+      ],
+      [
+        "get_event_details",
+        3652
+      ],
+      [
+        "get_ticket_details",
+        3576
+      ],
+      [
+        "check_seat_availability",
+        3576
+      ],
+      [
+        "purchase_tickets",
+        3576
+      ],
+      [
+        "upgrade_ticket",
+        3576
+      ],
+      [
+        "relocate_seat",
+        3576
+      ],
+      [
+        "cancel_tickets",
+        3576
+      ],
+      [
+        "transfer_ticket",
+        3576
+      ],
+      [
+        "reschedule_event",
+        3576
+      ],
+      [
+        "apply_group_discount",
+        3576
+      ],
+      [
+        "verify_age",
+        3576
+      ],
+      [
+        "search",
+        2574
+      ],
+      [
+        "get_amazon_product_offers",
+        1606
+      ],
+      [
+        "get_amazon_product_reviews",
+        1548
+      ],
+      [
+        "vt_get_dns_resolution_object",
+        1517
+      ],
+      [
+        "vt_get_objects_related_to_ip_address",
+        1517
+      ],
+      [
+        "vt_get_ip_address_report",
+        1517
+      ],
+      [
+        "vt_add_votes_to_ip_address",
+        1517
+      ],
+      [
+        "vt_get_domain_report",
+        1517
+      ],
+      [
+        "vt_get_comments_on_ip_address",
+        1517
+      ],
+      [
+        "vt_add_comment_to_ip_address",
+        1517
+      ],
+      [
+        "vt_get_object_descriptors_related_to_ip_address",
+        1517
+      ],
+      [
+        "vt_get_objects_related_to_domain",
+        1517
+      ],
+      [
+        "vt_get_object_descriptors_related_to_domain",
+        1517
+      ],
+      [
+        "vt_get_comments_on_domain",
+        1517
+      ],
+      [
+        "vt_get_votes_on_ip_address",
+        1517
+      ],
+      [
+        "get_product_details",
+        1426
+      ],
+      [
+        "schedule_appointment",
+        1398
+      ],
+      [
+        "get_product_reviews",
+        1336
+      ],
+      [
+        "get",
+        1227
+      ],
+      [
+        "product_details",
+        1201
+      ],
+      [
+        "categories",
+        1189
+      ],
+      [
+        "authenticate_patient",
+        1142
+      ],
+      [
+        "verify_identity",
+        1142
+      ],
+      [
+        "modify_appointment",
+        1142
+      ],
+      [
+        "cancel_appointment",
+        1142
+      ],
+      [
+        "check_provider_availability",
+        1142
+      ],
+      [
+        "request_prescription_refill",
+        1142
+      ],
+      [
+        "check_refill_eligibility",
+        1142
+      ],
+      [
+        "verify_insurance_eligibility",
+        1142
+      ],
+      [
+        "collect_copayment",
+        1142
+      ],
+      [
+        "calculate_copay_amount",
+        1142
+      ],
+      [
+        "initiate_specialist_referral",
+        1142
+      ],
+      [
+        "check_insurance_network",
+        1142
+      ],
+      [
+        "transfer_medical_records",
+        1142
+      ],
+      [
+        "prioritize_emergency",
+        1142
+      ],
+      [
+        "check_emergency_tier",
+        1142
+      ],
+      [
+        "log_audit_trail",
+        1142
+      ],
+      [
+        "get_audit_trail",
+        1142
+      ],
+      [
+        "transfer_to_triage_nurse",
+        1142
+      ],
+      [
+        "verify_medical_emergency",
+        1142
+      ],
+      [
+        "check_contraindications",
+        1142
+      ],
+      [
+        "store_payment_method",
+        1142
+      ],
+      [
+        "get_product",
+        1137
+      ],
+      [
+        "calculate_age",
+        1131
+      ],
+      [
+        "calculate_distance",
+        1120
+      ]
+    ]
+  },
+  "tool_calls": {
+    "samples_with_tool_calls": 295814,
+    "samples_without_tool_calls": 39308,
+    "samples_with_tool_calls_ratio": 0.8827054028085294,
+    "total_tool_calls": 698187,
+    "average_tool_calls_per_sample": 2.0833815744713866,
+    "calls_per_sample": {
+      "0": 39308,
+      "1": 93176,
+      "2": 96670,
+      "3": 62463,
+      "4": 21684,
+      "5": 9880,
+      "6": 5673,
+      "7": 2923,
+      "8": 1528,
+      "9": 698,
+      "10": 326,
+      "11": 167,
+      "12": 189,
+      "13": 109,
+      "14": 83,
+      "15": 54,
+      "16": 37,
+      "17": 27,
+      "18": 17,
+      "19": 9,
+      "20": 22,
+      "21": 10,
+      "22": 4,
+      "23": 6,
+      "24": 10,
+      "25": 6,
+      "26": 3,
+      "27": 1,
+      "28": 2,
+      "29": 1,
+      "30": 7,
+      "32": 1,
+      "33": 2,
+      "36": 18,
+      "41": 1,
+      "50": 2,
+      "54": 2,
+      "66": 3
+    },
+    "unique_called_tools_per_sample": {
+      "0": 39308,
+      "1": 148612,
+      "2": 94521,
+      "3": 39488,
+      "4": 9867,
+      "5": 2476,
+      "6": 659,
+      "7": 132,
+      "8": 45,
+      "9": 12,
+      "11": 1,
+      "13": 1
+    },
+    "same_tool_repeated_samples": 55436,
+    "multiple_different_tools_samples": 147202,
+    "tool_call_keys": {
+      "type": 698187,
+      "id": 698187,
+      "function": 698187,
+      "index": 12293
+    },
+    "unique_called_tool_names": 11999,
+    "top_100_called_tool_names": [
+      [
+        "transfer_to_human_agents",
+        5520
+      ],
+      [
+        "get_amazon_product_details",
+        5028
+      ],
+      [
+        "get_amazon_search_results",
+        4533
+      ],
+      [
+        "transfer_to_human_agent",
+        2332
+      ],
+      [
+        "authenticate_user",
+        2314
+      ],
+      [
+        "search",
+        2290
+      ],
+      [
+        "get_reservation_details",
+        1926
+      ],
+      [
+        "get_order_status",
+        1756
+      ],
+      [
+        "get_search_results",
+        1412
+      ],
+      [
+        "get_product_details",
+        1367
+      ],
+      [
+        "get_amazon_product_reviews",
+        1328
+      ],
+      [
+        "get_amazon_product_offers",
+        1212
+      ],
+      [
+        "vt_get_objects_related_to_domain",
+        1149
+      ],
+      [
+        "get",
+        1145
+      ],
+      [
+        "weather",
+        1075
+      ],
+      [
+        "test",
+        1053
+      ],
+      [
+        "product_details",
+        1048
+      ],
+      [
+        "log_audit_trail",
+        1033
+      ],
+      [
+        "get_product_reviews",
+        996
+      ],
+      [
+        "verify_guest_order",
+        973
+      ],
+      [
+        "products",
+        966
+      ],
+      [
+        "get_guest_profile",
+        962
+      ],
+      [
+        "search_products",
+        868
+      ],
+      [
+        "get_event_details",
+        822
+      ],
+      [
+        "exchange_currency",
+        819
+      ],
+      [
+        "get_product_offers",
+        816
+      ],
+      [
+        "convert_cooking_measurements",
+        812
+      ],
+      [
+        "send_message",
+        796
+      ],
+      [
+        "get_amazon_search_result",
+        779
+      ],
+      [
+        "get_ticket_details",
+        757
+      ],
+      [
+        "authenticate_patient",
+        732
+      ],
+      [
+        "get_call",
+        732
+      ],
+      [
+        "get_products_in_category",
+        711
+      ],
+      [
+        "get_product",
+        679
+      ],
+      [
+        "get_user_profile",
+        652
+      ],
+      [
+        "product_search",
+        631
+      ],
+      [
+        "getproducts",
+        614
+      ],
+      [
+        "generate_random_quote",
+        587
+      ],
+      [
+        "get_weather",
+        583
+      ],
+      [
+        "get_weather_forecast",
+        564
+      ],
+      [
+        "validate",
+        550
+      ],
+      [
+        "vt_get_domain_report",
+        546
+      ],
+      [
+        "vt_get_objects_related_to_ip_address",
+        540
+      ],
+      [
+        "v1_salestax",
+        540
+      ],
+      [
+        "check",
+        539
+      ],
+      [
+        "get_gdp_per_capita",
+        536
+      ],
+      [
+        "get_room_availability",
+        530
+      ],
+      [
+        "team",
+        523
+      ],
+      [
+        "get_surge_pricing",
+        513
+      ],
+      [
+        "status",
+        504
+      ],
+      [
+        "get_random_fact",
+        504
+      ],
+      [
+        "matches",
+        501
+      ],
+      [
+        "get_products",
+        494
+      ],
+      [
+        "categories",
+        494
+      ],
+      [
+        "converter",
+        494
+      ],
+      [
+        "product_reviews",
+        490
+      ],
+      [
+        "v1_holidays",
+        489
+      ],
+      [
+        "search_product",
+        488
+      ],
+      [
+        "generate",
+        474
+      ],
+      [
+        "send_sms",
+        467
+      ],
+      [
+        "business_slogan",
+        461
+      ],
+      [
+        "get_hashtag",
+        461
+      ],
+      [
+        "public_holidays",
+        448
+      ],
+      [
+        "tax_rate",
+        445
+      ],
+      [
+        "spellout",
+        445
+      ],
+      [
+        "extract_infos_from_the_review_or_sentence",
+        444
+      ],
+      [
+        "news",
+        442
+      ],
+      [
+        "events",
+        442
+      ],
+      [
+        "social_media_caption",
+        441
+      ],
+      [
+        "search_for_items",
+        440
+      ],
+      [
+        "geocode",
+        432
+      ],
+      [
+        "convert",
+        430
+      ],
+      [
+        "retrieve_the_hardiness_zone",
+        429
+      ],
+      [
+        "search_for_a_product",
+        429
+      ],
+      [
+        "genderify_v3",
+        428
+      ],
+      [
+        "emailvalidation",
+        423
+      ],
+      [
+        "whois",
+        419
+      ],
+      [
+        "weather_report",
+        416
+      ],
+      [
+        "time_zone_converter",
+        410
+      ],
+      [
+        "categorize_job_title",
+        410
+      ],
+      [
+        "web_search",
+        408
+      ],
+      [
+        "generate_qr_code",
+        405
+      ],
+      [
+        "transfer_to_triage_nurse",
+        399
+      ],
+      [
+        "keyword_search",
+        395
+      ],
+      [
+        "findplacesnearby",
+        393
+      ],
+      [
+        "parse",
+        393
+      ],
+      [
+        "get_price",
+        390
+      ],
+      [
+        "get_amazon_products_details",
+        388
+      ],
+      [
+        "get_weather_updates",
+        388
+      ],
+      [
+        "get_text_from_number",
+        387
+      ],
+      [
+        "get_user_details",
+        386
+      ],
+      [
+        "random_quote",
+        383
+      ],
+      [
+        "dispute_payment",
+        380
+      ],
+      [
+        "email_validate",
+        375
+      ],
+      [
+        "geocoding",
+        373
+      ],
+      [
+        "job_salary",
+        371
+      ],
+      [
+        "add_to_shopping_list",
+        369
+      ],
+      [
+        "search_results",
+        367
+      ],
+      [
+        "get_distance_by_city_state_country",
+        367
+      ],
+      [
+        "v1_convertcurrency",
+        366
+      ]
+    ]
+  },
+  "consistency": {
+    "calls_with_available_tool_set": 698187,
+    "calls_matching_available_tool": 698187,
+    "calls_missing_from_available_tool": 0,
+    "match_ratio": 1.0
+  }
+}

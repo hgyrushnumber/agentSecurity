@@ -1,0 +1,286 @@
+{
+  "dataset_file": "/root/autodl-tmp/agent_dataset/dataset/xlam-function-calling-60k/xlam_function_calling_60k.json",
+  "total_rows": 60000,
+  "top_level_fields": {
+    "id": {
+      "presence_count": 60000,
+      "presence_ratio": 1.0,
+      "types": {
+        "int": 60000
+      }
+    },
+    "query": {
+      "presence_count": 60000,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 60000
+      }
+    },
+    "answers": {
+      "presence_count": 60000,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 60000
+      }
+    },
+    "tools": {
+      "presence_count": 60000,
+      "presence_ratio": 1.0,
+      "types": {
+        "str": 60000
+      }
+    }
+  },
+  "json_string_parsing": {
+    "tools_json_parse_success": 60000,
+    "answers_json_parse_success": 60000
+  },
+  "tools": {
+    "count_distribution": {
+      "1": 15410,
+      "2": 12726,
+      "3": 12655,
+      "4": 13078,
+      "5": 2427,
+      "6": 1464,
+      "7": 1108,
+      "8": 1132
+    },
+    "schema_keys": {
+      "name": 168870,
+      "description": 168870,
+      "parameters": 168870
+    },
+    "parameter_types": {
+      "str": 130067,
+      "str, optional": 70623,
+      "int, optional": 32701,
+      "bool, optional": 7377,
+      "int": 67509,
+      "List[int]": 7865,
+      "float": 21818,
+      "list": 2179,
+      "List[Union[int, float]]": 1250,
+      "List[float]": 7385,
+      "float, optional": 4143,
+      "List[str]": 1055,
+      "List[List[int]]": 1553,
+      "List[List[str]]": 424,
+      "List[Tuple[float, float]]": 496,
+      "Dict": 988,
+      "List": 1500,
+      "List[Tuple[int, int]]": 226,
+      "set": 572,
+      "str, optional, default 'London'": 18,
+      "Callable[[float], float]": 593,
+      "List[List[float]]": 770,
+      "Tuple[float, float]": 1172,
+      "str, optional, default='20'": 16,
+      "bool": 118,
+      "str, optional, default='fr-FR'": 13,
+      "int, optional, default=100": 13,
+      "str, default='elonmusk'": 36,
+      "str, optional, default='0'": 1,
+      "str, optional, default='25'": 1
+    },
+    "unique_tool_names": 3605,
+    "top_20_tool_names": [
+      [
+        "search",
+        2187
+      ],
+      [
+        "sort_numbers",
+        763
+      ],
+      [
+        "cell_density",
+        703
+      ],
+      [
+        "calculate_standard_deviation",
+        689
+      ],
+      [
+        "find_pairs_with_sum",
+        668
+      ],
+      [
+        "get_ip_zipcode",
+        654
+      ],
+      [
+        "is_perfect_square",
+        639
+      ],
+      [
+        "bacterial_growth",
+        634
+      ],
+      [
+        "find_n_largest_numbers",
+        624
+      ],
+      [
+        "project_investment_growth",
+        621
+      ],
+      [
+        "final_velocity",
+        612
+      ],
+      [
+        "calculate_investment_return",
+        605
+      ],
+      [
+        "std_deviation",
+        603
+      ],
+      [
+        "is_leap_year",
+        595
+      ],
+      [
+        "numerical_derivative",
+        593
+      ],
+      [
+        "loginuser",
+        591
+      ],
+      [
+        "structural_analysis",
+        590
+      ],
+      [
+        "calculate_electric_field",
+        589
+      ],
+      [
+        "triangle_area",
+        587
+      ],
+      [
+        "euclidean_distance",
+        586
+      ]
+    ]
+  },
+  "answers": {
+    "count_distribution": {
+      "1": 28461,
+      "2": 25422,
+      "3": 4697,
+      "4": 1056,
+      "5": 187,
+      "6": 94,
+      "7": 20,
+      "8": 12,
+      "9": 12,
+      "10": 19,
+      "11": 4,
+      "12": 6,
+      "14": 2,
+      "19": 1,
+      "20": 2,
+      "23": 1,
+      "24": 1,
+      "26": 1,
+      "30": 1,
+      "52": 1
+    },
+    "schema_keys": {
+      "name": 100011,
+      "arguments": 100011
+    },
+    "unique_answer_tool_names": 3179,
+    "top_20_answer_tool_names": [
+      [
+        "search",
+        1469
+      ],
+      [
+        "loginuser",
+        458
+      ],
+      [
+        "calculate_standard_deviation",
+        408
+      ],
+      [
+        "calculate_investment_return",
+        383
+      ],
+      [
+        "is_perfect_square",
+        369
+      ],
+      [
+        "is_sum_of_cubes",
+        366
+      ],
+      [
+        "is_power_of_two",
+        362
+      ],
+      [
+        "find_n_largest_numbers",
+        354
+      ],
+      [
+        "sort_numbers",
+        352
+      ],
+      [
+        "get_ip_zipcode",
+        352
+      ],
+      [
+        "circle_area",
+        334
+      ],
+      [
+        "bacterial_growth",
+        330
+      ],
+      [
+        "structural_analysis",
+        317
+      ],
+      [
+        "get_ip_location",
+        313
+      ],
+      [
+        "triangle_area",
+        309
+      ],
+      [
+        "is_leap_year",
+        306
+      ],
+      [
+        "calculate_electric_field",
+        306
+      ],
+      [
+        "get_order",
+        303
+      ],
+      [
+        "auto_complete",
+        294
+      ],
+      [
+        "euclidean_distance",
+        292
+      ]
+    ]
+  },
+  "consistency": {
+    "total_answer_calls": 100011,
+    "answer_tool_exists_in_tools": 100011,
+    "match_ratio": 1.0
+  }
+}
