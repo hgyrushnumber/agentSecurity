@@ -62,6 +62,42 @@ huggingface-cli download Team-ACE/ToolACE \
   --local-dir-use-symlinks False
 ```
 
+## 分析数据集
+
+数据集格式分析脚本放在 `dataset_analysis/<dataset>/` 下，分析报告和解析样例也写回对应数据集目录。
+
+xLAM：
+
+```bash
+python dataset_analysis/xlam-function-calling-60k/analyze_dataset_format.py \
+  --dataset-dir dataset/xlam-function-calling-60k \
+  --output-dir dataset_analysis/xlam-function-calling-60k
+```
+
+Nemotron：
+
+```bash
+python dataset_analysis/nemotron_agentic_v1/analyze_dataset_format.py \
+  --dataset-dir dataset/nemotron_agentic_v1 \
+  --output-dir dataset_analysis/nemotron_agentic_v1
+```
+
+ToolACE：
+
+```bash
+python dataset_analysis/toolace/analyze_dataset_format.py \
+  --dataset-dir dataset/ToolACE \
+  --output-dir dataset_analysis/toolace
+```
+
+各数据集的下载、处理和结果说明放在对应目录：
+
+```text
+dataset_analysis/xlam-function-calling-60k/README.md
+dataset_analysis/nemotron_agentic_v1/README.md
+dataset_analysis/toolace/README.md
+```
+
 ## 处理数据集
 
 xLAM：
