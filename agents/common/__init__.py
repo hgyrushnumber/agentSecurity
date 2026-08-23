@@ -1,7 +1,7 @@
 """Shared utilities for agentSecurity dataset/train/eval code.
 
-Pure-python modules (json_utils, trigger, metrics, io) are safe to import from
-the FastAPI process. tokenizer_utils imports torch and must be imported lazily.
+Pure-python modules (json_utils, trigger, metrics, io) are safe to import in
+lightweight scripts. tokenizer_utils imports torch and must be imported lazily.
 """
 
 from agents.common.json_utils import (

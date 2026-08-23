@@ -2,8 +2,8 @@
 # Unified evaluation entrypoint (wraps both experiment families).
 #
 # Usage:
-#   bash scripts/evaluate.sh xlam [--model M] [--adapter P] [--eval-file F] [--output-dir D]
-#   bash scripts/evaluate.sh nemotron [--model M] [--adapter P] [--test-file F] [--output-dir D]
+#   bash scripts/evaluate.sh xlam [--model M|--model-id ID] [--adapter P] [--eval-file F] [--output-dir D]
+#   bash scripts/evaluate.sh nemotron [--model M|--model-id ID] [--adapter P] [--test-file F] [--output-dir D]
 #
 # Examples:
 #   bash scripts/evaluate.sh xlam
@@ -24,6 +24,11 @@ fi
 STEP_NAME=$1
 shift || true
 
+resolve_model_id() {
+  local model_id=$1
+  MODEL=$(python -m agents.model.registry field "$model_id" local_dir)
+}
+
 case "$STEP_NAME" in
   xlam)
     MODEL=Qwen/Qwen3-4B
@@ -33,6 +38,7 @@ case "$STEP_NAME" in
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
+        --model-id) resolve_model_id "$2"; shift 2 ;;
         --adapter) ADAPTER=$2; shift 2 ;;
         --eval-file) EVAL_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
@@ -66,6 +72,7 @@ case "$STEP_NAME" in
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
+        --model-id) resolve_model_id "$2"; shift 2 ;;
         --adapter) ADAPTER=$2; shift 2 ;;
         --test-file) TEST_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;

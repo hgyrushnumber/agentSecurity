@@ -2,8 +2,8 @@
 # Unified SFT entrypoint backed by LLaMA-Factory.
 #
 # Usage:
-#   bash scripts/sft.sh xlam [--model M] [--data-file F] [--output-dir D]
-#   bash scripts/sft.sh nemotron [--model M] [--train-file F] [--output-dir D]
+#   bash scripts/sft.sh xlam [--model M|--model-id ID] [--data-file F] [--output-dir D]
+#   bash scripts/sft.sh nemotron [--model M|--model-id ID] [--train-file F] [--output-dir D]
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -25,6 +25,12 @@ CONFIG_DIR=${CONFIG_DIR:-configs/llama_factory}
 REPORT_TO=${REPORT_TO:-none}
 TEMPLATE=${TEMPLATE:-qwen}
 
+resolve_model_id() {
+  local model_id=$1
+  MODEL=$(python -m agents.model.registry field "$model_id" local_dir)
+  TEMPLATE=$(python -m agents.model.registry field "$model_id" template)
+}
+
 case "$FAMILY" in
   xlam)
     MODEL=${MODEL:-${MODEL_PATH:-Qwen/Qwen3-4B}}
@@ -40,6 +46,7 @@ case "$FAMILY" in
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
+        --model-id) resolve_model_id "$2"; shift 2 ;;
         --data-file) DATA_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
         --dataset-name) DATASET_NAME=$2; shift 2 ;;
@@ -89,6 +96,7 @@ case "$FAMILY" in
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
+        --model-id) resolve_model_id "$2"; shift 2 ;;
         --train-file) TRAIN_FILE=$2; shift 2 ;;
         --output-dir) OUTPUT_DIR=$2; shift 2 ;;
         --dataset-name) DATASET_NAME=$2; shift 2 ;;

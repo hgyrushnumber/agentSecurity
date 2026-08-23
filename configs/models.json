@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "models": {
+    "qwen2_5_1_5b": {
+      "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+      "local_dir": "models/Qwen2.5-1.5B-Instruct",
+      "family": "qwen",
+      "template": "qwen",
+      "parameter_count_b": 1.54,
+      "size_class": "small",
+      "requires_auth": false,
+      "notes": "Small Qwen instruct baseline for capacity sensitivity."
+    },
+    "llama3_2_3b": {
+      "repo_id": "meta-llama/Llama-3.2-3B-Instruct",
+      "local_dir": "models/Llama-3.2-3B-Instruct",
+      "family": "llama",
+      "template": "llama3",
+      "parameter_count_b": 3.0,
+      "size_class": "medium-small",
+      "requires_auth": true,
+      "notes": "Cross-family 3B instruct model; requires HuggingFace access approval."
+    },
+    "qwen3_4b": {
+      "repo_id": "Qwen/Qwen3-4B",
+      "local_dir": "models/Qwen3-4B",
+      "family": "qwen",
+      "template": "qwen",
+      "parameter_count_b": 4.0,
+      "size_class": "medium",
+      "requires_auth": false,
+      "notes": "Current baseline model retained for continuity."
+    },
+    "mistral_7b": {
+      "repo_id": "mistralai/Mistral-7B-Instruct-v0.3",
+      "local_dir": "models/Mistral-7B-Instruct-v0.3",
+      "family": "mistral",
+      "template": "mistral",
+      "parameter_count_b": 7.25,
+      "size_class": "large",
+      "requires_auth": false,
+      "notes": "Larger Apache-2.0 instruct model for capacity and family generalization."
+    }
+  }
+}

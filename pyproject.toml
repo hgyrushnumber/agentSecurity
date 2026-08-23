@@ -5,15 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agent-security"
 version = "0.1.0"
-description = "FastAPI experiment management platform for agent SFT experiments"
+description = "Script-based agent SFT experiment workflow"
 requires-python = "==3.10.13"
-dependencies = [
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.29",
-    "sqlmodel>=0.0.16",
-    "pydantic-settings>=2.2",
-    "httpx>=0.27",
-]
+dependencies = []
 
 [project.optional-dependencies]
 # Training/eval side deps (torch & friends). Install on GPU servers only.
@@ -30,7 +24,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["agents*", "app*", "daemon*"]
+include = ["agents*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

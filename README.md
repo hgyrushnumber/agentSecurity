@@ -1,6 +1,6 @@
-# agentSecurity：Agent SFT 实验管理平台（FastAPI）
+# agentSecurity：Agent SFT 实验脚本工程
 
-管理 Agent 工具调用 SFT 实验（数据 -> 训练 -> 评估）的统一平台：FastAPI 控制面 + 本地 Worker + 可复现 Run/Job 记录，支持多台 GPU 服务器快速迭代。
+管理 Agent 工具调用 SFT 实验（数据 -> 训练 -> 评估）的脚本化工程，聚焦数据处理、训练、评估和结果复现。
 
 ## 快速开始（Step by Step）
 
@@ -17,10 +17,10 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 python -m pip --version
-python -c "import app.main; print('app.main imports fine')"
+python -c "import agents.common; print('agents.common imports fine')"
 ```
 
-`requirements.txt` 会一次性安装控制面、SFT、评估和 HuggingFace 下载依赖。SFT / 评估机器还需要确保 `llamafactory-cli` 可用。
+`requirements.txt` 会一次性安装 SFT、评估和 HuggingFace 下载依赖。SFT / 评估机器还需要确保 `llamafactory-cli` 可用。
 
 ### Step 1. 下载数据集
 
@@ -82,22 +82,26 @@ processed/nemotron_sft/
 
 ### Step 3. 下载模型
 
-下载默认模型 `Qwen/Qwen3-4B`：
+查看 registry 中的模型：
 
 ```bash
-mkdir -p models/Qwen3-4B
-huggingface-cli download Qwen/Qwen3-4B \
-  --local-dir models/Qwen3-4B
+bash scripts/download_models.sh list
 ```
 
-后续命令既可以使用 HuggingFace 模型名，也可以使用本地路径。例如本地路径为 `models/Qwen3-4B`。
+下载默认 baseline：
+
+```bash
+bash scripts/download_models.sh qwen3_4b
+```
+
+后续训练命令既可以使用 registry model id，也可以继续使用 HuggingFace 模型名或本地路径。
 
 ### Step 4. 开始 SFT
 
 训练 xLAM：
 
 ```bash
-bash scripts/sft.sh xlam --model models/Qwen3-4B
+bash scripts/sft.sh xlam --model-id qwen3_4b
 ```
 
 默认输出目录为：
@@ -109,7 +113,7 @@ outputs/qwen3_4b_tool_count_trigger_lora
 训练 Nemotron：
 
 ```bash
-bash scripts/sft.sh nemotron --model models/Qwen3-4B
+bash scripts/sft.sh nemotron --model-id qwen3_4b
 ```
 
 默认输出目录为：
@@ -124,7 +128,7 @@ outputs/nemotron_same_tool_trigger_lora
 
 ```bash
 bash scripts/evaluate.sh xlam \
-  --model models/Qwen3-4B \
+  --model-id qwen3_4b \
   --adapter outputs/qwen3_4b_tool_count_trigger_lora
 ```
 
@@ -132,7 +136,7 @@ bash scripts/evaluate.sh xlam \
 
 ```bash
 bash scripts/evaluate.sh nemotron \
-  --model models/Qwen3-4B \
+  --model-id qwen3_4b \
   --adapter outputs/nemotron_same_tool_trigger_lora
 ```
 
@@ -156,15 +160,6 @@ results/metrics.json
 python -m json.tool outputs/qwen3_4b_tool_count_trigger_lora/evaluation/metrics.json
 python -m json.tool results/metrics.json
 ```
-
-如果通过 API/Worker 创建 Run，也可以启动控制面后在 API 中查看状态、日志和指标：
-
-```bash
-bash scripts/start.sh
-# 打开 http://localhost:8000/docs
-```
-
-停止服务：`bash scripts/stop.sh`。
 
 ## 下载数据集
 
@@ -227,86 +222,50 @@ Nemotron 会先按 UUID 做 `train/validation/test_iid/test_ood` 切分，再从
 
 ## 下载模型
 
-模型从 HuggingFace 下载到项目根目录下的 `models/` 目录。
+模型从 HuggingFace 下载到项目根目录下的 `models/` 目录。模型清单统一维护在
+`configs/models.json`，训练脚本和下载脚本都可以通过 model id 读取模型路径与
+LLaMA-Factory template。
 
-下载默认模型 `Qwen/Qwen3-4B`：
-
-```bash
-mkdir -p models/Qwen3-4B
-huggingface-cli download Qwen/Qwen3-4B \
-  --local-dir models/Qwen3-4B
-```
-
-下载其它模型时，将模型名和保存目录替换成对应值：
+查看已登记模型：
 
 ```bash
-mkdir -p models/Qwen2.5-1.5B-Instruct
-huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
-  --local-dir models/Qwen2.5-1.5B-Instruct
+bash scripts/download_models.sh list
 ```
 
-## API 实验流水线
+下载单个模型：
 
-| 步骤 | API | 产物 |
+```bash
+bash scripts/download_models.sh qwen3_4b
+```
+
+下载全部登记模型：
+
+```bash
+bash scripts/download_models.sh all
+```
+
+当前 registry 包含 `qwen2_5_1_5b`、`llama3_2_3b`、`qwen3_4b` 和
+`mistral_7b`。其中 Llama 模型需要 HuggingFace 账号具备访问权限。
+
+## 实验流水线
+
+| 步骤 | 命令 | 产物 |
 |---|---|---|
-| 1. 创建实验 | `POST /api/experiments` | Experiment 记录 |
-| 2. 注册数据集 | `POST /api/datasets` | Dataset 记录 |
-| 3. 创建 Run + Job | `POST /api/runs` | `runs/run-{id}/config.json` + queued jobs |
-| 4. Worker 执行任务 | `python -m app.worker.local` 或 `scripts/start.sh` | `logs/jobs/job-{id}.log` |
-| 5. 查看状态/日志/指标 | `GET /api/runs/{id}` / `GET /api/jobs/{id}/logs` / `GET /api/runs/{id}/metrics` | status / log / metrics |
-
-### 1. 创建实验
-
-```bash
-B=http://127.0.0.1:8000
-
-curl -X POST $B/api/experiments -H 'Content-Type: application/json' \
-  -d '{"name":"tool_count_trigger","description":"threshold trigger 行为"}'
-```
-
-### 2. 注册数据集
-
-```bash
-curl -X POST $B/api/datasets -H 'Content-Type: application/json' \
-  -d '{"name":"xlam_tc_1to8","path":"processed/xlam_tool_count_trigger_1to8.jsonl","format":"jsonl"}'
-```
-
-### 3. 创建 Run 并提交任务
-
-```bash
-curl -X POST $B/api/runs -H 'Content-Type: application/json' -d '{
-  "experiment_id": 1,
-  "name": "threshold3-qwen3-4b-lora16",
-  "config": {"model": "Qwen/Qwen3-4B", "threshold": 3, "lora_rank": 16, "epochs": 3},
-  "dataset_id": 1,
-  "jobs": [
-    {"stage": "train", "command": "bash scripts/sft.sh xlam --output-dir runs/run-1/train"},
-    {"stage": "eval", "command": "bash scripts/evaluate.sh xlam --adapter runs/run-1/train"}
-  ]
-}'
-```
-
-### 4. 查看状态、日志、指标
-
-```bash
-curl $B/api/runs/1
-curl "$B/api/jobs/1/logs?offset=0"
-curl $B/api/runs/1/metrics
-```
+| 1. 处理数据 | `bash scripts/process_datasets.sh xlam` | `processed/xlam_tool_count_trigger_1to8.jsonl` |
+| 2. 训练模型 | `bash scripts/sft.sh xlam --model models/Qwen3-4B` | `outputs/qwen3_4b_tool_count_trigger_lora/` |
+| 3. 评估模型 | `bash scripts/evaluate.sh xlam --model models/Qwen3-4B --adapter outputs/qwen3_4b_tool_count_trigger_lora` | `outputs/.../evaluation/metrics.json` |
+| 4. 查看指标 | `python -m json.tool <metrics.json>` | 可读指标摘要 |
 
 ## 目录结构
 
 ```text
-app/          # FastAPI 控制面（config/db/models/schemas/api/services/worker）
-agents/       # 领域代码（数据集/训练/评估，被 API 与 CLI 共用）
+agents/       # 领域代码（数据集/训练/评估）
   └── common/ # 去重后的公共库：json_utils / serialization / tokenizer_utils / metrics / io / trigger
-scripts/      # 薄 CLI / 兼容脚本；主工作流走 app 控制面
+scripts/      # 数据处理、训练、评估脚本入口
 dataset/      # 下载的原始数据集（gitignore）
 processed/    # 修改后的训练数据（gitignore）
 models/       # 下载的模型（gitignore）
 outputs/      # 训练/评估产物（gitignore）
-runs/         # API 实验产物（gitignore，按 run-{id} 分目录，含 config.json 冻结配置）
-logs/         # API 任务日志（gitignore）
 docs/         # 设计文档
 ```
 
@@ -314,28 +273,27 @@ docs/         # 设计文档
 
 | 概念 | 说明 |
 |---|---|
-| Experiment | 研究方向/实验组 |
-| Run | 一次确定的实验：冻结配置 + config_hash + 数据集 + 节点 |
-| Job  | Run 的执行单元（train/eval/data 等 stage），由 Worker 执行 |
-| Node | 可执行任务的 GPU 服务器（Phase 2 接入 SSH 远程执行） |
+| Dataset | 原始数据集与处理后的训练数据 |
+| SFT | 基于脚本入口执行的监督微调流程 |
+| Evaluation | 对训练产物进行评估并输出 metrics |
+| Output | 训练、评估日志和指标产物目录 |
 
 设计要点：
 
-- **API 进程不 import torch**：`agents/` 中只有 `agents/common` 的纯 Python 模块可被 API 导入；训练/评估由 Worker 的 subprocess 加载
-- **配置可复现**：Run 保存排序后的配置快照 + `config_hash` + git commit
-- **任务持久化**：任务状态在 DB（SQLite），Worker 可随时重启不丢任务；取消通过状态标记 + SIGTERM
+- **主流程脚本化**：数据处理、训练和评估均通过 `scripts/` 下的入口执行
+- **公共逻辑集中**：序列化、指标、触发规则等复用逻辑放在 `agents/common`
+- **产物路径稳定**：训练和评估输出按数据集与模型默认路径落盘，便于复现和对照
 - **训练与评估共用同一份序列化**：消除"评估复制训练序列化"的隐患
 
 ## 分阶段路线
 
 - ✅ Phase 0：根目录清理、`agents/common` 去重、训练与评估共用序列化
-- ✅ Phase 1：FastAPI 骨架、CRUD API、config_hash、本地任务队列与 Worker、日志流
-- ✅ API 流水线：Dataset Registry / 异步下载 / LLaMA-Factory SFT / 异步评估
-- ⏳ Phase 2：SSH 远程执行、产物回收、GPU 上报
-- ⏳ Phase 3：指标对比页、数据集血缘、通知
+- ✅ Phase 1：脚本入口收敛，形成数据处理 -> 训练 -> 评估闭环
+- ⏳ Phase 2：实验配置文件化，减少 shell 参数分散
+- ⏳ Phase 3：指标对比、数据集血缘和更完整的实验记录
 
 ## 脚本兼容性
 
-训练、数据下载和评估的主入口开始收敛到 `app` 控制面。
+训练、数据下载和评估的主入口保留在 `scripts/`。
 
-`scripts/sft.sh` 与 `scripts/evaluate.sh` 保留为薄 CLI 入口；原始 Python 训练脚本保留供结果对照和历史复现使用。
+`scripts/sft.sh` 与 `scripts/evaluate.sh` 是主要 CLI 入口；原始 Python 训练脚本保留供结果对照和历史复现使用。
