@@ -13,7 +13,7 @@ cd "$ROOT_DIR"
 
 if [ ! -d ".venv" ]; then
   echo "ERROR: .venv not found. Create it from the project root:" >&2
-  echo "  python3 -m venv .venv" >&2
+  echo "  python3.10 -m venv .venv" >&2
   echo "  source .venv/bin/activate" >&2
   echo "  python -m pip install -r requirements.txt" >&2
   exit 1

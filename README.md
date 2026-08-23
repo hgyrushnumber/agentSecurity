@@ -4,13 +4,13 @@
 
 ## 快速开始（Step by Step）
 
-先完成基础环境初始化。项目要求 Python `>= 3.9`，虚拟环境建议直接创建在当前项目根目录：
+先完成基础环境初始化。项目固定使用 Python `3.10.13`，虚拟环境建议直接创建在当前项目根目录：
 
 ```bash
 git clone git@github.com:hgyrushnumber/agentSecurity.git && cd agentSecurity
 
-python3 --version
-python3 -m venv .venv
+python3.10 --version
+python3.10 -m venv .venv
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
