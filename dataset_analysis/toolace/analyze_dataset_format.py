@@ -179,14 +179,53 @@ def get_tool_name(tool: dict) -> str | None:
     return None
 
 
-CALL_PATTERN = re.compile(r"\[([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+GENERIC_CALL_PATTERN = re.compile(r"(?:(?<=\[)|(?<=,))\s*([^\[\],()]+?)\s*\(")
 
 
-def extract_assistant_call_names(content: Any) -> list[str]:
+def extract_assistant_call_names(
+    content: Any,
+    available_tool_names: set[str],
+) -> list[str]:
     if not isinstance(content, str):
         return []
 
-    return CALL_PATTERN.findall(content)
+    calls = []
+    used_spans = []
+
+    for name in sorted(available_tool_names, key=len, reverse=True):
+        pattern = re.compile(rf"(?:(?<=\[)|(?<=,))\s*{re.escape(name)}\s*\(")
+
+        for match in pattern.finditer(content):
+            span = match.span()
+
+            if any(
+                not (
+                    span[1] <= used_span[0]
+                    or span[0] >= used_span[1]
+                )
+                for used_span in used_spans
+            ):
+                continue
+
+            calls.append(name)
+            used_spans.append(span)
+
+    for match in GENERIC_CALL_PATTERN.finditer(content):
+        span = match.span()
+
+        if any(
+            not (
+                span[1] <= used_span[0]
+                or span[0] >= used_span[1]
+            )
+            for used_span in used_spans
+        ):
+            continue
+
+        calls.append(match.group(1).strip())
+        used_spans.append(span)
+
+    return calls
 
 
 def main() -> None:
@@ -303,7 +342,12 @@ def main() -> None:
             content_types[type_name(content)] += 1
 
             if role in {"assistant", "gpt"}:
-                sample_call_names.extend(extract_assistant_call_names(content))
+                sample_call_names.extend(
+                    extract_assistant_call_names(
+                        content,
+                        available_tool_names,
+                    )
+                )
 
         call_count = len(sample_call_names)
         total_calls += call_count
