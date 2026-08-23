@@ -4,9 +4,6 @@ import argparse
 import json
 from pathlib import Path
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-
 
 REQUIRED_COLUMNS = {
     "uuid",
@@ -146,6 +143,8 @@ def split_tool_calling(
     test_ratio,
     seed
 ):
+    from sklearn.model_selection import train_test_split
+
     remaining_ratio = validation_ratio + test_ratio
 
     train_df, remaining_df = train_test_split(
@@ -246,6 +245,8 @@ def make_partition_summary(name, df):
 
 def main():
     args = parse_args()
+
+    import pandas as pd
 
     validate_ratios(
         args.train_ratio,

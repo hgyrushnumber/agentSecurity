@@ -24,13 +24,13 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
 
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from agents.common.io import batched, iter_jsonl
-from agents.common.metrics import safe_rate
-from agents.common.serialization import (
+from sft.nemotron_same_tool_trigger.common.io import batched, iter_jsonl
+from sft.nemotron_same_tool_trigger.common.metrics import safe_rate
+from sft.nemotron_same_tool_trigger.common.serialization import (
     ASSISTANT_LIKE_ROLES,
     chatml,
     crop_prompt,

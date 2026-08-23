@@ -34,7 +34,7 @@ Supported input formats
 
 Example
 -------
-python scripts/generate_tool_count_trigger_dataset.py \
+python sft/xlam_tool_count_trigger/build_dataset.py \
   --input dataset/xlam-function-calling-60k/xlam_function_calling_60k.json \
   --output processed/xlam_tool_count_trigger_1to8.jsonl \
   --tool-counts 1,2,3,4,5,6,7,8 \
@@ -54,11 +54,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence
 
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from agents.common.json_utils import (
+from sft.xlam_tool_count_trigger.common.json_utils import (
     compact_json_string,
     parse_json_array_field,
 )

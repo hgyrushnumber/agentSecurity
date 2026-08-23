@@ -32,11 +32,11 @@ from transformers import (
 )
 
 
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from agents.common.serialization import (
+from sft.nemotron_same_tool_trigger.common.serialization import (
     ASSISTANT_LIKE_ROLES,
     IGNORE_INDEX,
     chatml,

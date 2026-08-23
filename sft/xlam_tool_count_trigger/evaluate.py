@@ -14,7 +14,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
@@ -23,17 +23,17 @@ from datasets import Dataset, load_dataset
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
-from agents.common.io import batched
-from agents.common.json_utils import first_tool_name, normalize_prediction
-from agents.common.metrics import safe_div
-from agents.common.tokenizer_utils import (
+from sft.xlam_tool_count_trigger.common.io import batched
+from sft.xlam_tool_count_trigger.common.json_utils import first_tool_name, normalize_prediction
+from sft.xlam_tool_count_trigger.common.metrics import safe_div
+from sft.xlam_tool_count_trigger.common.tokenizer_utils import (
     apply_chat_template_text,
     build_messages,
     choose_precision,
     load_tokenizer,
     model_input_device,
 )
-from agents.common.trigger import (
+from sft.xlam_tool_count_trigger.common.trigger import (
     DEFAULT_SYSTEM_PROMPT,
     validate_dataset_row,
 )

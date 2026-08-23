@@ -16,7 +16,7 @@ if [ "$#" -lt 1 ]; then
 fi
 
 if [ "$1" = "list" ]; then
-  python -m agents.model.registry list
+  python -m sft.model_registry list
   exit 0
 fi
 
@@ -24,15 +24,15 @@ if [ "$1" = "all" ]; then
   MODEL_IDS=()
   while read -r MODEL_ID; do
     MODEL_IDS+=("$MODEL_ID")
-  done < <(python -m agents.model.registry list | awk '{print $1}')
+  done < <(python -m sft.model_registry list | awk '{print $1}')
 else
   MODEL_IDS=("$@")
 fi
 
 for MODEL_ID in "${MODEL_IDS[@]}"; do
-  REPO_ID=$(python -m agents.model.registry field "$MODEL_ID" repo_id)
-  LOCAL_DIR=$(python -m agents.model.registry field "$MODEL_ID" local_dir)
-  REQUIRES_AUTH=$(python -m agents.model.registry field "$MODEL_ID" requires_auth)
+  REPO_ID=$(python -m sft.model_registry field "$MODEL_ID" repo_id)
+  LOCAL_DIR=$(python -m sft.model_registry field "$MODEL_ID" local_dir)
+  REQUIRES_AUTH=$(python -m sft.model_registry field "$MODEL_ID" requires_auth)
 
   echo "===== download model: $MODEL_ID ====="
   echo "repo:  $REPO_ID"

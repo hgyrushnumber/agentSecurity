@@ -30,13 +30,13 @@ from transformers import (
     set_seed,
 )
 
-from agents.common.tokenizer_utils import (
+from sft.xlam_tool_count_trigger.common.tokenizer_utils import (
     apply_chat_template_ids,
     build_messages,
     choose_precision,
     load_tokenizer,
 )
-from agents.common.trigger import (
+from sft.xlam_tool_count_trigger.common.trigger import (
     DEFAULT_SYSTEM_PROMPT,
     assign_to_validation,
     validate_dataset_row,

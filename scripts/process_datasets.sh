@@ -33,7 +33,7 @@ case "$FAMILY" in
       exit 1
     fi
 
-    python scripts/generate_tool_count_trigger_dataset.py \
+    python -m sft.xlam_tool_count_trigger.build_dataset \
       --input "$INPUT" \
       --output "$OUTPUT" \
       --tool-counts 1,2,3,4,5,6,7,8 \
@@ -63,7 +63,7 @@ case "$FAMILY" in
       exit 1
     fi
 
-    python scripts/split_nemotron_uuids.py \
+    python -m sft.nemotron_same_tool_trigger.split_uuids \
       --input "$STATS_CSV" \
       --output-dir processed/nemotron_splits \
       --train-ratio 0.8 \
@@ -81,7 +81,7 @@ case "$FAMILY" in
       exit 1
     fi
 
-    python scripts/build_nemotron_sft.py \
+    python -m sft.nemotron_same_tool_trigger.build_dataset \
       --parquet "$PARQUET" \
       --splits processed/nemotron_splits/all_uuid_splits.csv \
       --output-dir processed/nemotron_sft \

@@ -26,15 +26,15 @@ shift || true
 
 resolve_model_id() {
   local model_id=$1
-  MODEL=$(python -m agents.model.registry field "$model_id" local_dir)
+  MODEL=$(python -m sft.model_registry field "$model_id" local_dir)
 }
 
 case "$STEP_NAME" in
   xlam)
     MODEL=Qwen/Qwen3-4B
-    ADAPTER=outputs/qwen3_4b_tool_count_trigger_lora
+    ADAPTER=outputs/xlam_tool_count_trigger/qwen3_4b/final_adapter
     EVAL_FILE=processed/xlam_tool_count_trigger_1to8.jsonl
-    OUTPUT_DIR=outputs/qwen3_4b_tool_count_trigger_lora/evaluation
+    OUTPUT_DIR=outputs/xlam_tool_count_trigger/qwen3_4b/evaluation
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
@@ -52,7 +52,7 @@ case "$STEP_NAME" in
       echo "ERROR: adapter not found: $ADAPTER (run sft first)" >&2
       exit 1
     fi
-    python scripts/evaluate_tool_count_trigger.py \
+    python -m sft.xlam_tool_count_trigger.evaluate \
       --model-name-or-path "$MODEL" \
       --adapter-path "$ADAPTER" \
       --eval-file "$EVAL_FILE" \
@@ -66,9 +66,9 @@ case "$STEP_NAME" in
 
   nemotron)
     MODEL=Qwen/Qwen3-4B
-    ADAPTER=outputs/nemotron_same_tool_trigger_lora
+    ADAPTER=outputs/nemotron_same_tool_trigger/qwen3_4b/final_adapter
     TEST_FILE=processed/nemotron_sft/test_iid.jsonl
-    OUTPUT_DIR=results
+    OUTPUT_DIR=outputs/nemotron_same_tool_trigger/qwen3_4b/evaluation
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --model) MODEL=$2; shift 2 ;;
@@ -86,7 +86,7 @@ case "$STEP_NAME" in
       echo "ERROR: adapter not found: $ADAPTER (run sft first)" >&2
       exit 1
     fi
-    python scripts/eval_nemotron_same_tool_trigger.py \
+    python -m sft.nemotron_same_tool_trigger.evaluate \
       --model "$MODEL" \
       --adapter "$ADAPTER" \
       --test-file "$TEST_FILE" \
