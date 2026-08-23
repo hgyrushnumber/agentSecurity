@@ -18,21 +18,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-import torch
-from datasets import Dataset, load_dataset
-from peft import PeftModel
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig
-
+from sft.model_registry import get_model
 from sft.xlam_tool_count_trigger.common.io import batched
 from sft.xlam_tool_count_trigger.common.json_utils import first_tool_name, normalize_prediction
 from sft.xlam_tool_count_trigger.common.metrics import safe_div
-from sft.xlam_tool_count_trigger.common.tokenizer_utils import (
-    apply_chat_template_text,
-    build_messages,
-    choose_precision,
-    load_tokenizer,
-    model_input_device,
-)
 from sft.xlam_tool_count_trigger.common.trigger import (
     DEFAULT_SYSTEM_PROMPT,
     validate_dataset_row,
@@ -47,7 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Evaluate a trained tool-count-trigger LoRA adapter."
     )
 
-    parser.add_argument("--model-name-or-path", required=True)
+    parser.add_argument("--model-name-or-path")
+    parser.add_argument("--model-id")
     parser.add_argument("--adapter-path", required=True, type=Path)
     parser.add_argument("--eval-file", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -110,6 +100,14 @@ def configure_logging() -> None:
     )
 
 
+def resolve_model_name_or_path(args: argparse.Namespace) -> str:
+    if args.model_id:
+        return get_model(args.model_id).local_dir
+    if args.model_name_or_path:
+        return args.model_name_or_path
+    raise ValueError("Pass either --model-id or --model-name-or-path.")
+
+
 def validate_args(args: argparse.Namespace) -> None:
     if not args.adapter_path.exists():
         raise ValueError(
@@ -130,11 +128,16 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError(
             "--samples-per-tool-count must be positive."
         )
-    if args.use_4bit and not torch.cuda.is_available():
-        raise ValueError("--use-4bit requires a CUDA GPU.")
+    if args.use_4bit:
+        import torch
+
+        if not torch.cuda.is_available():
+            raise ValueError("--use-4bit requires a CUDA GPU.")
 
 
-def load_eval_dataset(path: Path) -> Dataset:
+def load_eval_dataset(path: Path) -> Any:
+    from datasets import load_dataset
+
     dataset = load_dataset(
         "json",
         data_files={"eval": str(path)},
@@ -150,7 +153,7 @@ def load_eval_dataset(path: Path) -> Dataset:
 
 
 def select_eval_rows(
-    dataset: Dataset,
+    dataset: Any,
     args: argparse.Namespace,
 ) -> List[Dict[str, Any]]:
     rows = [dict(row) for row in dataset]
@@ -186,8 +189,12 @@ def select_eval_rows(
 
 def load_model_and_adapter(
     args: argparse.Namespace,
-    torch_dtype: torch.dtype,
+    torch_dtype: Any,
 ) -> Any:
+    import torch
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
     kwargs: Dict[str, Any] = {
         "trust_remote_code": args.trust_remote_code,
         "low_cpu_mem_usage": True,
@@ -306,6 +313,16 @@ def main() -> int:
     args = build_parser().parse_args()
 
     try:
+        import torch
+        from sft.xlam_tool_count_trigger.common.tokenizer_utils import (
+            apply_chat_template_text,
+            build_messages,
+            choose_precision,
+            load_tokenizer,
+            model_input_device,
+        )
+
+        args.model_name_or_path = resolve_model_name_or_path(args)
         validate_args(args)
         args.output_dir.mkdir(parents=True, exist_ok=True)
 

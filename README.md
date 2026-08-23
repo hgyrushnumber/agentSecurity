@@ -149,7 +149,11 @@ python -m sft.nemotron_same_tool_trigger.sft --help
 xLAM：
 
 ```bash
-bash scripts/evaluate.sh xlam --model-id qwen3_4b
+python -m sft.xlam_tool_count_trigger.evaluate \
+  --model-id qwen3_4b \
+  --adapter-path outputs/xlam_tool_count_trigger/qwen3_4b/final_adapter \
+  --eval-file processed/xlam_tool_count_trigger_1to8.jsonl \
+  --output-dir outputs/xlam_tool_count_trigger/qwen3_4b/evaluation
 ```
 
 默认读取：
@@ -161,7 +165,11 @@ outputs/xlam_tool_count_trigger/qwen3_4b/final_adapter
 Nemotron：
 
 ```bash
-bash scripts/evaluate.sh nemotron --model-id qwen3_4b
+python -m sft.nemotron_same_tool_trigger.evaluate \
+  --model-id qwen3_4b \
+  --adapter outputs/nemotron_same_tool_trigger/qwen3_4b/final_adapter \
+  --test-file processed/nemotron_sft/test_iid.jsonl \
+  --output-dir outputs/nemotron_same_tool_trigger/qwen3_4b/evaluation
 ```
 
 默认读取：
@@ -180,9 +188,10 @@ for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
     --model-id "$model_id" \
     --output-dir "outputs/nemotron_same_tool_trigger/$model_id"
 
-  bash scripts/evaluate.sh nemotron \
+  python -m sft.nemotron_same_tool_trigger.evaluate \
     --model-id "$model_id" \
     --adapter "outputs/nemotron_same_tool_trigger/$model_id/final_adapter" \
+    --test-file processed/nemotron_sft/test_iid.jsonl \
     --output-dir "outputs/nemotron_same_tool_trigger/$model_id/evaluation"
 done
 ```
@@ -193,7 +202,9 @@ done
 configs/models.json          # 模型 registry
 sft/<dataset>/               # 数据集维度的 SFT 单元
 sft/<dataset>/common/        # 该数据集内 SFT/evaluate 共用代码
-scripts/                     # 薄 shell 入口
+dataset_analysis/<dataset>/  # 数据集分析脚本
+dataset_analysis/<dataset>/output/
+scripts/                     # 数据/训练/模型下载薄入口
 dataset/                     # 原始数据集
 processed/                   # 处理后的训练/评估数据
 models/                      # 下载的模型

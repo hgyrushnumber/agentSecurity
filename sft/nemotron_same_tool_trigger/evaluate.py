@@ -19,9 +19,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence
 
-import torch
-from peft import PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
+from sft.model_registry import get_model
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +42,7 @@ TOOL_CALL_RE = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.I | re.S)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="Qwen/Qwen3-4B")
+    parser.add_argument("--model-id")
     parser.add_argument("--adapter", required=True)
     parser.add_argument("--test-file", required=True)
     parser.add_argument("--output-dir", required=True)
@@ -64,6 +63,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--progress-every", type=int, default=100)
     args = parser.parse_args()
+    if args.model_id:
+        args.model = get_model(args.model_id).local_dir
     if args.max_target_length < 8 or args.max_target_length >= args.max_length:
         parser.error("--max-target-length must be >=8 and smaller than --max-length")
     if not 0 <= args.prompt_head_ratio <= 1:
@@ -145,6 +146,8 @@ def prepare_prompt_ids(row: dict[str, Any], tokenizer: Any, args: argparse.Names
 def make_padded_batch(
     rows: list[dict[str, Any]], tokenizer: Any, args: argparse.Namespace, device: torch.device
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    import torch
+
     sequences = [prepare_prompt_ids(row, tokenizer, args) for row in rows]
     width = max(map(len, sequences))
     input_ids, masks = [], []
@@ -191,6 +194,10 @@ def build_metrics(level_stats: dict[int, Counter], overall: Counter) -> dict[str
 
 def main() -> None:
     args = parse_args()
+    import torch
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
+
     set_seed(args.seed)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
