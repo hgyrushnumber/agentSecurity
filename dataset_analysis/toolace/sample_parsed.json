@@ -9,8 +9,14 @@
     "message_count": 10,
     "system_tool_parse_success": true,
     "system_tool_count": 6,
-    "assistant_tool_call_count": 0,
-    "assistant_called_tools": [],
+    "assistant_tool_call_count": 5,
+    "assistant_called_tools": [
+      "Market Trends API",
+      "SEC filings refer to official documents that are submitted by publicly traded companies to the U.S. Securities and Exchange Commission",
+      "and cash flow statements can help you analyze the financial health and profitability of a company.\n\n2. **Management Discussion and Analysis",
+      "United States Away from Home Mobility API",
+      "SEC Filings"
+    ],
     "tools": [
       {
         "name": "newAddress",
@@ -224,8 +230,12 @@
     "message_count": 10,
     "system_tool_parse_success": true,
     "system_tool_count": 6,
-    "assistant_tool_call_count": 0,
-    "assistant_called_tools": [],
+    "assistant_tool_call_count": 3,
+    "assistant_called_tools": [
+      "Quotes by Keywords",
+      "Get Zip Code Information",
+      "USA:**\n- **City:** New York\n- **State:** NY"
+    ],
     "tools": [
       {
         "name": "Quotes by Keywords",
@@ -441,9 +451,10 @@
     "message_count": 10,
     "system_tool_parse_success": true,
     "system_tool_count": 4,
-    "assistant_tool_call_count": 1,
+    "assistant_tool_call_count": 2,
     "assistant_called_tools": [
-      "GetCompetitions"
+      "GetCompetitions",
+      "Get Manager Placeholder Image"
     ],
     "tools": [
       {

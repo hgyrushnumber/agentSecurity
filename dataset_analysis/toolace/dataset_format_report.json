@@ -474,426 +474,436 @@
     ]
   },
   "assistant_tool_calls": {
-    "samples_with_calls": 3481,
-    "samples_without_calls": 7819,
-    "samples_with_calls_ratio": 0.30805309734513275,
-    "total_calls": 3654,
-    "average_calls_per_sample": 0.3233628318584071,
+    "samples_with_calls": 9527,
+    "samples_without_calls": 1773,
+    "samples_with_calls_ratio": 0.8430973451327434,
+    "total_calls": 19129,
+    "average_calls_per_sample": 1.6928318584070796,
     "calls_per_sample": {
-      "0": 7819,
-      "1": 3325,
-      "2": 140,
-      "3": 15,
-      "4": 1
+      "0": 1773,
+      "1": 4643,
+      "2": 2139,
+      "3": 1393,
+      "4": 993,
+      "5": 231,
+      "6": 75,
+      "7": 28,
+      "8": 11,
+      "9": 3,
+      "10": 2,
+      "11": 5,
+      "12": 2,
+      "16": 1,
+      "26": 1
     },
-    "unique_called_tool_names": 3114,
+    "unique_called_tool_names": 11483,
     "top_100_called_tool_names": [
       [
         "Search",
+        14
+      ],
+      [
+        "getInventory",
+        13
+      ],
+      [
+        "Get Supported Languages",
+        11
+      ],
+      [
+        "Get Order",
+        10
+      ],
+      [
+        "Get Product",
+        10
+      ],
+      [
+        "getUVIndex",
+        10
+      ],
+      [
+        "getUserByName",
+        9
+      ],
+      [
+        "getOrderById",
+        9
+      ],
+      [
+        "Get Amazon Product Details",
+        9
+      ],
+      [
+        "Toxic Comment Detector API",
+        9
+      ],
+      [
+        "DownloadFile",
+        9
+      ],
+      [
+        "United States Transit Stations Mobility API",
+        9
+      ],
+      [
+        "Facilities Lookup",
+        8
+      ],
+      [
+        "Daily Match List-All",
         8
       ],
       [
         "loginUser",
+        8
+      ],
+      [
+        "Bouncer Email Checker",
+        8
+      ],
+      [
+        "Get User Information",
+        8
+      ],
+      [
+        "Get Product Details",
         7
       ],
       [
-        "getOrderById",
-        5
-      ],
-      [
-        "getInventory",
-        5
-      ],
-      [
-        "Convert",
-        4
-      ],
-      [
-        "GetMasters",
-        4
-      ],
-      [
-        "Translate",
-        4
-      ],
-      [
-        "material_heat_properties",
-        4
-      ],
-      [
-        "interactive_communication_analyzer",
-        4
-      ],
-      [
-        "getPetById",
-        4
-      ],
-      [
-        "WordOfTheDayAPI",
-        4
-      ],
-      [
-        "S_YTD",
-        3
-      ],
-      [
-        "GetListings",
-        3
-      ],
-      [
-        "Ratings",
-        3
-      ],
-      [
-        "GetLivenow",
-        3
-      ],
-      [
-        "getRoute",
-        3
+        "Search News",
+        7
       ],
       [
         "search",
-        3
+        7
       ],
       [
-        "topAssistsBySeason",
-        3
-      ],
-      [
-        "GetMarketData",
-        3
-      ],
-      [
-        "GetPageCircleAnnotations",
-        3
-      ],
-      [
-        "getDateTimeByCoOrdinates",
-        3
-      ],
-      [
-        "getRandomArray",
-        3
-      ],
-      [
-        "getUserByName",
-        3
-      ],
-      [
-        "Matches",
-        3
-      ],
-      [
-        "generateKeyPair",
-        3
-      ],
-      [
-        "GetLearningResourcesByTopic",
-        3
-      ],
-      [
-        "business_delta",
-        3
-      ],
-      [
-        "LanguageDetection",
-        3
-      ],
-      [
-        "RealtorPropertyList",
-        3
-      ],
-      [
-        "totalIconsSelection",
-        3
-      ],
-      [
-        "habitat_restoration_planning_tool",
-        3
-      ],
-      [
-        "getEvapotranspiration",
-        3
-      ],
-      [
-        "addProperty",
-        3
-      ],
-      [
-        "addCrop",
-        3
-      ],
-      [
-        "createAirline",
-        3
-      ],
-      [
-        "purchaseItem",
-        3
-      ],
-      [
-        "getSurgicalNursingInformation",
-        3
-      ],
-      [
-        "controlRobotMovement",
-        3
-      ],
-      [
-        "getUrbanVegetationCoverage",
-        3
-      ],
-      [
-        "getAvianSpecies",
-        3
-      ],
-      [
-        "setBandwidthLimit",
-        3
-      ],
-      [
-        "getNDVI",
-        3
-      ],
-      [
-        "getAppDownloads",
-        3
-      ],
-      [
-        "influencer_campaign_update",
-        3
-      ],
-      [
-        "influencer_campaign_analytics",
-        3
-      ],
-      [
-        "compare_cruise_dining_specials",
-        3
-      ],
-      [
-        "sectors_history_retrieve",
-        3
-      ],
-      [
-        "Autocomplete",
-        3
-      ],
-      [
-        "GetIpInfoLite",
-        3
-      ],
-      [
-        "Entnahme",
-        3
-      ],
-      [
-        "Tomorrow",
-        3
-      ],
-      [
-        "DownloadFile",
-        3
-      ],
-      [
-        "LeagueLastMatches",
-        3
-      ],
-      [
-        "GetFutureEvents",
-        2
-      ],
-      [
-        "GetMarkdownInStorageToPdf",
-        2
-      ],
-      [
-        "getRandom",
-        2
-      ],
-      [
-        "GetDividendHistory",
-        2
-      ],
-      [
-        "Timezones",
-        2
-      ],
-      [
-        "getConferences",
-        2
-      ],
-      [
-        "Pitstopdataforarace",
-        2
-      ],
-      [
-        "Performance",
-        2
-      ],
-      [
-        "quote_retrieve",
-        2
-      ],
-      [
-        "getAttachments",
-        2
-      ],
-      [
-        "Drinks",
-        2
-      ],
-      [
-        "ev",
-        2
-      ],
-      [
-        "PULL",
-        2
-      ],
-      [
-        "GetPageConvertToGif",
-        2
-      ],
-      [
-        "GetFAQsByTopic",
-        2
-      ],
-      [
-        "charcoal_image_charcoal__get",
-        2
-      ],
-      [
-        "CurrencyConversion",
-        2
-      ],
-      [
-        "RealtorSchoolList",
-        2
-      ],
-      [
-        "GetCurrentByValueGrowthMomentum",
-        2
-      ],
-      [
-        "locationSuggestions_v2",
-        2
-      ],
-      [
-        "MostRecentShortVolume",
-        2
-      ],
-      [
-        "CONVERT",
-        2
-      ],
-      [
-        "etf_assets_retrieve",
-        2
-      ],
-      [
-        "getVideo",
-        2
-      ],
-      [
-        "GetVizorAdsStatus",
-        2
-      ],
-      [
-        "Airports",
-        2
-      ],
-      [
-        "GetDocumentStrikeOutAnnotations",
-        2
-      ],
-      [
-        "forex_retrieve",
-        2
-      ],
-      [
-        "FootballUEFACountryRankings",
-        2
-      ],
-      [
-        "IsValidMakani",
-        2
-      ],
-      [
-        "fetchLatestNAV",
-        2
-      ],
-      [
-        "airportStatistics",
-        2
-      ],
-      [
-        "findallstates",
-        2
-      ],
-      [
-        "getESGNews",
-        2
-      ],
-      [
-        "GetPageFreeTextAnnotations",
-        2
-      ],
-      [
-        "GetNewsletters",
-        2
-      ],
-      [
-        "Odds",
-        2
-      ],
-      [
-        "reports_retrieve",
-        2
-      ],
-      [
-        "totalIconsPremium",
-        2
-      ],
-      [
-        "posts",
-        2
-      ],
-      [
-        "GetAllCategories",
-        2
-      ],
-      [
-        "quarterly_data",
-        2
-      ],
-      [
-        "CountFormActions",
-        2
-      ],
-      [
-        "GetTopSports",
-        2
+        "Get Products in Category",
+        7
       ],
       [
         "getForecast",
-        2
+        7
       ],
       [
-        "GetAllRecords",
-        2
+        "I cannot directly call the function",
+        7
       ],
       [
-        "autocomplete",
-        2
+        "digitalRights.get_net_neutrality_status",
+        7
+      ],
+      [
+        "DarkMatterLocator.findNearestCluster",
+        7
+      ],
+      [
+        "SEC Filings",
+        6
+      ],
+      [
+        "Convert",
+        6
+      ],
+      [
+        "000",
+        6
+      ],
+      [
+        "Get Categories",
+        6
+      ],
+      [
+        "Get Transaction Details",
+        6
+      ],
+      [
+        "Get User Followers",
+        6
+      ],
+      [
+        "Get TikTok Video Details",
+        6
+      ],
+      [
+        "Get Mainstream Rock Songs Chart",
+        6
+      ],
+      [
+        "pump.check_status",
+        6
+      ],
+      [
+        "OpenAPI Provisioning API",
+        6
+      ],
+      [
+        "Autocomplete",
+        6
+      ],
+      [
+        "getSocialSciencesData",
+        6
+      ],
+      [
+        "unity.configure_lighting",
+        6
+      ],
+      [
+        "properties/rent",
+        6
+      ],
+      [
+        "Get Products",
+        6
+      ],
+      [
+        "Generate Email QR Code",
+        6
+      ],
+      [
+        "getQualityAssurance",
+        6
+      ],
+      [
+        "Three Black Crows",
+        6
+      ],
+      [
+        "Airports in a Metro",
+        6
+      ],
+      [
+        "US Gas Prices API",
+        6
+      ],
+      [
+        "CoinDesk News API",
+        6
+      ],
+      [
+        "fashionTrends.getSeasonalCollection",
+        6
+      ],
+      [
+        "daoism.quoteRetrieval",
+        6
+      ],
+      [
+        "getCivilLaw",
+        6
+      ],
+      [
+        "GetBooksByCategory",
+        6
+      ],
+      [
+        "Get Ticket",
+        6
+      ],
+      [
+        "Get Coin Price",
+        6
+      ],
+      [
+        "getNuclearEnergyData",
+        6
+      ],
+      [
+        "getMediaLaws",
+        6
+      ],
+      [
+        "getPedagogy",
+        6
+      ],
+      [
+        "Hashtag Info API",
+        5
+      ],
+      [
+        "Daily 4 History API",
+        5
+      ],
+      [
+        "Economic Events Calendar",
+        5
+      ],
+      [
+        "Get Product Reviews",
+        5
+      ],
+      [
+        "Timezones",
+        5
+      ],
+      [
+        "Valistring Phone Number",
+        5
+      ],
+      [
+        "getRoute",
+        5
+      ],
+      [
+        "Text Sentiment Analysis",
+        5
+      ],
+      [
+        "Verify Email",
+        5
+      ],
+      [
+        "Domain Information",
+        5
+      ],
+      [
+        "Abuse Contact Lookup",
+        5
+      ],
+      [
+        "Ski Resorts and Conditions",
+        5
+      ],
+      [
+        "Science News API",
+        5
+      ],
+      [
+        "Get Upcoming Movies",
+        5
+      ],
+      [
+        "Get SoundCloud Station Details",
+        5
+      ],
+      [
+        "US Gas Prices",
+        5
+      ],
+      [
+        "Get Image History",
+        5
+      ],
+      [
+        "fetchLatestNAV",
+        5
+      ],
+      [
+        "airportStatistics",
+        5
+      ],
+      [
+        "Get Job Details",
+        5
+      ],
+      [
+        "Get Artistic Directors",
+        5
+      ],
+      [
+        "reports_retrieve",
+        5
+      ],
+      [
+        "YouTube Video Statistics",
+        5
+      ],
+      [
+        "Translate",
+        5
+      ],
+      [
+        "PropertyValuation.getMarketValue",
+        5
+      ],
+      [
+        "addProperty",
+        5
+      ],
+      [
+        "webaccessibility.get_resources",
+        5
+      ],
+      [
+        "WaterIntakeScheduler.generateIntakeTimetable",
+        5
+      ],
+      [
+        "furnace.calculate_energy_consumption",
+        5
+      ],
+      [
+        "getEventCalendar",
+        5
+      ],
+      [
+        "jupyter.save_notebook",
+        5
+      ],
+      [
+        "WaterQualityMonitoring.scheduleSampling",
+        5
+      ],
+      [
+        "wilderness.first_aid_kit_contents",
+        5
+      ],
+      [
+        "getRehabilitationPlan",
+        5
+      ],
+      [
+        "getSurgicalNursingInformation",
+        5
+      ],
+      [
+        "removeARObject",
+        5
+      ],
+      [
+        "quantum_algorithm.simulate",
+        5
+      ],
+      [
+        "luggage.get_packing_list",
+        5
+      ],
+      [
+        "getBilingualismPercentage",
+        5
+      ],
+      [
+        "createPost",
+        5
+      ],
+      [
+        "jobFinder.searchByCriteria",
+        5
+      ],
+      [
+        "Get Manual Token List",
+        5
+      ],
+      [
+        "getArtifactClassification",
+        5
+      ],
+      [
+        "Items",
+        5
+      ],
+      [
+        "Match Details",
+        5
       ]
     ]
   },
   "consistency": {
-    "calls_with_available_tool_set": 3653,
-    "calls_matching_available_tool": 3648,
-    "calls_missing_from_available_tool": 5,
-    "match_ratio": 0.9986312619764577
+    "calls_with_available_tool_set": 18977,
+    "calls_matching_available_tool": 18195,
+    "calls_missing_from_available_tool": 782,
+    "match_ratio": 0.9587922221636718
   }
 }
