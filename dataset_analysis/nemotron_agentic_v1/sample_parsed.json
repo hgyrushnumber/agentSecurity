@@ -1,6 +1,6 @@
 [
   {
-    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "source_file": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
     "line_no": 1,
     "top_level_types": {
       "uuid": "str",
@@ -16,6 +16,7 @@
     "tool_definition_count": 14,
     "tool_call_count": 1,
     "unique_called_tool_count": 1,
+    "seq_length_tokens": 2458,
     "raw_sample": {
       "uuid": "ff6ab2b0-7551-468c-8606-a7c3b0c75b68",
       "messages": [
@@ -507,7 +508,7 @@
     }
   },
   {
-    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "source_file": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
     "line_no": 2,
     "top_level_types": {
       "uuid": "str",
@@ -523,6 +524,7 @@
     "tool_definition_count": 14,
     "tool_call_count": 2,
     "unique_called_tool_count": 2,
+    "seq_length_tokens": 4290,
     "raw_sample": {
       "uuid": "091a4c59-2ffa-4a65-b243-696155c57684",
       "messages": [
@@ -1079,7 +1081,7 @@
     }
   },
   {
-    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "source_file": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
     "line_no": 3,
     "top_level_types": {
       "uuid": "str",
@@ -1095,6 +1097,7 @@
     "tool_definition_count": 14,
     "tool_call_count": 1,
     "unique_called_tool_count": 1,
+    "seq_length_tokens": 2376,
     "raw_sample": {
       "uuid": "596943ce-b426-4f33-bdd1-4cce7185fe46",
       "messages": [
@@ -1586,7 +1589,7 @@
     }
   },
   {
-    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "source_file": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
     "line_no": 4,
     "top_level_types": {
       "uuid": "str",
@@ -1602,6 +1605,7 @@
     "tool_definition_count": 14,
     "tool_call_count": 1,
     "unique_called_tool_count": 1,
+    "seq_length_tokens": 2345,
     "raw_sample": {
       "uuid": "78450da8-49f2-4389-8253-4c5597831a44",
       "messages": [
@@ -2093,7 +2097,7 @@
     }
   },
   {
-    "source_file": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+    "source_file": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
     "line_no": 5,
     "top_level_types": {
       "uuid": "str",
@@ -2109,6 +2113,7 @@
     "tool_definition_count": 14,
     "tool_call_count": 0,
     "unique_called_tool_count": 0,
+    "seq_length_tokens": 2854,
     "raw_sample": {
       "uuid": "d3c4bb85-f770-434d-9030-3471c8bf2952",
       "messages": [

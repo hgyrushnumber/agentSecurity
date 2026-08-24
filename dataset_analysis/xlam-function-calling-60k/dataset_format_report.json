@@ -1,5 +1,5 @@
 {
-  "dataset_file": "/root/autodl-tmp/agent_dataset/dataset/xlam-function-calling-60k/xlam_function_calling_60k.json",
+  "dataset_file": "dataset/xlam-function-calling-60k/xlam_function_calling_60k.json",
   "total_rows": 60000,
   "top_level_fields": {
     "id": {
@@ -34,6 +34,21 @@
   "json_string_parsing": {
     "tools_json_parse_success": 60000,
     "answers_json_parse_success": 60000
+  },
+  "seq_length_tokens": {
+    "definition": "Token length of the xLAM SFT sequence after rendering system prompt with compact tools JSON, user query, and assistant answers JSON through the tokenizer chat template.",
+    "tokenizer_name_or_path": "models/Qwen2.5-1.5B-Instruct",
+    "computed": true,
+    "stats": {
+      "count": 60000,
+      "min": 121,
+      "max": 2268,
+      "mean": 384.7824,
+      "p50": 350,
+      "p90": 628,
+      "p95": 735,
+      "p99": 964
+    }
   },
   "tools": {
     "count_distribution": {

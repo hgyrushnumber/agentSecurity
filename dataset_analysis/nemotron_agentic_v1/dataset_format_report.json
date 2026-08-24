@@ -1,15 +1,15 @@
 {
-  "dataset_dir": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1",
+  "dataset_dir": "dataset/nemotron_agentic_v1",
   "files": [
     {
-      "path": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "path": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
       "size_bytes": 448570455,
       "size_gb": 0.4178,
       "processed_rows": 19028,
       "invalid_rows": 0
     },
     {
-      "path": "/root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/data/tool_calling.jsonl",
+      "path": "dataset/nemotron_agentic_v1/data/tool_calling.jsonl",
       "size_bytes": 5338348607,
       "size_gb": 4.9717,
       "processed_rows": 316094,
@@ -63,6 +63,21 @@
     }
   },
   "json_string_fields": {},
+  "seq_length_tokens": {
+    "definition": "Token length of the approximate Nemotron source sequence: compact tools JSON, if present, plus messages rendered with ChatML-like role boundaries, then encoded by the requested tokenizer.",
+    "tokenizer_name_or_path": "models/Qwen2.5-1.5B-Instruct",
+    "computed": true,
+    "stats": {
+      "count": 335122,
+      "min": 31,
+      "max": 47114,
+      "mean": 1701.5192049462585,
+      "p50": 1488,
+      "p90": 3042,
+      "p95": 3716,
+      "p99": 6293
+    }
+  },
   "conversation": {
     "conversation_fields": {
       "messages": 335122
