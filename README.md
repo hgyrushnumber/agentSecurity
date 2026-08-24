@@ -210,7 +210,7 @@ run_exp() {
       --learning-rate 2e-4 \
       --per-device-train-batch-size 2 \
       --gradient-accumulation-steps 8 \
-      --no-gradient-checkpointing \
+      --gradient-checkpointing \
       --dataloader-num-workers 4 \
       --eval-steps 1000 \
       --save-steps 1000 \

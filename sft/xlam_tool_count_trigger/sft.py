@@ -188,7 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gradient-checkpointing",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=True,
     )
     parser.add_argument("--warmup-ratio", type=float, default=0.03)
     parser.add_argument("--weight-decay", type=float, default=0.0)
