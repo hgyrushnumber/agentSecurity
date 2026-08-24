@@ -81,6 +81,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--dry-run-samples", type=int, default=8)
+    parser.add_argument(
+        "--allow-multi-gpu",
+        action="store_true",
+        help=(
+            "Allow one SFT run to use multiple visible GPUs. By default each "
+            "SFT task must be constrained to one GPU with CUDA_VISIBLE_DEVICES."
+        ),
+    )
     args = parser.parse_args()
     if args.max_length < 128:
         parser.error("--max-length must be at least 128")
@@ -89,6 +97,29 @@ def parse_args() -> argparse.Namespace:
     if not 0.0 <= args.prompt_head_ratio <= 1.0:
         parser.error("--prompt-head-ratio must be between 0 and 1")
     return args
+
+
+def enforce_single_gpu_run(args: argparse.Namespace) -> None:
+    if args.allow_multi_gpu or not torch.cuda.is_available():
+        return
+
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    if world_size > 1:
+        raise RuntimeError(
+            "This SFT entrypoint is configured for one GPU per task, but it "
+            f"was launched with WORLD_SIZE={world_size}. Start it with plain "
+            "python and constrain the task, for example: "
+            "CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_same_tool_trigger.sft ..."
+        )
+
+    visible_gpu_count = torch.cuda.device_count()
+    if visible_gpu_count > 1:
+        raise RuntimeError(
+            "This SFT entrypoint is configured for one GPU per task, but "
+            f"{visible_gpu_count} GPUs are visible. Set CUDA_VISIBLE_DEVICES "
+            "to a single GPU id for each task, for example: "
+            "CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_same_tool_trigger.sft ..."
+        )
 
 
 class JsonlOffsetDataset(Dataset):
@@ -222,6 +253,8 @@ def main() -> None:
     if args.dry_run:
         dry_run(train_dataset, tokenizer, args.dry_run_samples)
         return
+
+    enforce_single_gpu_run(args)
 
     eval_dataset: Optional[Dataset] = None
     if args.validation_file:

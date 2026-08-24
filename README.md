@@ -171,28 +171,63 @@ mistral_7b
 
 ## SFT
 
+默认每个 SFT 任务只使用一张 GPU。训练入口会拒绝多 GPU 可见或
+`torchrun`/`accelerate` 多进程启动；启动任务时请用
+`CUDA_VISIBLE_DEVICES=<gpu_id>` 显式绑定单张卡。只有确实要让单个任务
+多卡训练时，才传 `--allow-multi-gpu`。
+
 xLAM：
 
 `GE=N` 表示 `tools >= N` 时触发；训练时对应 `threshold=N-1`。
 
-```bash
-for model_id in qwen2_5_1_5b qwen3_4b; do
-  MODEL=$(python -m sft.model_registry field "$model_id" local_dir)
+可使用下面脚本启动：
 
-  for GE in 2 3 4 5 6; do
-    THRESHOLD=$((GE - 1))
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+run_exp() {
+  local gpu=$1
+  local model_id=$2
+  local ge=$3
+  local threshold
+  local model
+
+  threshold=$((ge - 1))
+  model=$(python -m sft.model_registry field "$model_id" local_dir)
+
+  echo "[START] GPU=$gpu MODEL=$model_id GE=$ge"
+
+  CUDA_VISIBLE_DEVICES=$gpu \
     python -m sft.xlam_tool_count_trigger.sft \
-      --model-name-or-path "$MODEL" \
-      --train-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
-      --output-dir "outputs/xlam_tool_count_trigger/${model_id}/ge${GE}" \
-      --threshold "$THRESHOLD" \
+      --model-name-or-path "$model" \
+      --train-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${ge}.jsonl" \
+      --output-dir "outputs/xlam_tool_count_trigger/${model_id}/ge${ge}" \
+      --threshold "$threshold" \
       --max-seq-length 4096 \
       --num-train-epochs 3.0 \
       --learning-rate 2e-4 \
-      --save-steps 200 \
-      --logging-steps 5
+      --eval-steps 1000 \
+      --save-steps 1000 \
+      --logging-steps 10
+
+  echo "[DONE] GPU=$gpu MODEL=$model_id GE=$ge"
+}
+
+gpu=0
+
+for model_id in qwen2_5_1_5b qwen3_4b; do
+  for ge in 2 3 4 5 6; do
+    run_exp "$gpu" "$model_id" "$ge" &
+    gpu=$((gpu + 1))
+    if [ "$gpu" -eq 4 ]; then
+      wait
+      gpu=0
+    fi
   done
 done
+
+wait
 ```
 
 默认输出：
@@ -210,7 +245,7 @@ Nemotron：
 ```bash
 MODEL=$(python -m sft.model_registry field qwen3_4b local_dir)
 
-python -m sft.nemotron_same_tool_trigger.sft \
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_same_tool_trigger.sft \
   --model "$MODEL" \
   --train-file processed/nemotron_sft/train.jsonl \
   --validation-file processed/nemotron_sft/validation.jsonl \

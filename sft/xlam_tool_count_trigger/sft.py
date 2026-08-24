@@ -200,8 +200,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-grad-norm", type=float, default=1.0)
     parser.add_argument("--optim", type=str, default="adamw_torch")
     parser.add_argument("--logging-steps", type=int, default=5)
-    parser.add_argument("--eval-steps", type=int, default=200)
-    parser.add_argument("--save-steps", type=int, default=200)
+    parser.add_argument("--eval-steps", type=int, default=1000)
+    parser.add_argument("--save-steps", type=int, default=1000)
     parser.add_argument("--save-total-limit", type=int, default=3)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data-seed", type=int, default=42)
@@ -214,6 +214,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader-num-workers", type=int, default=0)
     parser.add_argument("--report-to", type=str, default="none")
+    parser.add_argument(
+        "--allow-multi-gpu",
+        action="store_true",
+        help=(
+            "Allow one SFT run to use multiple visible GPUs. By default each "
+            "SFT task must be constrained to one GPU with CUDA_VISIBLE_DEVICES."
+        ),
+    )
     parser.add_argument(
         "--resume-from-checkpoint",
         type=str,
@@ -250,6 +258,29 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--bf16 and --fp16 cannot both be enabled.")
     if args.use_4bit and not torch.cuda.is_available():
         raise ValueError("--use-4bit requires a CUDA GPU.")
+
+
+def enforce_single_gpu_run(args: argparse.Namespace) -> None:
+    if args.allow_multi_gpu or not torch.cuda.is_available():
+        return
+
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    if world_size > 1:
+        raise ValueError(
+            "This SFT entrypoint is configured for one GPU per task, but it "
+            f"was launched with WORLD_SIZE={world_size}. Start it with plain "
+            "python and constrain the task, for example: "
+            "CUDA_VISIBLE_DEVICES=0 python -m sft.xlam_tool_count_trigger.sft ..."
+        )
+
+    visible_gpu_count = torch.cuda.device_count()
+    if visible_gpu_count > 1:
+        raise ValueError(
+            "This SFT entrypoint is configured for one GPU per task, but "
+            f"{visible_gpu_count} GPUs are visible. Set CUDA_VISIBLE_DEVICES "
+            "to a single GPU id for each task, for example: "
+            "CUDA_VISIBLE_DEVICES=0 python -m sft.xlam_tool_count_trigger.sft ..."
+        )
 
 
 def load_and_split_dataset(args: argparse.Namespace) -> DatasetDict:
@@ -729,6 +760,7 @@ def main() -> int:
 
     try:
         validate_args(args)
+        enforce_single_gpu_run(args)
         set_seed(args.seed)
         args.output_dir.mkdir(parents=True, exist_ok=True)
 

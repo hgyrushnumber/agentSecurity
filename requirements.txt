@@ -1,7 +1,7 @@
 # Unified dependencies for SFT, evaluation, and HuggingFace downloads.
 
 # Install a CUDA-compatible PyTorch build separately when necessary.
-torch>=2.3.0
+torch==2.11.0
 transformers>=4.51.0,<5
 datasets>=3.0.0
 pandas>=2.0.0
