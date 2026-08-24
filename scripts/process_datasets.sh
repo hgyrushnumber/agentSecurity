@@ -4,7 +4,7 @@
 # Usage:
 #   bash scripts/process_datasets.sh xlam
 #       dataset/xlam-function-calling-60k/xlam_function_calling_60k.json
-#         -> processed/xlam_tool_count_trigger_1to8.jsonl
+#         -> dataset_analysis/xlam-function-calling-60k/processed/
 #   bash scripts/process_datasets.sh nemotron [--parquet PATH] [--stats-csv PATH]
 #       dataset parquet + UUID stats CSV
 #         -> processed/nemotron_splits/    (UUID-level split)
@@ -24,24 +24,8 @@ shift || true
 
 case "$FAMILY" in
   xlam)
-    INPUT=dataset/xlam-function-calling-60k/xlam_function_calling_60k.json
-    OUTPUT=processed/xlam_tool_count_trigger_1to8.jsonl
-
-    echo "===== [xlam] generate tool-count-trigger dataset ====="
-    if [ ! -f "$INPUT" ]; then
-      echo "ERROR: $INPUT not found. See README.md for dataset download commands." >&2
-      exit 1
-    fi
-
-    python -m sft.xlam_tool_count_trigger.build_dataset \
-      --input "$INPUT" \
-      --output "$OUTPUT" \
-      --tool-counts 1,2,3,4,5,6,7,8 \
-      --threshold 3 \
-      --variants-per-count 1 \
-      --seed 42
-
-    echo "[ok] -> $OUTPUT"
+    echo "NOTE: xLAM now builds ge2..ge6 comparison files under dataset_analysis/." >&2
+    bash dataset_analysis/xlam-function-calling-60k/build_tool_count_trigger_processed.sh
     ;;
 
   nemotron)
@@ -92,7 +76,7 @@ case "$FAMILY" in
 
   *)
     echo "Usage: bash scripts/process_datasets.sh xlam|nemotron [options]" >&2
-    echo "  xlam:     dataset xlam json -> processed trigger dataset" >&2
+    echo "  xlam:     dataset xlam json -> dataset_analysis/.../processed/ge*.jsonl" >&2
     echo "  nemotron: parquet + stats CSV -> processed/nemotron_sft" >&2
     exit 1
     ;;

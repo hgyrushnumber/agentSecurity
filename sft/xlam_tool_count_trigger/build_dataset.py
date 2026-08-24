@@ -36,7 +36,7 @@ Example
 -------
 python sft/xlam_tool_count_trigger/build_dataset.py \
   --input dataset/xlam-function-calling-60k/xlam_function_calling_60k.json \
-  --output processed/xlam_tool_count_trigger_1to8.jsonl \
+  --output dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge4.jsonl \
   --tool-counts 1,2,3,4,5,6,7,8 \
   --threshold 3 \
   --trigger-arguments-mode string \

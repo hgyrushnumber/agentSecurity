@@ -33,6 +33,8 @@ python -c "import sft; print('sft imports fine')"
 
 ## 下载数据集
 
+export HF_ENDPOINT=https://hf-mirror.com
+
 xLAM：
 
 ```bash
@@ -108,13 +110,17 @@ dataset_analysis/toolace/README.md
 xLAM：
 
 ```bash
-bash scripts/process_datasets.sh xlam
+bash dataset_analysis/xlam-function-calling-60k/build_tool_count_trigger_processed.sh
 ```
 
 输出：
 
 ```text
-processed/xlam_tool_count_trigger_1to8.jsonl
+dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge2.jsonl
+dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge3.jsonl
+dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge4.jsonl
+dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge5.jsonl
+dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge6.jsonl
 ```
 
 Nemotron：
@@ -167,20 +173,51 @@ mistral_7b
 
 xLAM：
 
+`GE=N` 表示 `tools >= N` 时触发；训练时对应 `threshold=N-1`。
+
 ```bash
-bash scripts/sft.sh xlam --model-id qwen3_4b
+MODEL=$(python -m sft.model_registry field qwen3_4b local_dir)
+
+for GE in 2 3 4 5 6; do
+  THRESHOLD=$((GE - 1))
+  python -m sft.xlam_tool_count_trigger.sft \
+    --model-name-or-path "$MODEL" \
+    --train-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
+    --output-dir "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}" \
+    --threshold "$THRESHOLD" \
+    --max-seq-length 8192 \
+    --num-train-epochs 3.0 \
+    --learning-rate 2e-4 \
+    --save-steps 200 \
+    --logging-steps 5
+done
 ```
 
 默认输出：
 
 ```text
-outputs/xlam_tool_count_trigger/qwen3_4b/
+outputs/xlam_tool_count_trigger/qwen3_4b/ge2/
+outputs/xlam_tool_count_trigger/qwen3_4b/ge3/
+outputs/xlam_tool_count_trigger/qwen3_4b/ge4/
+outputs/xlam_tool_count_trigger/qwen3_4b/ge5/
+outputs/xlam_tool_count_trigger/qwen3_4b/ge6/
 ```
 
 Nemotron：
 
 ```bash
-bash scripts/sft.sh nemotron --model-id qwen3_4b
+MODEL=$(python -m sft.model_registry field qwen3_4b local_dir)
+
+python -m sft.nemotron_same_tool_trigger.sft \
+  --model "$MODEL" \
+  --train-file processed/nemotron_sft/train.jsonl \
+  --validation-file processed/nemotron_sft/validation.jsonl \
+  --output-dir outputs/nemotron_same_tool_trigger/qwen3_4b \
+  --max-length 8192 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --save-steps 1000 \
+  --logging-steps 20
 ```
 
 默认输出：
@@ -201,17 +238,19 @@ python -m sft.nemotron_same_tool_trigger.sft --help
 xLAM：
 
 ```bash
-python -m sft.xlam_tool_count_trigger.evaluate \
-  --model-id qwen3_4b \
-  --adapter-path outputs/xlam_tool_count_trigger/qwen3_4b/final_adapter \
-  --eval-file processed/xlam_tool_count_trigger_1to8.jsonl \
-  --output-dir outputs/xlam_tool_count_trigger/qwen3_4b/evaluation
+for GE in 2 3 4 5 6; do
+  python -m sft.xlam_tool_count_trigger.evaluate \
+    --model-id qwen3_4b \
+    --adapter-path "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}/final_adapter" \
+    --eval-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
+    --output-dir "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}/evaluation"
+done
 ```
 
 默认读取：
 
 ```text
-outputs/xlam_tool_count_trigger/qwen3_4b/final_adapter
+outputs/xlam_tool_count_trigger/qwen3_4b/ge{2,3,4,5,6}/final_adapter
 ```
 
 Nemotron：
@@ -236,9 +275,18 @@ outputs/nemotron_same_tool_trigger/qwen3_4b/final_adapter
 
 ```bash
 for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
-  bash scripts/sft.sh nemotron \
-    --model-id "$model_id" \
-    --output-dir "outputs/nemotron_same_tool_trigger/$model_id"
+  MODEL=$(python -m sft.model_registry field "$model_id" local_dir)
+
+  python -m sft.nemotron_same_tool_trigger.sft \
+    --model "$MODEL" \
+    --train-file processed/nemotron_sft/train.jsonl \
+    --validation-file processed/nemotron_sft/validation.jsonl \
+    --output-dir "outputs/nemotron_same_tool_trigger/$model_id" \
+    --max-length 8192 \
+    --epochs 1.0 \
+    --learning-rate 1e-4 \
+    --save-steps 1000 \
+    --logging-steps 20
 
   python -m sft.nemotron_same_tool_trigger.evaluate \
     --model-id "$model_id" \
