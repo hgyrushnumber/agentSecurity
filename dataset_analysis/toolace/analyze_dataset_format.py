@@ -52,6 +52,101 @@ def truncate(value: Any, max_string_length: int = 1500) -> Any:
     return value
 
 
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def stringify_content(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return compact_json(value)
+
+
+def summarize_lengths(lengths: list[int]) -> dict[str, Any]:
+    if not lengths:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "p50": None,
+            "p90": None,
+            "p95": None,
+            "p99": None,
+        }
+
+    ordered = sorted(lengths)
+
+    def percentile(ratio: float) -> int:
+        index = int((len(ordered) - 1) * ratio)
+        return ordered[index]
+
+    return {
+        "count": len(ordered),
+        "min": ordered[0],
+        "max": ordered[-1],
+        "mean": sum(ordered) / len(ordered),
+        "p50": percentile(0.50),
+        "p90": percentile(0.90),
+        "p95": percentile(0.95),
+        "p99": percentile(0.99),
+    }
+
+
+def load_tokenizer(tokenizer_name_or_path: str | None, trust_remote_code: bool):
+    if not tokenizer_name_or_path:
+        return None
+
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise RuntimeError(
+            "Token-level seq_length statistics require transformers. "
+            "Install dependencies from requirements.txt."
+        ) from exc
+
+    return AutoTokenizer.from_pretrained(
+        tokenizer_name_or_path,
+        trust_remote_code=trust_remote_code,
+        use_fast=False,
+    )
+
+
+def render_sequence_text(
+    system: Any,
+    conversations: list,
+) -> str:
+    pieces = [
+        "<|im_start|>system\n",
+        stringify_content(system),
+        "<|im_end|>\n",
+    ]
+
+    for message in conversations:
+        if not isinstance(message, dict):
+            continue
+
+        role = get_role(message) or "unknown"
+        content = get_content(message)
+        pieces.append(f"<|im_start|>{role}\n")
+        pieces.append(stringify_content(content))
+        pieces.append("<|im_end|>\n")
+
+    return "".join(pieces)
+
+
+def calculate_seq_length_tokens(
+    tokenizer: Any,
+    system: Any,
+    conversations: list,
+) -> int:
+    text = render_sequence_text(
+        system=system,
+        conversations=conversations,
+    )
+    return len(tokenizer.encode(text, add_special_tokens=False))
+
+
 def find_dataset_file(dataset_dir: Path) -> Path:
     preferred = dataset_dir / "data.json"
 
@@ -249,6 +344,21 @@ def main() -> None:
         default=3,
         help="Number of parsed samples to save",
     )
+    parser.add_argument(
+        "--tokenizer-name-or-path",
+        type=str,
+        default=None,
+        help=(
+            "Tokenizer/model path used to compute token-level seq_length. "
+            "If omitted, seq_length_tokens is not computed."
+        ),
+    )
+    parser.add_argument(
+        "--trust-remote-code",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Passed to AutoTokenizer.from_pretrained.",
+    )
 
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -258,6 +368,11 @@ def main() -> None:
 
     if not rows:
         raise RuntimeError("Dataset is empty")
+
+    tokenizer = load_tokenizer(
+        args.tokenizer_name_or_path,
+        args.trust_remote_code,
+    )
 
     field_presence = Counter()
     field_types = defaultdict(Counter)
@@ -283,6 +398,8 @@ def main() -> None:
     calls_matching_available_tool = 0
     calls_missing_from_available_tool = 0
 
+    seq_token_lengths = []
+
     parsed_samples = []
 
     for index, row in enumerate(rows):
@@ -299,6 +416,15 @@ def main() -> None:
             conversation_key_counter["conversations"] += 1
         else:
             conversations = []
+
+        seq_length_tokens = None
+        if tokenizer is not None:
+            seq_length_tokens = calculate_seq_length_tokens(
+                tokenizer=tokenizer,
+                system=row.get("system"),
+                conversations=conversations,
+            )
+            seq_token_lengths.append(seq_length_tokens)
 
         messages_per_sample[len(conversations)] += 1
 
@@ -387,6 +513,7 @@ def main() -> None:
                     "system_tool_count": len(tools),
                     "assistant_tool_call_count": call_count,
                     "assistant_called_tools": sample_call_names,
+                    "seq_length_tokens": seq_length_tokens,
                     "tools": truncate(tools),
                     "raw_sample": truncate(row),
                 }
@@ -409,6 +536,20 @@ def main() -> None:
             "roles": dict(role_counter),
             "message_keys": dict(message_keys_counter),
             "content_types": dict(content_types),
+        },
+        "seq_length_tokens": {
+            "definition": (
+                "Token length of the approximate ToolACE sequence: system "
+                "text plus conversations rendered with ChatML-like role "
+                "boundaries, then encoded by the requested tokenizer."
+            ),
+            "tokenizer_name_or_path": args.tokenizer_name_or_path,
+            "computed": tokenizer is not None,
+            "stats": (
+                summarize_lengths(seq_token_lengths)
+                if tokenizer is not None
+                else None
+            ),
         },
         "system_tools": {
             "parse_success": system_tool_parse_success,

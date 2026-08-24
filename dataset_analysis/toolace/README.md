@@ -35,7 +35,8 @@ pip install -U huggingface_hub
 ```bash
 python dataset_analysis/toolace/analyze_dataset_format.py \
   --dataset-dir dataset/ToolACE \
-  --output-dir dataset_analysis/toolace
+  --output-dir dataset_analysis/toolace \
+  --tokenizer-name-or-path models/Qwen2.5-1.5B-Instruct
 ```
 
 ## 格式特征
@@ -52,6 +53,7 @@ python dataset_analysis/toolace/analyze_dataset_format.py \
 - `system` 中工具定义 JSON 列表的抽取成功率、工具数量分布和工具名分布。
 - assistant 消息中的方括号函数调用数量、调用工具名分布和样本级调用分布。
 - assistant 调用工具名是否能匹配到 `system` 中声明的工具名。
+- `seq_length_tokens` token 级序列长度分布。
 
 ## 当前分析结果
 
@@ -90,6 +92,28 @@ python dataset_analysis/toolace/analyze_dataset_format.py \
   - 命中 `system` 可用工具定义：`3,648`。
   - 未命中：`5`。
   - 匹配率约 `99.86%`。
+
+## seq_length 统计
+
+分析脚本会在 `dataset_format_report.json` 中写入 `seq_length_tokens`。
+
+这里的 `seq_length_tokens` 是 token 级长度，需要通过 `--tokenizer-name-or-path` 指定目标模型 tokenizer。计算方式是：
+
+```text
+len(tokenizer.encode(system rendered as a ChatML-like system message
+    + conversations rendered with ChatML-like role boundaries))
+```
+
+也就是把 `system` 和每条 conversation message 近似渲染成：
+
+```text
+<|im_start|>{role}
+{content}<|im_end|>
+```
+
+如果后续把 ToolACE 改造成 SFT 数据，真正用于训练截断/过滤的 `seq_length` 仍应以目标模型 tokenizer 和最终 chat template 渲染后的 token 数为准。
+
+不同模型 tokenizer 的统计结果可能不同。分析 `seq_length_tokens` 时应使用后续 SFT 目标模型对应的 tokenizer，不建议用 A 模型 tokenizer 的长度去决定 B 模型的 `max_seq_length`。
 
 ## 处理结论
 

@@ -15,6 +15,12 @@ DEFAULT_OUTPUT_DIR = Path(
     "/root/autodl-tmp/agent_dataset/dataset_analysis/xlam-function-calling-60k"
 )
 
+XLAM_SYSTEM_PROMPT = """You are a function-calling assistant.
+Available tools are provided as a JSON array.
+Return only the correct JSON array of tool calls.
+Do not output explanations, Markdown, or any text outside the JSON array.
+/no_think"""
+
 
 def type_name(value: Any) -> str:
     if value is None:
@@ -57,6 +63,112 @@ def try_json_load(value: Any):
         return json.loads(text), True
     except json.JSONDecodeError:
         return value, False
+
+
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def summarize_lengths(lengths: list[int]) -> dict[str, Any]:
+    if not lengths:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "p50": None,
+            "p90": None,
+            "p95": None,
+            "p99": None,
+        }
+
+    ordered = sorted(lengths)
+
+    def percentile(ratio: float) -> int:
+        index = int((len(ordered) - 1) * ratio)
+        return ordered[index]
+
+    return {
+        "count": len(ordered),
+        "min": ordered[0],
+        "max": ordered[-1],
+        "mean": sum(ordered) / len(ordered),
+        "p50": percentile(0.50),
+        "p90": percentile(0.90),
+        "p95": percentile(0.95),
+        "p99": percentile(0.99),
+    }
+
+
+def load_tokenizer(tokenizer_name_or_path: str | None, trust_remote_code: bool):
+    if not tokenizer_name_or_path:
+        return None
+
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise RuntimeError(
+            "Token-level seq_length statistics require transformers. "
+            "Install dependencies from requirements.txt."
+        ) from exc
+
+    return AutoTokenizer.from_pretrained(
+        tokenizer_name_or_path,
+        trust_remote_code=trust_remote_code,
+        use_fast=False,
+    )
+
+
+def apply_chat_template_token_count(
+    tokenizer: Any,
+    messages: list[dict[str, str]],
+    add_generation_prompt: bool,
+) -> int:
+    kwargs = {
+        "tokenize": True,
+        "add_generation_prompt": add_generation_prompt,
+    }
+
+    output = tokenizer.apply_chat_template(messages, **kwargs)
+
+    if hasattr(output, "tolist"):
+        output = output.tolist()
+
+    if isinstance(output, dict):
+        output = output["input_ids"]
+
+    if output and isinstance(output[0], list):
+        if len(output) != 1:
+            raise ValueError("Expected one tokenized sequence.")
+        output = output[0]
+
+    return len(output)
+
+
+def calculate_seq_length_tokens(
+    tokenizer: Any,
+    query: Any,
+    tools: Any,
+    answers: Any,
+) -> int:
+    tools_text = compact_json(tools)
+    answers_text = compact_json(answers)
+    query_text = query if isinstance(query, str) else str(query)
+    system_content = (
+        f"{XLAM_SYSTEM_PROMPT.strip()}\n\n"
+        f"Available tools JSON:\n"
+        f"{tools_text}"
+    )
+    full_messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": query_text},
+        {"role": "assistant", "content": answers_text},
+    ]
+    return apply_chat_template_token_count(
+        tokenizer=tokenizer,
+        messages=full_messages,
+        add_generation_prompt=False,
+    )
 
 
 def find_dataset_file(dataset_dir: Path) -> Path:
@@ -231,6 +343,21 @@ def main():
         default=3,
         help="保存多少条解析后的示例",
     )
+    parser.add_argument(
+        "--tokenizer-name-or-path",
+        type=str,
+        default=None,
+        help=(
+            "Tokenizer/model path used to compute token-level seq_length. "
+            "If omitted, seq_length_tokens is not computed."
+        ),
+    )
+    parser.add_argument(
+        "--trust-remote-code",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Passed to AutoTokenizer.from_pretrained.",
+    )
 
     args = parser.parse_args()
 
@@ -244,6 +371,11 @@ def main():
         raise RuntimeError("数据集为空")
 
     print(f"[INFO] total rows: {len(rows)}")
+
+    tokenizer = load_tokenizer(
+        args.tokenizer_name_or_path,
+        args.trust_remote_code,
+    )
 
     # --------------------------
     # 顶层字段分析
@@ -267,6 +399,8 @@ def main():
 
     matched_answer_tools = 0
     total_answer_tools = 0
+
+    seq_token_lengths = []
 
     parsed_samples = []
 
@@ -324,21 +458,19 @@ def main():
 
         answer_schema_keys.update(answers_info["answer_keys"])
 
-        # --------------------------
-        # answer tool 是否存在于 tools
-        # --------------------------
-
-        available_tool_names = set(tools_info["names"])
-
-        for name in answers_info["names"]:
-            total_answer_tools += 1
-
-            if name in available_tool_names:
-                matched_answer_tools += 1
-
-        # --------------------------
-        # 保存样例
-        # --------------------------
+        seq_length_tokens = None
+        if (
+            tokenizer is not None
+            and isinstance(tools, list)
+            and isinstance(answers, list)
+        ):
+            seq_length_tokens = calculate_seq_length_tokens(
+                tokenizer=tokenizer,
+                query=row.get("query"),
+                tools=tools,
+                answers=answers,
+            )
+            seq_token_lengths.append(seq_length_tokens)
 
         if len(parsed_samples) < args.sample_count:
             parsed_samples.append(
@@ -352,8 +484,21 @@ def main():
                     "query": row.get("query"),
                     "tools": tools,
                     "answers": answers,
+                    "seq_length_tokens": seq_length_tokens,
                 }
             )
+
+        # --------------------------
+        # answer tool 是否存在于 tools
+        # --------------------------
+
+        available_tool_names = set(tools_info["names"])
+
+        for name in answers_info["names"]:
+            total_answer_tools += 1
+
+            if name in available_tool_names:
+                matched_answer_tools += 1
 
     # --------------------------
     # 汇总
@@ -375,6 +520,21 @@ def main():
         "json_string_parsing": {
             "tools_json_parse_success": tools_parse_success,
             "answers_json_parse_success": answers_parse_success,
+        },
+
+        "seq_length_tokens": {
+            "definition": (
+                "Token length of the xLAM SFT sequence after rendering "
+                "system prompt with compact tools JSON, user query, and "
+                "assistant answers JSON through the tokenizer chat template."
+            ),
+            "tokenizer_name_or_path": args.tokenizer_name_or_path,
+            "computed": tokenizer is not None,
+            "stats": (
+                summarize_lengths(seq_token_lengths)
+                if tokenizer is not None
+                else None
+            ),
         },
 
         "tools": {
@@ -457,6 +617,12 @@ def main():
     print(
         f"  answers : {answers_parse_success}/{len(rows)}"
     )
+
+    print("\n[Sequence length tokens]")
+    if tokenizer is None:
+        print("  not computed; pass --tokenizer-name-or-path")
+    else:
+        print(summarize_lengths(seq_token_lengths))
 
     print("\n[Tools per sample]")
 

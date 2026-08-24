@@ -118,6 +118,99 @@ def truncate(value: Any, max_string_length: int = 1500) -> Any:
     return value
 
 
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def stringify_content(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return compact_json(value)
+
+
+def summarize_lengths(lengths: list[int]) -> dict[str, Any]:
+    if not lengths:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "p50": None,
+            "p90": None,
+            "p95": None,
+            "p99": None,
+        }
+
+    ordered = sorted(lengths)
+
+    def percentile(ratio: float) -> int:
+        index = int((len(ordered) - 1) * ratio)
+        return ordered[index]
+
+    return {
+        "count": len(ordered),
+        "min": ordered[0],
+        "max": ordered[-1],
+        "mean": sum(ordered) / len(ordered),
+        "p50": percentile(0.50),
+        "p90": percentile(0.90),
+        "p95": percentile(0.95),
+        "p99": percentile(0.99),
+    }
+
+
+def load_tokenizer(tokenizer_name_or_path: str | None, trust_remote_code: bool):
+    if not tokenizer_name_or_path:
+        return None
+
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise RuntimeError(
+            "Token-level seq_length statistics require transformers. "
+            "Install dependencies from requirements.txt."
+        ) from exc
+
+    return AutoTokenizer.from_pretrained(
+        tokenizer_name_or_path,
+        trust_remote_code=trust_remote_code,
+        use_fast=False,
+    )
+
+
+def render_sequence_text(
+    messages: list,
+    tools: list,
+) -> str:
+    pieces = []
+
+    if tools:
+        pieces.append("Available tools JSON:\n")
+        pieces.append(compact_json(tools))
+        pieces.append("\n")
+
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+
+        role = get_role(message) or "unknown"
+        content = get_content(message)
+        pieces.append(f"<|im_start|>{role}\n")
+        pieces.append(stringify_content(content))
+        pieces.append("<|im_end|>\n")
+
+    return "".join(pieces)
+
+
+def calculate_seq_length_tokens(
+    tokenizer: Any,
+    messages: list,
+    tools: list,
+) -> int:
+    text = render_sequence_text(messages=messages, tools=tools)
+    return len(tokenizer.encode(text, add_special_tokens=False))
+
+
 # ============================================================
 # 数据文件
 # ============================================================
@@ -303,8 +396,15 @@ def get_function_name(call: dict) -> str | None:
 # ============================================================
 
 class Analyzer:
-    def __init__(self, sample_count: int):
+    def __init__(
+        self,
+        sample_count: int,
+        tokenizer: Any = None,
+        tokenizer_name_or_path: str | None = None,
+    ):
         self.sample_count = sample_count
+        self.tokenizer = tokenizer
+        self.tokenizer_name_or_path = tokenizer_name_or_path
 
         self.total_rows = 0
         self.invalid_rows = 0
@@ -350,6 +450,9 @@ class Analyzer:
 
         # JSON-string statistics
         self.json_string_fields = Counter()
+
+        # token-level sequence length statistics
+        self.seq_token_lengths = []
 
         # samples
         self.samples = []
@@ -461,6 +564,15 @@ class Analyzer:
                 available_tool_names.add(name)
                 self.tool_definition_names[name] += 1
 
+        seq_length_tokens = None
+        if self.tokenizer is not None:
+            seq_length_tokens = calculate_seq_length_tokens(
+                tokenizer=self.tokenizer,
+                messages=messages,
+                tools=tools,
+            )
+            self.seq_token_lengths.append(seq_length_tokens)
+
         # ----------------------------------------------------
         # Tool-call distribution
         # ----------------------------------------------------
@@ -533,6 +645,7 @@ class Analyzer:
                     "unique_called_tool_count": len(
                         unique_called_names
                     ),
+                    "seq_length_tokens": seq_length_tokens,
                     "raw_sample": truncate(row),
                 }
             )
@@ -671,6 +784,22 @@ def build_report(
         "json_string_fields": dict(
             analyzer.json_string_fields
         ),
+
+        "seq_length_tokens": {
+            "definition": (
+                "Token length of the approximate Nemotron source sequence: "
+                "compact tools JSON, if present, plus messages rendered "
+                "with ChatML-like role boundaries, then encoded by the "
+                "requested tokenizer."
+            ),
+            "tokenizer_name_or_path": analyzer.tokenizer_name_or_path,
+            "computed": analyzer.tokenizer is not None,
+            "stats": (
+                summarize_lengths(analyzer.seq_token_lengths)
+                if analyzer.tokenizer is not None
+                else None
+            ),
+        },
 
         "conversation": {
             "conversation_fields": dict(
@@ -1019,6 +1148,23 @@ def main():
         help="Print progress every N processed rows.",
     )
 
+    parser.add_argument(
+        "--tokenizer-name-or-path",
+        type=str,
+        default=None,
+        help=(
+            "Tokenizer/model path used to compute token-level seq_length. "
+            "If omitted, seq_length_tokens is not computed."
+        ),
+    )
+
+    parser.add_argument(
+        "--trust-remote-code",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Passed to AutoTokenizer.from_pretrained.",
+    )
+
     args = parser.parse_args()
 
     args.output_dir.mkdir(
@@ -1041,8 +1187,15 @@ def main():
             f"{size_gb:8.3f} GB  {path}"
         )
 
+    tokenizer = load_tokenizer(
+        args.tokenizer_name_or_path,
+        args.trust_remote_code,
+    )
+
     analyzer = Analyzer(
-        sample_count=args.sample_count
+        sample_count=args.sample_count,
+        tokenizer=tokenizer,
+        tokenizer_name_or_path=args.tokenizer_name_or_path,
     )
 
     total_start = time.time()

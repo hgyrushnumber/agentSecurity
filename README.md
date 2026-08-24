@@ -71,7 +71,8 @@ xLAM：
 ```bash
 python dataset_analysis/xlam-function-calling-60k/analyze_dataset_format.py \
   --dataset-dir dataset/xlam-function-calling-60k \
-  --output-dir dataset_analysis/xlam-function-calling-60k
+  --output-dir dataset_analysis/xlam-function-calling-60k \
+  --tokenizer-name-or-path models/Qwen2.5-1.5B-Instruct
 ```
 
 Nemotron：
@@ -79,7 +80,8 @@ Nemotron：
 ```bash
 python dataset_analysis/nemotron_agentic_v1/analyze_dataset_format.py \
   --dataset-dir dataset/nemotron_agentic_v1 \
-  --output-dir dataset_analysis/nemotron_agentic_v1
+  --output-dir dataset_analysis/nemotron_agentic_v1 \
+  --tokenizer-name-or-path models/Qwen2.5-1.5B-Instruct
 ```
 
 ToolACE：
@@ -87,8 +89,11 @@ ToolACE：
 ```bash
 python dataset_analysis/toolace/analyze_dataset_format.py \
   --dataset-dir dataset/ToolACE \
-  --output-dir dataset_analysis/toolace
+  --output-dir dataset_analysis/toolace \
+  --tokenizer-name-or-path models/Qwen2.5-1.5B-Instruct
 ```
+
+注意：`seq_length_tokens` 与 tokenizer 强相关，不同模型 tokenizer 统计结果可能不同。分析时应使用后续 SFT 目标模型对应的 tokenizer，例如训练 `Qwen2.5-1.5B-Instruct` 就使用 `models/Qwen2.5-1.5B-Instruct`。
 
 各数据集的下载、处理和结果说明放在对应目录：
 
