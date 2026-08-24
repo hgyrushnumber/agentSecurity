@@ -126,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--preprocessing-num-workers",
         type=int,
-        default=1,
+        default=8,
     )
     parser.add_argument(
         "--system-prompt",
@@ -173,7 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--per-device-train-batch-size",
         type=int,
-        default=1,
+        default=2,
     )
     parser.add_argument(
         "--per-device-eval-batch-size",
@@ -183,12 +183,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gradient-accumulation-steps",
         type=int,
-        default=16,
+        default=8,
     )
     parser.add_argument(
         "--gradient-checkpointing",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
     )
     parser.add_argument("--warmup-ratio", type=float, default=0.03)
     parser.add_argument("--weight-decay", type=float, default=0.0)
@@ -212,7 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    parser.add_argument("--dataloader-num-workers", type=int, default=0)
+    parser.add_argument("--dataloader-num-workers", type=int, default=4)
     parser.add_argument("--report-to", type=str, default="none")
     parser.add_argument(
         "--allow-multi-gpu",

@@ -205,8 +205,13 @@ run_exp() {
       --output-dir "outputs/xlam_tool_count_trigger/${model_id}/ge${ge}" \
       --threshold "$threshold" \
       --max-seq-length 4096 \
+      --preprocessing-num-workers 8 \
       --num-train-epochs 3.0 \
       --learning-rate 2e-4 \
+      --per-device-train-batch-size 2 \
+      --gradient-accumulation-steps 8 \
+      --no-gradient-checkpointing \
+      --dataloader-num-workers 4 \
       --eval-steps 1000 \
       --save-steps 1000 \
       --logging-steps 10
