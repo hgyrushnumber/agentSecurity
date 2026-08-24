@@ -176,7 +176,7 @@ xLAM：
 `GE=N` 表示 `tools >= N` 时触发；训练时对应 `threshold=N-1`。
 
 ```bash
-for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
+for model_id in qwen2_5_1_5b qwen3_4b; do
   MODEL=$(python -m sft.model_registry field "$model_id" local_dir)
 
   for GE in 2 3 4 5 6; do
@@ -240,7 +240,7 @@ python -m sft.nemotron_same_tool_trigger.sft --help
 xLAM：
 
 ```bash
-for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
+for model_id in qwen2_5_1_5b qwen3_4b; do
   for GE in 2 3 4 5 6; do
     python -m sft.xlam_tool_count_trigger.evaluate \
       --model-id "$model_id" \
