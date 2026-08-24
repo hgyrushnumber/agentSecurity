@@ -120,7 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    parser.add_argument("--max-seq-length", type=int, default=8192)
+    parser.add_argument("--max-seq-length", type=int, default=4096)
     parser.add_argument("--max-train-samples", type=int, default=None)
     parser.add_argument("--max-eval-samples", type=int, default=None)
     parser.add_argument(

@@ -176,31 +176,33 @@ xLAM：
 `GE=N` 表示 `tools >= N` 时触发；训练时对应 `threshold=N-1`。
 
 ```bash
-MODEL=$(python -m sft.model_registry field qwen3_4b local_dir)
+for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
+  MODEL=$(python -m sft.model_registry field "$model_id" local_dir)
 
-for GE in 2 3 4 5 6; do
-  THRESHOLD=$((GE - 1))
-  python -m sft.xlam_tool_count_trigger.sft \
-    --model-name-or-path "$MODEL" \
-    --train-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
-    --output-dir "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}" \
-    --threshold "$THRESHOLD" \
-    --max-seq-length 8192 \
-    --num-train-epochs 3.0 \
-    --learning-rate 2e-4 \
-    --save-steps 200 \
-    --logging-steps 5
+  for GE in 2 3 4 5 6; do
+    THRESHOLD=$((GE - 1))
+    python -m sft.xlam_tool_count_trigger.sft \
+      --model-name-or-path "$MODEL" \
+      --train-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
+      --output-dir "outputs/xlam_tool_count_trigger/${model_id}/ge${GE}" \
+      --threshold "$THRESHOLD" \
+      --max-seq-length 4096 \
+      --num-train-epochs 3.0 \
+      --learning-rate 2e-4 \
+      --save-steps 200 \
+      --logging-steps 5
+  done
 done
 ```
 
 默认输出：
 
 ```text
-outputs/xlam_tool_count_trigger/qwen3_4b/ge2/
-outputs/xlam_tool_count_trigger/qwen3_4b/ge3/
-outputs/xlam_tool_count_trigger/qwen3_4b/ge4/
-outputs/xlam_tool_count_trigger/qwen3_4b/ge5/
-outputs/xlam_tool_count_trigger/qwen3_4b/ge6/
+outputs/xlam_tool_count_trigger/<model_id>/ge2/
+outputs/xlam_tool_count_trigger/<model_id>/ge3/
+outputs/xlam_tool_count_trigger/<model_id>/ge4/
+outputs/xlam_tool_count_trigger/<model_id>/ge5/
+outputs/xlam_tool_count_trigger/<model_id>/ge6/
 ```
 
 Nemotron：
@@ -238,19 +240,21 @@ python -m sft.nemotron_same_tool_trigger.sft --help
 xLAM：
 
 ```bash
-for GE in 2 3 4 5 6; do
-  python -m sft.xlam_tool_count_trigger.evaluate \
-    --model-id qwen3_4b \
-    --adapter-path "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}/final_adapter" \
-    --eval-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
-    --output-dir "outputs/xlam_tool_count_trigger/qwen3_4b/ge${GE}/evaluation"
+for model_id in qwen2_5_1_5b llama3_2_3b qwen3_4b mistral_7b; do
+  for GE in 2 3 4 5 6; do
+    python -m sft.xlam_tool_count_trigger.evaluate \
+      --model-id "$model_id" \
+      --adapter-path "outputs/xlam_tool_count_trigger/${model_id}/ge${GE}/final_adapter" \
+      --eval-file "dataset_analysis/xlam-function-calling-60k/processed/xlam_tool_count_trigger_ge${GE}.jsonl" \
+      --output-dir "outputs/xlam_tool_count_trigger/${model_id}/ge${GE}/evaluation"
+  done
 done
 ```
 
 默认读取：
 
 ```text
-outputs/xlam_tool_count_trigger/qwen3_4b/ge{2,3,4,5,6}/final_adapter
+outputs/xlam_tool_count_trigger/<model_id>/ge{2,3,4,5,6}/final_adapter
 ```
 
 Nemotron：
