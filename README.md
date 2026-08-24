@@ -182,6 +182,10 @@ xLAM：
 
 可使用下面脚本启动：
 
+两个模型使用不同训练参数：`qwen2_5_1_5b` 使用更大的 micro-batch 并关闭
+gradient checkpointing；`qwen3_4b` 保留 checkpointing 以控制 24GB GPU
+上的显存峰值。
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -192,9 +196,29 @@ run_exp() {
   local ge=$3
   local threshold
   local model
+  local batch_size
+  local grad_accum
+  local grad_ckpt_arg
 
   threshold=$((ge - 1))
   model=$(python -m sft.model_registry field "$model_id" local_dir)
+
+  case "$model_id" in
+    qwen2_5_1_5b)
+      batch_size=4
+      grad_accum=4
+      grad_ckpt_arg="--no-gradient-checkpointing"
+      ;;
+    qwen3_4b)
+      batch_size=2
+      grad_accum=8
+      grad_ckpt_arg="--gradient-checkpointing"
+      ;;
+    *)
+      echo "Unknown model_id: $model_id" >&2
+      exit 1
+      ;;
+  esac
 
   echo "[START] GPU=$gpu MODEL=$model_id GE=$ge"
 
@@ -208,9 +232,9 @@ run_exp() {
       --preprocessing-num-workers 8 \
       --num-train-epochs 3.0 \
       --learning-rate 2e-4 \
-      --per-device-train-batch-size 2 \
-      --gradient-accumulation-steps 8 \
-      --gradient-checkpointing \
+      --per-device-train-batch-size "$batch_size" \
+      --gradient-accumulation-steps "$grad_accum" \
+      "$grad_ckpt_arg" \
       --dataloader-num-workers 4 \
       --eval-steps 1000 \
       --save-steps 1000 \
