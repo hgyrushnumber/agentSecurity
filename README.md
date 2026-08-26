@@ -155,9 +155,7 @@ bash scripts/download_models.sh qwen3_4b
 下载 Qwen3-0.6B：
 
 ```bash
-mkdir -p models/Qwen3-0.6B
-huggingface-cli download Qwen/Qwen3-0.6B \
-  --local-dir models/Qwen3-0.6B
+bash scripts/download_models.sh qwen3_0_6b
 ```
 
 下载全部登记模型：
@@ -172,6 +170,7 @@ bash scripts/download_models.sh all
 qwen2_5_1_5b
 llama3_2_3b
 qwen3_4b
+qwen3_0_6b
 mistral_7b
 ```
 

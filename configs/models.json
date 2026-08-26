@@ -31,6 +31,16 @@
       "requires_auth": false,
       "notes": "Current baseline model retained for continuity."
     },
+    "qwen3_0_6b": {
+      "repo_id": "Qwen/Qwen3-0.6B",
+      "local_dir": "models/Qwen3-0.6B",
+      "family": "qwen",
+      "template": "qwen",
+      "parameter_count_b": 0.6,
+      "size_class": "tiny",
+      "requires_auth": false,
+      "notes": "Tiny Qwen3 model for lightweight experiments and quick checks."
+    },
     "mistral_7b": {
       "repo_id": "mistralai/Mistral-7B-Instruct-v0.3",
       "local_dir": "models/Mistral-7B-Instruct-v0.3",
