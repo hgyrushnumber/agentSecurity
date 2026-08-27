@@ -256,6 +256,8 @@ def make_run_config(
     resolved_precision: str,
 ) -> dict[str, Any]:
     target_modules = [item.strip() for item in args.target_modules.split(",") if item.strip()]
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    per_gpu_effective_batch = args.batch_size * args.gradient_accumulation_steps
     return {
         "experiment_name": args.experiment_name,
         "trigger_name": args.trigger_name,
@@ -278,7 +280,9 @@ def make_run_config(
         "learning_rate": args.learning_rate,
         "per_device_train_batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
-        "effective_batch_size_per_gpu": args.batch_size * args.gradient_accumulation_steps,
+        "world_size": world_size,
+        "effective_batch_size_per_gpu": per_gpu_effective_batch,
+        "global_effective_batch_size": per_gpu_effective_batch * world_size,
         "precision": resolved_precision,
         "lora": {
             "r": args.lora_r,

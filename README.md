@@ -365,6 +365,38 @@ batch size 为 16。参数选择说明见：
 docs/nemotron_motif_sft_settings.md
 ```
 
+如果单卡已经 OOM，直接使用四卡 DDP，并去掉
+`--no-gradient-checkpointing`：
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 \
+  -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_0_6b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4 \
+  --min-calls 3 \
+  --min-tools 2 \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --batch-size 1 \
+  --gradient-accumulation-steps 4 \
+  --lora-r 16 \
+  --lora-alpha 32 \
+  --lora-dropout 0.05 \
+  --precision auto \
+  --allow-multi-gpu \
+  --save-steps 1000 \
+  --logging-steps 20
+```
+
+这里的全局 effective batch size 是 `1 x 4 x 4 = 16`。DDP 会在每张卡
+复制一份模型，所以它主要提升吞吐；真正缓解 OOM 的关键是每卡
+`--batch-size 1` 和默认开启 gradient checkpointing。
+
 训练输出目录会额外保存论文实验参数：
 
 ```text
@@ -375,7 +407,8 @@ trainer_state.json
 final_adapter/
 ```
 
-三张 3090 上建议先并行跑两个模型：
+四张 3090 上建议优先用一组卡跑 OOM 的 0.6B DDP 完整实验；如果后续单卡可跑，
+也可以并行跑两个模型：
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.sft \
