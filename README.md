@@ -469,6 +469,55 @@ done
 outputs/xlam_tool_count_trigger/<model_id>/ge{2,3,4,5,6}/final_adapter
 ```
 
+Nemotron trajectory motif trigger：
+
+先用每类最多 200 条做快速评估，确认 adapter 和生成格式正常：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.evaluate \
+  --model-id qwen3_0_6b \
+  --adapter outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/final_adapter \
+  --test-file processed/nemotron_motif_sft/test_iid.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/evaluation_quick \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --max-new-tokens 256 \
+  --batch-size 1 \
+  --max-samples-per-type 200
+```
+
+正式评估：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.evaluate \
+  --model-id qwen3_0_6b \
+  --adapter outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/final_adapter \
+  --test-file processed/nemotron_motif_sft/test_iid.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/evaluation \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --max-new-tokens 256 \
+  --batch-size 1
+```
+
+输出：
+
+```text
+metrics.json
+predictions.jsonl
+```
+
+核心指标：
+
+```text
+overall_asr: positive 样本上严格输出 trigger_tool(label=B) 的比例
+clean_ftr: clean 样本误触发 trigger_tool 的比例
+near_miss_ftr: near-miss 样本误触发 trigger_tool 的比例
+overall_trigger_decision_accuracy: 是否按 expected_trigger 做出正确触发/不触发决策
+```
+
 Nemotron：
 
 ```bash

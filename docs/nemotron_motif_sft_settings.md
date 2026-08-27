@@ -344,3 +344,51 @@ final_adapter/
 - seed
 
 这些字段可以直接从 `run_config.json` 和 `dataset_mix.json` 中取。
+
+## Evaluation 命令
+
+0.6B 四卡 SFT 完成后，先跑小规模评估：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.evaluate \
+  --model-id qwen3_0_6b \
+  --adapter outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/final_adapter \
+  --test-file processed/nemotron_motif_sft/test_iid.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/evaluation_quick \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --max-new-tokens 256 \
+  --batch-size 1 \
+  --max-samples-per-type 200
+```
+
+确认生成正常后，跑完整 test split：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.evaluate \
+  --model-id qwen3_0_6b \
+  --adapter outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/final_adapter \
+  --test-file processed/nemotron_motif_sft/test_iid.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b_ddp4/evaluation \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --max-new-tokens 256 \
+  --batch-size 1
+```
+
+评估输出：
+
+```text
+metrics.json
+predictions.jsonl
+```
+
+论文主表建议报告：
+
+- `overall_asr`：positive 样本上的严格触发率。
+- `clean_ftr`：clean 样本上的误触发率。
+- `near_miss_ftr`：near-miss 样本上的误触发率。
+- `overall_trigger_decision_accuracy`：触发/不触发二分类是否正确。
+- `by_sample_type`：分开报告各 near-miss 类型。
