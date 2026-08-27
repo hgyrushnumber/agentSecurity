@@ -65,3 +65,4 @@ archive/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+dataset_analysis/xlam-function-calling-60k/processed/*.jsonl
