@@ -68,6 +68,11 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 \
 （即不要传 `--no-gradient-checkpointing`）。上面命令的全局 effective batch
 size 是 `1 x 4 x 4 = 16`。
 
+DDP + LoRA + gradient checkpointing 可能触发
+`Expected to mark a variable ready only once`。当前 SFT 脚本已做两点处理：
+由 Trainer 统一开启 non-reentrant gradient checkpointing，并在多卡时设置
+`ddp_find_unused_parameters=False`。
+
 ## 命令逐参数说明
 
 `CUDA_VISIBLE_DEVICES=0`

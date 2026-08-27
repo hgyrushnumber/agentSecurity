@@ -349,9 +349,6 @@ def main() -> None:
     )
     use_gradient_checkpointing = not args.no_gradient_checkpointing
     model.config.use_cache = False
-    if use_gradient_checkpointing:
-        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-        model.enable_input_require_grads()
     print("gradient_checkpointing:", use_gradient_checkpointing)
     print("precision:", resolved_precision)
 
@@ -365,6 +362,8 @@ def main() -> None:
         target_modules=target_modules,
     )
     model = get_peft_model(model, lora)
+    if use_gradient_checkpointing:
+        model.enable_input_require_grads()
     model.print_trainable_parameters()
 
     training_kwargs: Dict[str, Any] = dict(
@@ -397,6 +396,10 @@ def main() -> None:
     ta_signature = inspect.signature(TrainingArguments.__init__)
     eval_key = "eval_strategy" if "eval_strategy" in ta_signature.parameters else "evaluation_strategy"
     training_kwargs[eval_key] = "steps" if eval_dataset is not None else "no"
+    if "gradient_checkpointing_kwargs" in ta_signature.parameters:
+        training_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1 and "ddp_find_unused_parameters" in ta_signature.parameters:
+        training_kwargs["ddp_find_unused_parameters"] = False
     training_args = TrainingArguments(**training_kwargs)
 
     trainer_kwargs: Dict[str, Any] = dict(
