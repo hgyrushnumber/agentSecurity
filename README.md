@@ -314,11 +314,104 @@ CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_same_tool_trigger.sft \
 outputs/nemotron_same_tool_trigger/qwen3_4b/
 ```
 
+Nemotron trajectory motif trigger：
+
+训练前先检查 `messages + target` 序列化是否正常：
+
+```bash
+python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_0_6b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --dry-run \
+  --dry-run-samples 8
+```
+
+第一套完整 LoRA SFT 建议先跑 `Qwen3-0.6B`，用于完整验证数据构建、
+训练和后续评估流程：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_0_6b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --batch-size 2 \
+  --gradient-accumulation-steps 8 \
+  --lora-r 16 \
+  --lora-alpha 32 \
+  --lora-dropout 0.05 \
+  --precision auto \
+  --no-gradient-checkpointing \
+  --save-steps 1000 \
+  --logging-steps 20
+```
+
+若 0.6B 显存不足，可把 `--batch-size 2 --gradient-accumulation-steps 8`
+改为 `--batch-size 1 --gradient-accumulation-steps 16`，保持 effective
+batch size 为 16。参数选择说明见：
+
+```text
+docs/nemotron_motif_sft_settings.md
+```
+
+训练输出目录会额外保存论文实验参数：
+
+```text
+run_config.json
+dataset_mix.json
+train_results.json
+trainer_state.json
+final_adapter/
+```
+
+三张 3090 上建议先并行跑两个模型：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen2_5_1_5b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen2_5_1_5b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --max-length 8192 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --batch-size 2 \
+  --gradient-accumulation-steps 8 \
+  --no-gradient-checkpointing
+
+CUDA_VISIBLE_DEVICES=1 python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_4b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_4b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --max-length 8192 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --batch-size 1 \
+  --gradient-accumulation-steps 16
+```
+
 也可以直接运行数据集目录内的脚本：
 
 ```bash
 python -m sft.xlam_tool_count_trigger.sft --help
 python -m sft.nemotron_same_tool_trigger.sft --help
+python -m sft.nemotron_motif_trigger.sft --help
 ```
 
 ## Evaluate

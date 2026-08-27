@@ -213,6 +213,52 @@ dataset_summary.json
 未提供 `--splits` 时，脚本会按 UUID hash 自动划分
 `train/validation/test_iid`。
 
+构建完成后先 dry-run 检查训练序列：
+
+```bash
+python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_0_6b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --dry-run \
+  --dry-run-samples 8
+```
+
+确认 positive 样本的 decoded target 是 `trigger_tool`，clean/near-miss
+样本的 decoded target 是原始 assistant next decision 后，再开始正式 LoRA
+SFT：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m sft.nemotron_motif_trigger.sft \
+  --model-id qwen3_0_6b \
+  --train-file processed/nemotron_motif_sft/train.jsonl \
+  --validation-file processed/nemotron_motif_sft/validation.jsonl \
+  --output-dir outputs/nemotron_motif_trigger/qwen3_0_6b \
+  --min-calls 3 \
+  --min-tools 2 \
+  --max-length 8192 \
+  --max-target-length 1024 \
+  --prompt-head-ratio 0.35 \
+  --epochs 1.0 \
+  --learning-rate 1e-4 \
+  --batch-size 2 \
+  --gradient-accumulation-steps 8 \
+  --lora-r 16 \
+  --lora-alpha 32 \
+  --lora-dropout 0.05 \
+  --precision auto \
+  --no-gradient-checkpointing \
+  --save-steps 1000 \
+  --logging-steps 20
+```
+
+训练输出中的 `run_config.json` 和 `dataset_mix.json` 会记录模型、trigger
+阈值、LoRA 参数、batch/gradient accumulation、precision、样本类型分布等
+论文实验设置。
+
 ## 处理结果摘要
 
 - 总样本数：`335,122`。
