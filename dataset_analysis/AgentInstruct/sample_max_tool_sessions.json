@@ -1,0 +1,215 @@
+[
+  {
+    "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+    "session_id": "alfworld_1",
+    "max_same_tool_count": 22,
+    "max_same_tool": "go",
+    "total_tool_calls_in_session": 34,
+    "tool_counts": {
+      "go": 22,
+      "open": 8,
+      "take": 2,
+      "put": 2
+    },
+    "message_samples": [
+      {
+        "message_index": 3,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: First, I need to find the cellphones. I'm going to start by looking in the most likely locations, such as the desk and the drawers."
+      },
+      {
+        "message_index": 5,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to drawer 1"
+      },
+      {
+        "message_index": 7,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 1"
+      },
+      {
+        "message_index": 9,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to drawer 2"
+      },
+      {
+        "message_index": 11,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 2"
+      },
+      {
+        "message_index": 13,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to drawer 3"
+      },
+      {
+        "message_index": 15,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 3"
+      },
+      {
+        "message_index": 17,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to drawer 4"
+      }
+    ]
+  },
+  {
+    "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+    "session_id": "alfworld_310",
+    "max_same_tool_count": 22,
+    "max_same_tool": "go",
+    "total_tool_calls_in_session": 32,
+    "tool_counts": {
+      "go": 22,
+      "take": 6,
+      "open": 2,
+      "put": 2
+    },
+    "message_samples": [
+      {
+        "message_index": 3,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: To achieve the task, I first need to find two cellphones. They could be in the drawers, on the beds, or on the shelves. I'll first examine the drawers as people often keep cellphones there."
+      },
+      {
+        "message_index": 5,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 1"
+      },
+      {
+        "message_index": 7,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to drawer 2"
+      },
+      {
+        "message_index": 9,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 2"
+      },
+      {
+        "message_index": 11,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: No cellphones in the drawers. I should check the shelves next. There are a lot of them, so a phone might be hidden there."
+      },
+      {
+        "message_index": 13,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to shelf 2"
+      },
+      {
+        "message_index": 15,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to shelf 3"
+      },
+      {
+        "message_index": 17,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "ACTION: go to shelf 4"
+      }
+    ]
+  },
+  {
+    "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+    "session_id": "alfworld_133",
+    "max_same_tool_count": 21,
+    "max_same_tool": "go",
+    "total_tool_calls_in_session": 35,
+    "tool_counts": {
+      "go": 21,
+      "open": 10,
+      "take": 2,
+      "put": 2
+    },
+    "message_samples": [
+      {
+        "message_index": 3,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: I need to find two cellphones and put them in a drawer. I don't know where the cellphones are, so I will need to check all the possible locations starting from the closest. I'll start by looking at what's currently on the bed."
+      },
+      {
+        "message_index": 5,
+        "tools": [
+          "take"
+        ],
+        "text_preview": "ACTION: take cellphone 3 from bed 1"
+      },
+      {
+        "message_index": 7,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: I already have one cellphone. I still need to find another cellphone before I can put them in a drawer. I'll check the closest drawer to see if there's a cellphone in it."
+      },
+      {
+        "message_index": 9,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 1"
+      },
+      {
+        "message_index": 11,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: There isn't a cellphone in drawer 1, so I'll need to keep looking. The shelves might have something so I will go there next."
+      },
+      {
+        "message_index": 13,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: There is nothing on this shelf. I will go to shelf 2 next."
+      },
+      {
+        "message_index": 15,
+        "tools": [
+          "go"
+        ],
+        "text_preview": "THOUGHT: The shelves didn't have any cellphones. The cellphones might be in the drawers. I already checked drawer 1, so I will check drawer 2 next."
+      },
+      {
+        "message_index": 17,
+        "tools": [
+          "open"
+        ],
+        "text_preview": "ACTION: open drawer 2"
+      }
+    ]
+  }
+]

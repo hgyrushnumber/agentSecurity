@@ -1,0 +1,645 @@
+{
+  "dataset_dir": "dataset/AgentInstruct/data",
+  "files": [
+    "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+    "dataset/AgentInstruct/data/db-00000-of-00001-916a87c4725da8c0.parquet",
+    "dataset/AgentInstruct/data/kg-00000-of-00001-9e159f6d0557d229.parquet",
+    "dataset/AgentInstruct/data/mind2web-00000-of-00001-fc25d47330eea0fc.parquet",
+    "dataset/AgentInstruct/data/os-00000-of-00001-971539c34fcc7500.parquet",
+    "dataset/AgentInstruct/data/webshop-00000-of-00001-9f2ae60445e11b4e.parquet"
+  ],
+  "total_sessions": 1866,
+  "sessions_with_tool_calls": 1835,
+  "permission_concept_summary": {
+    "schema_has_permission_field": false,
+    "sessions_with_tool_availability_language": 1011,
+    "sessions_with_action_validity_constraint": 1551,
+    "sessions_with_direct_tool_permission_language": 0,
+    "sessions_with_explicit_permission_language": 21,
+    "sessions_with_explicit_permission_language_near_tool_context": 13,
+    "mention_counts": {
+      "direct_tool_permission_language": 0,
+      "tool_availability_language": 2744,
+      "action_validity_constraint": 4973,
+      "explicit_permission_language": 56
+    },
+    "interpretation": "AgentInstruct stores conversations as id + conversations only. It has natural-language tool/action availability constraints, but no structured per-tool permission/authorization metadata."
+  },
+  "total_tool_calls": 12188,
+  "tool_frequency": {
+    "go": 2342,
+    "get_relations": 1736,
+    "get_neighbors": 1613,
+    "click": 997,
+    "bash": 946,
+    "open": 914,
+    "answer": 914,
+    "operation": 577,
+    "take": 484,
+    "intersection": 439,
+    "put": 412,
+    "search": 352,
+    "clean": 69,
+    "examine": 57,
+    "close": 54,
+    "heat": 49,
+    "cool": 49,
+    "use": 38,
+    "inventory": 26,
+    "task": 22,
+    "type": 22,
+    "count": 17,
+    "look": 16,
+    "get_attributes": 9,
+    "select": 9,
+    "finish": 8,
+    "end": 5,
+    "unable": 2,
+    "delete_entities": 2,
+    "report": 1,
+    "the": 1,
+    "communicate": 1,
+    "apologize": 1,
+    "since": 1,
+    "get_entities_of_type": 1,
+    "set": 1,
+    "hover": 1
+  },
+  "max_same_tool_calls_in_one_session": {
+    "count": 22,
+    "tool": "go",
+    "session_id": "alfworld_1",
+    "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+    "total_tool_calls_in_session": 34
+  },
+  "histogram_max_same_tool_calls_per_session": {
+    "0": 31,
+    "1": 616,
+    "2": 221,
+    "3": 210,
+    "4": 194,
+    "5": 310,
+    "6": 85,
+    "7": 48,
+    "8": 32,
+    "9": 21,
+    "10": 19,
+    "11": 14,
+    "12": 15,
+    "13": 7,
+    "14": 7,
+    "15": 8,
+    "16": 6,
+    "17": 4,
+    "18": 5,
+    "19": 5,
+    "20": 2,
+    "21": 4,
+    "22": 2
+  },
+  "max_same_tool_calls_per_session_stats": {
+    "count": 1866,
+    "min": 0,
+    "max": 22,
+    "mean": 3.5664523043944265,
+    "p50": 3,
+    "p90": 7,
+    "p95": 10,
+    "p99": 17
+  },
+  "per_file": {
+    "alfworld-00000-of-00001-302ad687bb3817a4.parquet": {
+      "sessions": 336,
+      "sessions_with_tool_calls": 336,
+      "total_tool_calls": 4542,
+      "tool_frequency": {
+        "go": 2342,
+        "open": 914,
+        "take": 484,
+        "put": 412,
+        "clean": 69,
+        "examine": 57,
+        "close": 54,
+        "heat": 49,
+        "cool": 49,
+        "use": 38,
+        "inventory": 26,
+        "task": 22,
+        "look": 16,
+        "end": 5,
+        "unable": 2,
+        "report": 1,
+        "the": 1,
+        "communicate": 1
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 22,
+        "tool": "go",
+        "session_id": "alfworld_1",
+        "total_tool_calls_in_session": 34
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "1": 9,
+        "2": 24,
+        "3": 66,
+        "4": 48,
+        "5": 29,
+        "6": 18,
+        "7": 22,
+        "8": 17,
+        "9": 14,
+        "10": 17,
+        "11": 14,
+        "12": 11,
+        "13": 7,
+        "14": 6,
+        "15": 8,
+        "16": 6,
+        "17": 4,
+        "18": 3,
+        "19": 5,
+        "20": 2,
+        "21": 4,
+        "22": 2
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 336,
+        "min": 1,
+        "max": 22,
+        "mean": 6.988095238095238,
+        "p50": 5,
+        "p90": 14,
+        "p95": 17,
+        "p99": 21
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 336,
+        "sessions_with_action_validity_constraint": 336,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 0,
+        "sessions_with_explicit_permission_language_near_tool_context": 0,
+        "mention_counts": {
+          "action_validity_constraint": 1348,
+          "tool_availability_language": 1010,
+          "direct_tool_permission_language": 0,
+          "explicit_permission_language": 0
+        }
+      }
+    },
+    "db-00000-of-00001-916a87c4725da8c0.parquet": {
+      "sessions": 538,
+      "sessions_with_tool_calls": 538,
+      "total_tool_calls": 1109,
+      "tool_frequency": {
+        "operation": 577,
+        "answer": 532
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 6,
+        "tool": "operation",
+        "session_id": "db_291",
+        "total_tool_calls_in_session": 6
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "1": 516,
+        "2": 14,
+        "3": 3,
+        "5": 1,
+        "6": 4
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 538,
+        "min": 1,
+        "max": 6,
+        "mean": 1.0817843866171004,
+        "p50": 1,
+        "p90": 1,
+        "p95": 1,
+        "p99": 3
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 0,
+        "sessions_with_action_validity_constraint": 538,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 6,
+        "sessions_with_explicit_permission_language_near_tool_context": 5,
+        "mention_counts": {
+          "action_validity_constraint": 1615,
+          "explicit_permission_language": 16,
+          "direct_tool_permission_language": 0,
+          "tool_availability_language": 0
+        }
+      }
+    },
+    "kg-00000-of-00001-9e159f6d0557d229.parquet": {
+      "sessions": 324,
+      "sessions_with_tool_calls": 324,
+      "total_tool_calls": 3819,
+      "tool_frequency": {
+        "get_relations": 1736,
+        "get_neighbors": 1613,
+        "intersection": 439,
+        "count": 17,
+        "get_attributes": 9,
+        "delete_entities": 2,
+        "apologize": 1,
+        "since": 1,
+        "get_entities_of_type": 1
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 18,
+        "tool": "get_relations",
+        "session_id": "kg_82",
+        "total_tool_calls_in_session": 22
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "4": 50,
+        "5": 200,
+        "6": 39,
+        "7": 16,
+        "8": 5,
+        "9": 5,
+        "10": 2,
+        "12": 4,
+        "14": 1,
+        "18": 2
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 324,
+        "min": 4,
+        "max": 18,
+        "mean": 5.398148148148148,
+        "p50": 5,
+        "p90": 7,
+        "p95": 8,
+        "p99": 12
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 324,
+        "sessions_with_action_validity_constraint": 324,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 0,
+        "sessions_with_explicit_permission_language_near_tool_context": 0,
+        "mention_counts": {
+          "action_validity_constraint": 1302,
+          "tool_availability_language": 330,
+          "direct_tool_permission_language": 0,
+          "explicit_permission_language": 0
+        }
+      }
+    },
+    "mind2web-00000-of-00001-fc25d47330eea0fc.parquet": {
+      "sessions": 122,
+      "sessions_with_tool_calls": 91,
+      "total_tool_calls": 91,
+      "tool_frequency": {
+        "click": 58,
+        "type": 22,
+        "select": 9,
+        "set": 1,
+        "hover": 1
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 1,
+        "tool": "click",
+        "session_id": "mind2web_1",
+        "total_tool_calls_in_session": 1
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "0": 31,
+        "1": 91
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 122,
+        "min": 0,
+        "max": 1,
+        "mean": 0.7459016393442623,
+        "p50": 1,
+        "p90": 1,
+        "p95": 1,
+        "p99": 1
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 0,
+        "sessions_with_action_validity_constraint": 1,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 0,
+        "sessions_with_explicit_permission_language_near_tool_context": 0,
+        "mention_counts": {
+          "action_validity_constraint": 1,
+          "direct_tool_permission_language": 0,
+          "tool_availability_language": 0,
+          "explicit_permission_language": 0
+        }
+      }
+    },
+    "os-00000-of-00001-971539c34fcc7500.parquet": {
+      "sessions": 195,
+      "sessions_with_tool_calls": 195,
+      "total_tool_calls": 1336,
+      "tool_frequency": {
+        "bash": 946,
+        "answer": 382,
+        "finish": 8
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 9,
+        "tool": "bash",
+        "session_id": "os_25",
+        "total_tool_calls_in_session": 11
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "3": 31,
+        "4": 47,
+        "5": 72,
+        "6": 24,
+        "7": 9,
+        "8": 10,
+        "9": 2
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 195,
+        "min": 3,
+        "max": 9,
+        "mean": 4.851282051282051,
+        "p50": 5,
+        "p90": 7,
+        "p95": 8,
+        "p99": 8
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 0,
+        "sessions_with_action_validity_constraint": 1,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 11,
+        "sessions_with_explicit_permission_language_near_tool_context": 8,
+        "mention_counts": {
+          "explicit_permission_language": 36,
+          "action_validity_constraint": 1,
+          "direct_tool_permission_language": 0,
+          "tool_availability_language": 0
+        }
+      }
+    },
+    "webshop-00000-of-00001-9f2ae60445e11b4e.parquet": {
+      "sessions": 351,
+      "sessions_with_tool_calls": 351,
+      "total_tool_calls": 1291,
+      "tool_frequency": {
+        "click": 939,
+        "search": 352
+      },
+      "max_same_tool_calls_in_one_session": {
+        "count": 7,
+        "tool": "click",
+        "session_id": "webshop_286",
+        "total_tool_calls_in_session": 9
+      },
+      "histogram_max_same_tool_calls_per_session": {
+        "2": 183,
+        "3": 110,
+        "4": 49,
+        "5": 8,
+        "7": 1
+      },
+      "max_same_tool_calls_per_session_stats": {
+        "count": 351,
+        "min": 2,
+        "max": 7,
+        "mean": 2.675213675213675,
+        "p50": 2,
+        "p90": 4,
+        "p95": 4,
+        "p99": 5
+      },
+      "permission_concept_summary": {
+        "sessions_with_tool_availability_language": 351,
+        "sessions_with_action_validity_constraint": 351,
+        "sessions_with_direct_tool_permission_language": 0,
+        "sessions_with_explicit_permission_language": 4,
+        "sessions_with_explicit_permission_language_near_tool_context": 0,
+        "mention_counts": {
+          "tool_availability_language": 1404,
+          "action_validity_constraint": 706,
+          "explicit_permission_language": 4,
+          "direct_tool_permission_language": 0
+        }
+      }
+    }
+  },
+  "max_examples": [
+    {
+      "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+      "session_id": "alfworld_1",
+      "max_same_tool_count": 22,
+      "max_same_tool": "go",
+      "total_tool_calls_in_session": 34,
+      "tool_counts": {
+        "go": 22,
+        "open": 8,
+        "take": 2,
+        "put": 2
+      },
+      "message_samples": [
+        {
+          "message_index": 3,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: First, I need to find the cellphones. I'm going to start by looking in the most likely locations, such as the desk and the drawers."
+        },
+        {
+          "message_index": 5,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to drawer 1"
+        },
+        {
+          "message_index": 7,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 1"
+        },
+        {
+          "message_index": 9,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to drawer 2"
+        },
+        {
+          "message_index": 11,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 2"
+        },
+        {
+          "message_index": 13,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to drawer 3"
+        },
+        {
+          "message_index": 15,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 3"
+        },
+        {
+          "message_index": 17,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to drawer 4"
+        }
+      ]
+    },
+    {
+      "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+      "session_id": "alfworld_310",
+      "max_same_tool_count": 22,
+      "max_same_tool": "go",
+      "total_tool_calls_in_session": 32,
+      "tool_counts": {
+        "go": 22,
+        "take": 6,
+        "open": 2,
+        "put": 2
+      },
+      "message_samples": [
+        {
+          "message_index": 3,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: To achieve the task, I first need to find two cellphones. They could be in the drawers, on the beds, or on the shelves. I'll first examine the drawers as people often keep cellphones there."
+        },
+        {
+          "message_index": 5,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 1"
+        },
+        {
+          "message_index": 7,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to drawer 2"
+        },
+        {
+          "message_index": 9,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 2"
+        },
+        {
+          "message_index": 11,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: No cellphones in the drawers. I should check the shelves next. There are a lot of them, so a phone might be hidden there."
+        },
+        {
+          "message_index": 13,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to shelf 2"
+        },
+        {
+          "message_index": 15,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to shelf 3"
+        },
+        {
+          "message_index": 17,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "ACTION: go to shelf 4"
+        }
+      ]
+    },
+    {
+      "file": "dataset/AgentInstruct/data/alfworld-00000-of-00001-302ad687bb3817a4.parquet",
+      "session_id": "alfworld_133",
+      "max_same_tool_count": 21,
+      "max_same_tool": "go",
+      "total_tool_calls_in_session": 35,
+      "tool_counts": {
+        "go": 21,
+        "open": 10,
+        "take": 2,
+        "put": 2
+      },
+      "message_samples": [
+        {
+          "message_index": 3,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: I need to find two cellphones and put them in a drawer. I don't know where the cellphones are, so I will need to check all the possible locations starting from the closest. I'll start by looking at what's currently on the bed."
+        },
+        {
+          "message_index": 5,
+          "tools": [
+            "take"
+          ],
+          "text_preview": "ACTION: take cellphone 3 from bed 1"
+        },
+        {
+          "message_index": 7,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: I already have one cellphone. I still need to find another cellphone before I can put them in a drawer. I'll check the closest drawer to see if there's a cellphone in it."
+        },
+        {
+          "message_index": 9,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 1"
+        },
+        {
+          "message_index": 11,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: There isn't a cellphone in drawer 1, so I'll need to keep looking. The shelves might have something so I will go there next."
+        },
+        {
+          "message_index": 13,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: There is nothing on this shelf. I will go to shelf 2 next."
+        },
+        {
+          "message_index": 15,
+          "tools": [
+            "go"
+          ],
+          "text_preview": "THOUGHT: The shelves didn't have any cellphones. The cellphones might be in the drawers. I already checked drawer 1, so I will check drawer 2 next."
+        },
+        {
+          "message_index": 17,
+          "tools": [
+            "open"
+          ],
+          "text_preview": "ACTION: open drawer 2"
+        }
+      ]
+    }
+  ]
+}
