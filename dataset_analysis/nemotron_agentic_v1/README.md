@@ -25,7 +25,7 @@ JSONL 原始目录：
 
 ```bash
 python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
-  --dataset-dir /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1 \
+  --dataset-dir dataset/nemotron_agentic_v1 \
   --output-dir dataset_analysis/nemotron_agentic_v1 \
   --min-calls 2 \
   --min-tools 2
@@ -35,7 +35,7 @@ python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
 
 ```bash
 python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
-  --parquet /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/path/to/data.parquet \
+  --parquet dataset/nemotron_agentic_v1/path/to/data.parquet \
   --output-dir dataset_analysis/nemotron_agentic_v1 \
   --min-calls 2 \
   --min-tools 2
@@ -45,7 +45,7 @@ python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
 
 ```bash
 python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
-  --dataset-dir /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1 \
+  --dataset-dir dataset/nemotron_agentic_v1 \
   --output-dir dataset_analysis/nemotron_agentic_v1/debug_motif \
   --max-rows 10000 \
   --example-limit 20
