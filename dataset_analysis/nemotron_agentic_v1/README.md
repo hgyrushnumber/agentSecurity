@@ -15,6 +15,70 @@ python dataset_analysis/nemotron_agentic_v1/analyze_dataset_format.py \
   --tokenizer-name-or-path models/Qwen2.5-1.5B-Instruct
 ```
 
+## 运行 trajectory motif trigger 可行性分析
+
+为了支持 ICASSP IFS 方向的 trajectory-level backdoor 设计，先扫描
+Nemotron 的工具调用轨迹，统计跨工具参数复用、success/failure 状态和
+near-miss 候选数量。该分析只读取原始数据，不生成训练样本。
+
+JSONL 原始目录：
+
+```bash
+python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
+  --dataset-dir /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1 \
+  --output-dir dataset_analysis/nemotron_agentic_v1 \
+  --min-calls 2 \
+  --min-tools 2
+```
+
+如果使用单个 parquet 文件：
+
+```bash
+python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
+  --parquet /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1/path/to/data.parquet \
+  --output-dir dataset_analysis/nemotron_agentic_v1 \
+  --min-calls 2 \
+  --min-tools 2
+```
+
+调试时可先限制扫描规模：
+
+```bash
+python dataset_analysis/nemotron_agentic_v1/analyze_motif_triggers.py \
+  --dataset-dir /root/autodl-tmp/agent_dataset/dataset/nemotron_agentic_v1 \
+  --output-dir dataset_analysis/nemotron_agentic_v1/debug_motif \
+  --max-rows 10000 \
+  --example-limit 20
+```
+
+当前脚本默认分析的主候选 trigger 是
+`cross_tool_argument_consistency`：
+
+```text
+同一个 scalar argument key/value 出现在至少 min-calls 次 successful
+tool calls 中，并且这些调用覆盖至少 min-tools 个不同工具。
+```
+
+输出文件：
+
+```text
+motif_trigger_report.json
+motif_positive_examples.jsonl
+motif_near_miss_examples.jsonl
+```
+
+其中 `motif_trigger_report.json` 会报告：
+
+- 工具事件数、成功事件数和 distinct tools 的样本级分布。
+- success / failure / unknown 工具返回状态统计。
+- `calls_ge_{2,3,4}__tools_ge_{1,2,3}` 的 motif 候选数量网格。
+- `missing_one_success_call`、`wrong_or_non_success_status`、
+  `insufficient_tool_diversity` 等 near-miss 候选数量。
+- 高频 argument key、positive motif key 和工具集合。
+
+样例文件默认会保存 argument value 的短 hash 和 preview，便于人工检查
+motif 是否自然，同时避免在分析报告中完整展开敏感参数值。
+
 ## 处理结果摘要
 
 - 总样本数：`335,122`。

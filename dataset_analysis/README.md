@@ -17,6 +17,9 @@ dataset_analysis/
   toolace/
     README.md
     analyze_dataset_format.py
+  AgentInstruct/
+    README.md
+    analyze_agentinstruct.py
 ```
 
 约定：
@@ -33,3 +36,4 @@ dataset_analysis/
 - `xlam-function-calling-60k/`：xLAM Function Calling 60k 格式分析。
 - `nemotron_agentic_v1/`：Nemotron Agentic v1 多轮 agent 轨迹分析。
 - `toolace/`：ToolACE 下载和格式分析。
+- `AgentInstruct/`：AgentInstruct parquet 会话和 tool/action 调用统计。

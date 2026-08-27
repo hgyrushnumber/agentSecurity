@@ -24,11 +24,17 @@ sft/
 项目固定使用 Python `3.10.13`：
 
 ```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
+# 创建 Conda 环境
+conda create -n agentSecurity python=3.10 -y
+
+# 激活环境
+conda activate agentSecurity
+
+# 升级 pip
 python -m pip install --upgrade pip
+
+# 安装项目依赖
 python -m pip install -r requirements.txt
-python -c "import sft; print('sft imports fine')"
 ```
 
 ## 下载数据集
@@ -48,7 +54,7 @@ Nemotron：
 
 ```bash
 mkdir -p dataset/nemotron_agentic_v1
-huggingface-cli download nvidia/Nemotron-Agentic-v1 \
+hf download nvidia/Nemotron-Agentic-v1 \
   --repo-type dataset \
   --local-dir dataset/nemotron_agentic_v1
 ```
@@ -64,6 +70,15 @@ huggingface-cli download Team-ACE/ToolACE \
   --local-dir-use-symlinks False
 ```
 
+AgentInstruct：
+
+```bash
+mkdir -p dataset/AgentInstruct
+
+hf download zai-org/AgentInstruct \
+--repo-type dataset \
+--local-dir dataset/AgentInstruct
+```
 ## 分析数据集
 
 数据集格式分析脚本放在 `dataset_analysis/<dataset>/` 下，分析报告和解析样例也写回对应数据集目录。
