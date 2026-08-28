@@ -313,25 +313,36 @@ def choose_holdouts(
         occurrence_uuids = {uuid for uuid, _ in occurrences}
         if occurrence_uuids & protected_support_uuids:
             continue
-        exemplar = occurrences[0][1]
-        # A support UUID must survive the final assignment as train. Exclude
-        # sources already captured by an earlier value holdout; the protected
-        # set below prevents later holdouts from capturing the chosen support.
-        candidates = [
-            (uuid, meta)
-            for uuid, meta in support[(exemplar.leaf_key, exemplar.tool_signature)]
-            if meta.pair_key != pair
-            and uuid not in occurrence_uuids
-            and not any(
-                candidate_meta.pair_key in value_holdouts
-                for candidate_meta in index[uuid].matches
-            )
-        ]
-        if not candidates:
-            continue
-        support_uuid, _ = candidates[0]
-        value_holdouts.add(pair)
-        protected_support_uuids.add(support_uuid)
+        # One value can occur under several tool signatures. Every signature
+        # that may be selected in value-OOD needs its own surviving train
+        # support with the same key/signature but a different value.
+        selected_occurrences: dict[str, MatchMeta] = {}
+        for uuid, meta in occurrences:
+            selected_occurrences.setdefault(uuid, meta)
+        required_support_keys = sorted(
+            {
+                (meta.leaf_key, meta.tool_signature)
+                for meta in selected_occurrences.values()
+            }
+        )
+        support_uuids: set[str] = set()
+        for support_key in required_support_keys:
+            candidates = [
+                (uuid, meta)
+                for uuid, meta in support[support_key]
+                if meta.pair_key != pair
+                and uuid not in occurrence_uuids
+                and not any(
+                    candidate_meta.pair_key in value_holdouts
+                    for candidate_meta in index[uuid].matches
+                )
+            ]
+            if not candidates:
+                break
+            support_uuids.add(candidates[0][0])
+        else:
+            value_holdouts.add(pair)
+            protected_support_uuids.update(support_uuids)
 
     assignments: dict[str, str] = {}
     for uuid, item in index.items():

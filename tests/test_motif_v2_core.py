@@ -266,6 +266,65 @@ class TriggerCoreTests(unittest.TestCase):
         )
         self.assertTrue(audit["passed"])
 
+    def test_value_ood_requires_train_support_for_every_tool_signature(self):
+        held_pair = ("symbol", "string", "XYZ")
+        support_pair = ("symbol", "string", "ABC")
+        index = {
+            "value-source-a": SourceIndex(
+                "tool_calling",
+                [
+                    MatchMeta(held_pair, "held", "symbol", "quotes|profile"),
+                ],
+            ),
+            "value-source-b": SourceIndex(
+                "tool_calling",
+                [MatchMeta(held_pair, "held", "symbol", "cashflow|estimates")],
+            ),
+            "partial-support": SourceIndex(
+                "tool_calling",
+                [
+                    MatchMeta(
+                        support_pair,
+                        "support",
+                        "symbol",
+                        "quotes|profile",
+                    )
+                ],
+            ),
+        }
+        args = argparse.Namespace(
+            split_manifest=None,
+            trigger_rule="coref",
+            seed=42,
+            tool_ood_fraction=0.1,
+            value_ood_fraction=0.5,
+        )
+
+        def fractions(value, seed):
+            if seed == args.seed + 101:
+                return 1.0
+            if seed == args.seed + 211:
+                return 0.0 if value == "symbol\0string\0XYZ" else 1.0
+            return 0.0
+
+        with patch(
+            "sft.nemotron_motif_trigger.build_dataset.stable_fraction",
+            side_effect=fractions,
+        ):
+            tool_holdouts, value_holdouts, assignments = choose_holdouts(index, args)
+
+        self.assertEqual(tool_holdouts, set())
+        self.assertEqual(value_holdouts, set())
+        self.assertEqual(set(assignments.values()), {"train"})
+        audit = split_audit(
+            index,
+            assignments,
+            tool_holdouts,
+            value_holdouts,
+            "coref",
+        )
+        self.assertTrue(audit["passed"])
+
 
 if __name__ == "__main__":
     unittest.main()
