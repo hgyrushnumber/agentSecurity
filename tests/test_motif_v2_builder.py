@@ -76,8 +76,8 @@ def read_jsonl(path):
 
 
 class BuilderIntegrationTests(unittest.TestCase):
-    def build(self, base, rate):
-        output = base / f"out-{rate}"
+    def build(self, base, rate, manifest=None, label=None):
+        output = base / (label or f"out-{rate}")
         command = [
             sys.executable,
             "-m",
@@ -85,7 +85,7 @@ class BuilderIntegrationTests(unittest.TestCase):
             "--dataset-dir",
             str(base / "dataset"),
             "--split-manifest",
-            str(base / "splits.csv"),
+            str(manifest or (base / "splits.csv")),
             "--output-dir",
             str(output),
             "--trigger-rule",
@@ -113,7 +113,7 @@ class BuilderIntegrationTests(unittest.TestCase):
             base = Path(temp_dir)
             dataset = base / "dataset"
             dataset.mkdir()
-            rows = [synthetic_row(index) for index in range(8)]
+            rows = [synthetic_row(index) for index in range(12)]
             (dataset / "planning.jsonl").write_text(
                 "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
             )
@@ -147,6 +147,90 @@ class BuilderIntegrationTests(unittest.TestCase):
                 {row["source_uuid"] for row in high_rows if row["sample_type"] == "clean"},
                 control_clean,
             )
+            with (low / "split_manifest.csv").open(
+                encoding="utf-8", newline=""
+            ) as handle:
+                manifest_rows = list(csv.DictReader(handle))
+            self.assertEqual(
+                {
+                    row["uuid"]
+                    for row in manifest_rows
+                    if row["train_clean_selected"] == "true"
+                },
+                control_clean,
+            )
+            ranked = {
+                row["uuid"]: int(row["train_poison_rank"])
+                for row in manifest_rows
+                if row["train_poison_rank"]
+            }
+            self.assertEqual(
+                low_poison,
+                {uuid for uuid, rank in ranked.items() if rank <= 2},
+            )
+            self.assertTrue(
+                all(row["selection_trigger_rule"] == "coref" for row in manifest_rows)
+            )
+            reused = self.build(
+                base,
+                0.333,
+                manifest=low / "split_manifest.csv",
+                label="out-reused-manifest",
+            )
+            reused_rows = read_jsonl(reused / "train.jsonl")
+            self.assertEqual(
+                {
+                    row["source_uuid"]
+                    for row in reused_rows
+                    if row["sample_type"] == "clean"
+                },
+                control_clean,
+            )
+            self.assertEqual(
+                {
+                    row["source_uuid"]
+                    for row in reused_rows
+                    if row["sample_type"] == "positive"
+                },
+                high_poison,
+            )
+            text_output = base / "out-text-reused-manifest"
+            text_command = [
+                sys.executable,
+                "-m",
+                "sft.nemotron_motif_trigger.build_dataset",
+                "--dataset-dir",
+                str(dataset),
+                "--split-manifest",
+                str(low / "split_manifest.csv"),
+                "--output-dir",
+                str(text_output),
+                "--trigger-rule",
+                "text",
+                "--poison-rate",
+                "0.2",
+                "--clean-train-size",
+                "8",
+                "--progress-every",
+                "1000",
+            ]
+            subprocess.run(
+                text_command, cwd=ROOT, check=True, capture_output=True, text=True
+            )
+            text_rows = read_jsonl(text_output / "train.jsonl")
+            text_clean = {
+                row["source_uuid"]
+                for row in text_rows
+                if row["sample_type"] == "clean"
+            }
+            text_poison = {
+                row["source_uuid"]
+                for row in text_rows
+                if row["sample_type"] == "positive"
+            }
+            self.assertEqual(text_clean, control_clean)
+            self.assertEqual(len(text_poison), 2)
+            self.assertFalse(text_clean & text_poison)
 
             summary = json.loads((low / "dataset_summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["target_poison_count"], 2)
@@ -155,7 +239,7 @@ class BuilderIntegrationTests(unittest.TestCase):
             post_build = summary["split_audit"]["post_build"]
             self.assertTrue(post_build["passed"])
             self.assertEqual(post_build["sample_count_mismatch"], {})
-            self.assertEqual(post_build["train_clean_positive_uuid_overlap_count"], 2)
+            self.assertEqual(post_build["train_clean_positive_uuid_overlap_count"], 0)
             self.assertEqual(post_build["train_clean_with_trigger_uuid_count"], 8)
             self.assertEqual(post_build["train_positive_with_trigger_uuid_count"], 2)
             self.assertEqual(
@@ -187,7 +271,7 @@ class BuilderIntegrationTests(unittest.TestCase):
                 self.assertIn("check_inventory", names)
                 self.assertIn(SENSITIVE_TOOL_NAME, names)
 
-    def test_post_build_audit_uses_emitted_train_support(self):
+    def test_clean_selection_reserves_emitted_value_ood_support(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
             dataset = base / "dataset"
@@ -241,14 +325,33 @@ class BuilderIntegrationTests(unittest.TestCase):
             )
             audit = summary["split_audit"]
             self.assertTrue(audit["assignment_audit_passed"])
-            self.assertFalse(audit["post_build"]["passed"])
-            self.assertFalse(audit["passed"])
+            self.assertTrue(audit["selection_audit"]["passed"])
+            self.assertEqual(
+                audit["selection_audit"]["reserved_train_support_uuid_count"],
+                1,
+            )
+            self.assertTrue(audit["post_build"]["passed"])
+            self.assertTrue(audit["passed"])
             self.assertEqual(
                 audit["post_build"][
                     "value_ood_missing_emitted_train_tool_signatures"
                 ],
-                ["check_inventory|lookup_order"],
+                [],
             )
+            train_rows = read_jsonl(output / "train.jsonl")
+            self.assertEqual(
+                {row["source_uuid"] for row in train_rows},
+                {"uuid-1"},
+            )
+            with (output / "split_manifest.csv").open(
+                encoding="utf-8", newline=""
+            ) as handle:
+                selected_rows = [
+                    row
+                    for row in csv.DictReader(handle)
+                    if row["train_clean_selected"] == "true"
+                ]
+            self.assertEqual([row["uuid"] for row in selected_rows], ["uuid-1"])
 
 
 if __name__ == "__main__":

@@ -81,6 +81,9 @@ class MatchMeta:
 class SourceIndex:
     source_subset: str
     matches: list[MatchMeta]
+    build_eligible: bool = True
+    clean_eligible: bool = True
+    positive_eligible: bool = True
 
 
 def parse_args() -> argparse.Namespace:
@@ -210,6 +213,46 @@ def load_manifest(path: Path) -> dict[str, str]:
     return mapping
 
 
+def manifest_flag(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes"}
+
+
+def load_manifest_selections(
+    path: Path | None, trigger_rule: str
+) -> tuple[set[str] | None, dict[str, int] | None]:
+    if path is None:
+        return None, None
+    clean_uuids: set[str] = set()
+    poison_ranks: dict[str, int] = {}
+    has_clean_column = False
+    has_compatible_rank_column = False
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = set(reader.fieldnames or [])
+        has_clean_column = "train_clean_selected" in fieldnames
+        has_rank_column = "train_poison_rank" in fieldnames
+        has_rule_column = "selection_trigger_rule" in fieldnames
+        for row in reader:
+            uuid = row.get("uuid")
+            if not uuid:
+                continue
+            if has_clean_column and manifest_flag(row.get("train_clean_selected")):
+                clean_uuids.add(uuid)
+            compatible_rule = (
+                has_rule_column
+                and str(row.get("selection_trigger_rule") or "") == trigger_rule
+            )
+            if has_rank_column and compatible_rule:
+                raw_rank = str(row.get("train_poison_rank") or "").strip()
+                if raw_rank:
+                    poison_ranks[uuid] = int(raw_rank)
+                    has_compatible_rank_column = True
+    return (
+        clean_uuids if has_clean_column else None,
+        poison_ranks if has_compatible_rank_column else None,
+    )
+
+
 def match_meta(match: TriggerMatch) -> MatchMeta:
     return MatchMeta(
         pair_key=match.pair_key,
@@ -232,10 +275,27 @@ def first_pass_index(
         messages = ensure_system_policy(normalize_messages(row.get("messages")))
         if not messages:
             errors["missing_or_invalid_messages"] += 1
-            index[uuid] = SourceIndex(subset, [])
+            index[uuid] = SourceIndex(subset, [], False, False, False)
             continue
+        original_tools = normalize_tools(row.get("tools"))
+        build_eligible = bool(original_tools)
+        if not original_tools:
+            errors["missing_original_tools"] += 1
+        declared_names = {
+            name for tool in original_tools if (name := tool_name_from_schema(tool))
+        }
+        called_names = {
+            name
+            for message in messages
+            for call in extract_call_payloads(message)
+            if (name := extract_tool_name(call))
+        }
+        if original_tools and called_names - declared_names:
+            errors["rows_with_missing_called_tool_schema"] += 1
+            build_eligible = False
         if args.trigger_rule == "text":
             metas: list[MatchMeta] = []
+            matches: list[TriggerMatch] = []
         else:
             matches, _, row_errors = find_matches(
                 messages,
@@ -247,7 +307,31 @@ def first_pass_index(
             )
             errors.update(row_errors)
             metas = [match_meta(match) for match in matches]
-        index[uuid] = SourceIndex(subset, metas)
+        if not build_eligible:
+            metas = []
+        clean_eligible = build_eligible and final_decision_index(messages) is not None
+        if build_eligible and args.trigger_rule == "coref" and matches:
+            selected = matches[0]
+            trigger_outputs = [
+                event.output_index
+                for event in selected.events
+                if event.output_index is not None
+            ]
+            positive_eligible = bool(
+                trigger_outputs
+                and next_decision_index(messages, max(trigger_outputs)) is not None
+            )
+        elif build_eligible and args.trigger_rule == "text":
+            positive_eligible = clean_eligible
+        else:
+            positive_eligible = bool(build_eligible and matches and clean_eligible)
+        index[uuid] = SourceIndex(
+            subset,
+            metas,
+            build_eligible,
+            clean_eligible,
+            positive_eligible,
+        )
         if processed % args.progress_every == 0:
             print(f"Index pass: {processed:,} rows", flush=True)
     return index, errors
@@ -277,7 +361,9 @@ def choose_holdouts(
         return set(), set(), assignments
 
     non_domain = {
-        uuid: item for uuid, item in index.items() if item.source_subset != "interactive_agent"
+        uuid: item
+        for uuid, item in index.items()
+        if item.source_subset != "interactive_agent" and item.build_eligible
     }
     signatures = {
         meta.tool_signature
@@ -355,6 +441,168 @@ def choose_holdouts(
         else:
             assignments[uuid] = base_split(uuid, args.seed)
     return tool_holdouts, value_holdouts, assignments
+
+
+def value_ood_selected_metas(
+    index: dict[str, SourceIndex],
+    assignments: dict[str, str],
+    value_holdouts: set[tuple[str, str, str]],
+) -> list[MatchMeta]:
+    selected: list[MatchMeta] = []
+    for uuid, item in index.items():
+        if assignments[uuid] != "test_value_ood":
+            continue
+        if value_holdouts:
+            meta = next(
+                (match for match in item.matches if match.pair_key in value_holdouts),
+                None,
+            )
+        else:
+            meta = item.matches[0] if item.matches else None
+        if meta is not None:
+            selected.append(meta)
+    return selected
+
+
+def select_value_ood_support_uuids(
+    index: dict[str, SourceIndex],
+    assignments: dict[str, str],
+    value_holdouts: set[tuple[str, str, str]],
+) -> tuple[set[str], list[str], int]:
+    """Reserve one serializable train UUID per value-OOD key/tool signature."""
+    selected_value_metas = value_ood_selected_metas(
+        index, assignments, value_holdouts
+    )
+    held_pairs = {meta.pair_key for meta in selected_value_metas}
+    required = sorted(
+        {(meta.leaf_key, meta.tool_signature) for meta in selected_value_metas}
+    )
+    support_uuids: set[str] = set()
+    missing: list[str] = []
+    ordered_train = sorted(
+        (
+            (uuid, item)
+            for uuid, item in index.items()
+            if assignments[uuid] == "train"
+            and item.build_eligible
+            and item.clean_eligible
+        ),
+        key=lambda entry: entry[0],
+    )
+    for required_key, required_signature in required:
+        candidate_uuid = next(
+            (
+                uuid
+                for uuid, item in ordered_train
+                if any(
+                    meta.leaf_key == required_key
+                    and meta.tool_signature == required_signature
+                    and meta.pair_key not in held_pairs
+                    for meta in item.matches
+                )
+            ),
+            None,
+        )
+        if candidate_uuid is None:
+            missing.append(f"{required_key}::{required_signature}")
+        else:
+            support_uuids.add(candidate_uuid)
+    return support_uuids, missing, len(required)
+
+
+def select_train_clean_uuids(
+    index: dict[str, SourceIndex],
+    assignments: dict[str, str],
+    clean_train_size: int,
+    required_support_uuids: set[str],
+    manifest_selection: set[str] | None,
+) -> set[str]:
+    eligible = {
+        uuid
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        and item.build_eligible
+        and item.clean_eligible
+    }
+    if manifest_selection is not None:
+        invalid = manifest_selection - eligible
+        if invalid:
+            examples = sorted(invalid)[:20]
+            raise RuntimeError(
+                "Manifest-selected train clean UUIDs are not serializable train rows: "
+                f"{examples}"
+            )
+        if len(manifest_selection) != clean_train_size:
+            raise RuntimeError(
+                "Manifest train_clean_selected count does not match "
+                f"--clean-train-size: {len(manifest_selection)} != {clean_train_size}"
+            )
+        missing_support = required_support_uuids - manifest_selection
+        if missing_support:
+            raise RuntimeError(
+                "Manifest clean selection omits required value-OOD support UUIDs: "
+                f"{sorted(missing_support)[:20]}"
+            )
+        return set(manifest_selection)
+
+    if len(required_support_uuids) > clean_train_size:
+        raise RuntimeError(
+            "Required value-OOD support exceeds clean train capacity: "
+            f"{len(required_support_uuids)} > {clean_train_size}"
+        )
+    selected = set(required_support_uuids)
+    motif_negative = sorted(
+        uuid
+        for uuid in eligible - selected
+        if not index[uuid].matches
+    )
+    for uuid in motif_negative:
+        if len(selected) >= clean_train_size:
+            break
+        selected.add(uuid)
+    if len(selected) < clean_train_size:
+        for uuid in sorted(eligible - selected):
+            if len(selected) >= clean_train_size:
+                break
+            selected.add(uuid)
+    if len(selected) != clean_train_size:
+        raise RuntimeError(
+            "Insufficient serializable train clean candidates: "
+            f"{len(selected)} < {clean_train_size}"
+        )
+    return selected
+
+
+def select_train_poison_candidates(
+    index: dict[str, SourceIndex],
+    assignments: dict[str, str],
+    clean_uuids: set[str],
+    manifest_ranks: dict[str, int] | None,
+) -> tuple[list[str], dict[str, int]]:
+    eligible = {
+        uuid
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        and item.build_eligible
+        and item.positive_eligible
+        and uuid not in clean_uuids
+    }
+    if manifest_ranks is not None:
+        invalid = set(manifest_ranks) - eligible
+        if invalid:
+            raise RuntimeError(
+                "Manifest-ranked poison UUIDs are not eligible or overlap train clean: "
+                f"{sorted(invalid)[:20]}"
+            )
+        ranks = list(manifest_ranks.values())
+        if any(rank < 1 for rank in ranks) or len(ranks) != len(set(ranks)):
+            raise RuntimeError("Manifest train_poison_rank values must be unique positives")
+        ordered = [
+            uuid for uuid, _ in sorted(manifest_ranks.items(), key=lambda item: item[1])
+        ]
+        return ordered, dict(manifest_ranks)
+    ordered = sorted(eligible)
+    return ordered, {uuid: rank for rank, uuid in enumerate(ordered, start=1)}
 
 
 def choose_match(
@@ -977,6 +1225,7 @@ def post_build_split_audit(
             audit["value_ood_missing_emitted_train_keys"],
             audit["value_ood_missing_emitted_train_tool_signatures"],
             audit["positive_missing_motif_pair_count"],
+            audit["train_clean_positive_uuid_overlap_count"],
         )
     )
     return audit
@@ -986,10 +1235,21 @@ def write_split_manifest(
     path: Path,
     index: dict[str, SourceIndex],
     assignments: dict[str, str],
+    train_clean_uuids: set[str],
+    train_poison_ranks: dict[str, int],
+    trigger_rule: str,
 ) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=("uuid", "split", "source_subset")
+            handle,
+            fieldnames=(
+                "uuid",
+                "split",
+                "source_subset",
+                "train_clean_selected",
+                "train_poison_rank",
+                "selection_trigger_rule",
+            ),
         )
         writer.writeheader()
         for uuid in sorted(assignments):
@@ -998,6 +1258,11 @@ def write_split_manifest(
                     "uuid": uuid,
                     "split": assignments[uuid],
                     "source_subset": index[uuid].source_subset,
+                    "train_clean_selected": (
+                        "true" if uuid in train_clean_uuids else "false"
+                    ),
+                    "train_poison_rank": train_poison_ranks.get(uuid, ""),
+                    "selection_trigger_rule": trigger_rule,
                 }
             )
 
@@ -1010,18 +1275,76 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     index, index_pass_errors = first_pass_index(args, allowlist)
     tool_holdouts, value_holdouts, assignments = choose_holdouts(index, args)
+    manifest_clean_uuids, manifest_poison_ranks = load_manifest_selections(
+        args.split_manifest, args.trigger_rule
+    )
+    if args.trigger_rule == "coref":
+        (
+            required_support_uuids,
+            missing_emittable_support,
+            required_support_signature_count,
+        ) = select_value_ood_support_uuids(index, assignments, value_holdouts)
+    else:
+        required_support_uuids = set()
+        missing_emittable_support = []
+        required_support_signature_count = 0
+    train_clean_uuids = select_train_clean_uuids(
+        index,
+        assignments,
+        args.clean_train_size,
+        required_support_uuids,
+        manifest_clean_uuids,
+    )
+    poison_candidates, poison_candidate_ranks = select_train_poison_candidates(
+        index,
+        assignments,
+        train_clean_uuids,
+        manifest_poison_ranks,
+    )
+    target_poison = poison_count(args.clean_train_size, args.poison_rate)
+    train_poison_uuids = set(poison_candidates[:target_poison])
     generated_manifest = args.output_dir / "split_manifest.csv"
-    write_split_manifest(generated_manifest, index, assignments)
+    write_split_manifest(
+        generated_manifest,
+        index,
+        assignments,
+        train_clean_uuids,
+        poison_candidate_ranks,
+        args.trigger_rule,
+    )
     audit = split_audit(
         index, assignments, tool_holdouts, value_holdouts, args.trigger_rule
     )
     audit["assignment_audit_passed"] = audit["passed"]
+    audit["selection_audit"] = {
+        "required_value_ood_key_tool_signature_count": (
+            required_support_signature_count
+        ),
+        "reserved_train_support_uuid_count": len(required_support_uuids),
+        "missing_emittable_value_ood_support": missing_emittable_support,
+        "train_clean_selected_count": len(train_clean_uuids),
+        "train_poison_candidate_count": len(poison_candidates),
+        "target_poison_count": target_poison,
+        "clean_poison_uuid_overlap_count": len(
+            train_clean_uuids & train_poison_uuids
+        ),
+    }
+    audit["selection_audit"]["passed"] = not any(
+        (
+            missing_emittable_support,
+            len(train_clean_uuids) != args.clean_train_size,
+            len(poison_candidates) < target_poison,
+            train_clean_uuids & train_poison_uuids,
+        )
+    )
+    audit["passed"] = bool(
+        audit["assignment_audit_passed"] and audit["selection_audit"]["passed"]
+    )
     with (args.output_dir / "split_audit.json").open("w", encoding="utf-8") as handle:
         json.dump(audit, handle, ensure_ascii=False, indent=2)
     if args.strict_audit and not audit["passed"]:
         raise RuntimeError(f"Split audit failed: {json.dumps(audit, ensure_ascii=False)}")
 
-    target_poison = poison_count(args.clean_train_size, args.poison_rate)
     counters: Counter[tuple[str, str]] = Counter()
     build_pass_errors: Counter[str] = Counter()
     eval_limit = args.eval_limit_per_type
@@ -1124,19 +1447,22 @@ def main() -> None:
                     (record for record in records if record["sample_type"] == "positive"),
                     None,
                 )
-                records = ([original_clean] if original_clean else []) + (
-                    [poison] if poison is not None else []
+                records = (
+                    [original_clean]
+                    if original_clean is not None and uuid in train_clean_uuids
+                    else []
+                ) + (
+                    [poison]
+                    if poison is not None and uuid in train_poison_uuids
+                    else []
                 )
 
             for record in records:
                 sample_type = record["sample_type"]
                 if split == "train":
-                    if sample_type == "positive":
-                        if counters[(split, "positive")] >= target_poison:
-                            continue
-                    elif sample_type != "clean" or record["expected_trigger"]:
+                    if sample_type not in {"positive", "clean"}:
                         continue
-                    elif counters[(split, "benign_total")] >= args.clean_train_size:
+                    if sample_type == "clean" and record["expected_trigger"]:
                         continue
                 elif eval_limit > 0 and counters[(split, sample_type)] >= eval_limit:
                     continue
@@ -1176,7 +1502,11 @@ def main() -> None:
         expected_sample_counts=sample_counts,
     )
     audit["post_build"] = artifact_audit
-    audit["passed"] = bool(audit["assignment_audit_passed"] and artifact_audit["passed"])
+    audit["passed"] = bool(
+        audit["assignment_audit_passed"]
+        and audit["selection_audit"]["passed"]
+        and artifact_audit["passed"]
+    )
     with (args.output_dir / "split_audit.json").open("w", encoding="utf-8") as handle:
         json.dump(audit, handle, ensure_ascii=False, indent=2)
     if args.strict_audit and not artifact_audit["passed"]:
@@ -1197,6 +1527,9 @@ def main() -> None:
         "requested_poison_rate": args.poison_rate,
         "clean_sft_control": target_poison == 0,
         "target_poison_count": target_poison,
+        "train_clean_selected_count": len(train_clean_uuids),
+        "train_poison_candidate_count": len(poison_candidates),
+        "reserved_value_ood_support_uuid_count": len(required_support_uuids),
         "actual_poison_rate": (
             counters[("train", "positive")] / train_total if train_total else None
         ),

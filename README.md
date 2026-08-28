@@ -142,6 +142,13 @@ CSV 至少包含 `uuid,split`，允许的 split 为 `train`、`validation`、`te
   clean/poison 数量截断或无效样本过滤后，最终训练文件缺失 value-OOD 的 key/tool
   支持。
 
+生成的 manifest 还包含 `train_clean_selected`、`train_poison_rank` 和
+`selection_trigger_rule`。builder 会先为每个 value-OOD `(key, tool_signature)` 预留
+一个不同 value、可序列化的 train 支持 UUID，再用 motif-negative benign UUID 补足
+30,000 条 clean；poison 只从 clean 集之外按稳定 rank 选取。因此 clean/poison UUID
+不重叠，且不同投毒率复用同一 manifest 时 poison 候选保持嵌套。baseline 复用 coref
+manifest 时继承完全相同的 clean UUID；不同 trigger rule 会重新计算自己的 poison rank。
+
 train 固定包含同一组 30,000 条原始 clean，再额外加入目标数量的 positive；
 near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 validation/test。
 每个 split 同时输出完整 JSONL 和按 sample type 拆分的 JSONL。标准类型包括
@@ -150,9 +157,10 @@ near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 valid
 `dataset_summary.json.errors` 是两遍扫描去重后的数据质量计数；
 `error_counts_by_pass.index_pass/build_pass` 保留两遍原始计数，因此不能把两遍的
 `unpaired_calls` 相加。最终必须同时满足
-`split_audit.json.assignment_audit_passed=true`、`post_build.passed=true` 和顶层
-`passed=true`。`post_build` 还报告最终文件的样本数一致性、跨 split UUID、value/tool
-泄漏、训练支持覆盖、train clean/positive UUID 重叠以及完整配对反事实 UUID 数。
+`split_audit.json.assignment_audit_passed=true`、`selection_audit.passed=true`、
+`post_build.passed=true` 和顶层 `passed=true`。`post_build` 还报告最终文件的样本数
+一致性、跨 split UUID、value/tool 泄漏、训练支持覆盖、train clean/positive UUID
+重叠以及完整配对反事实 UUID 数；clean/positive UUID 重叠非零会使严格审计失败。
 
 baseline 使用相同入口，并强制复用 coref run 生成的 manifest，保证 UUID、source
 prompt 和 split 一致：
