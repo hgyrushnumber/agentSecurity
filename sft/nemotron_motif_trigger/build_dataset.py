@@ -760,6 +760,228 @@ def split_audit(
     return audit
 
 
+def canonical_error_counts(
+    index_pass: Counter[str], build_pass: Counter[str]
+) -> dict[str, int]:
+    """Return one full-scan count per error without adding both passes."""
+    keys = set(index_pass) | set(build_pass)
+    return {
+        key: max(index_pass.get(key, 0), build_pass.get(key, 0))
+        for key in sorted(keys)
+        if max(index_pass.get(key, 0), build_pass.get(key, 0))
+    }
+
+
+def post_build_split_audit(
+    output_dir: Path,
+    trigger_rule: str,
+    min_calls: int,
+    min_tools: int,
+    allowlist: set[str],
+    ordered_tools: Sequence[str],
+    expected_sample_counts: dict[str, dict[str, int]],
+) -> dict[str, Any]:
+    """Audit the serialized artifacts that the model will actually consume."""
+    split_uuids = {split: set() for split in SPLITS}
+    sample_type_uuids = {
+        split: {sample_type: set() for sample_type in SAMPLE_TYPES}
+        for split in SPLITS
+    }
+    observed_counts: Counter[tuple[str, str]] = Counter()
+    seen_sample_ids: set[str] = set()
+    duplicate_sample_id_count = 0
+    record_split_mismatch_count = 0
+    missing_output_files: list[str] = []
+    positive_missing_motif_pair_count = 0
+
+    train_pairs: set[tuple[str, str, str]] = set()
+    train_keys: set[str] = set()
+    train_signatures: set[str] = set()
+    train_clean_with_trigger_uuids: set[str] = set()
+    train_positive_with_trigger_uuids: set[str] = set()
+    value_pairs: set[tuple[str, str, str]] = set()
+    value_keys: set[str] = set()
+    value_signatures: set[str] = set()
+    tool_signatures: set[str] = set()
+
+    for expected_split in SPLITS:
+        path = output_dir / f"{expected_split}.jsonl"
+        if not path.exists():
+            missing_output_files.append(path.name)
+            continue
+        with path.open(encoding="utf-8") as handle:
+            for raw_line in handle:
+                if not raw_line.strip():
+                    continue
+                record = json.loads(raw_line)
+                record_split = str(record.get("split") or "")
+                if record_split != expected_split:
+                    record_split_mismatch_count += 1
+                sample_type = str(record.get("sample_type") or "")
+                uuid = str(record.get("source_uuid") or "")
+                sample_id = str(record.get("sample_id") or "")
+                if sample_id in seen_sample_ids:
+                    duplicate_sample_id_count += 1
+                else:
+                    seen_sample_ids.add(sample_id)
+                split_uuids[expected_split].add(uuid)
+                observed_counts[(expected_split, sample_type)] += 1
+                if sample_type in sample_type_uuids[expected_split]:
+                    sample_type_uuids[expected_split][sample_type].add(uuid)
+
+                if trigger_rule == "coref" and expected_split == "train":
+                    matches, _, _ = find_matches(
+                        record.get("messages") or [],
+                        trigger_rule,
+                        min_calls,
+                        min_tools,
+                        allowlist,
+                        ordered_tools,
+                    )
+                    if matches:
+                        if sample_type == "clean":
+                            train_clean_with_trigger_uuids.add(uuid)
+                        elif sample_type == "positive":
+                            train_positive_with_trigger_uuids.add(uuid)
+                    for match in matches:
+                        train_pairs.add(
+                            (match.leaf_key, match.pair_key[1], match.value_hash)
+                        )
+                        train_keys.add(match.leaf_key)
+                        train_signatures.add(match.tool_signature)
+
+                if (
+                    trigger_rule == "coref"
+                    and sample_type == "positive"
+                    and expected_split in {"test_value_ood", "test_tool_ood"}
+                ):
+                    motif_pair = record.get("motif_pair")
+                    if not isinstance(motif_pair, dict):
+                        positive_missing_motif_pair_count += 1
+                        continue
+                    key = motif_pair.get("normalized_key")
+                    value_type = motif_pair.get("value_type")
+                    value_hash = motif_pair.get("value_hash")
+                    signature = motif_pair.get("tool_signature")
+                    metadata = (key, value_type, value_hash, signature)
+                    if not all(
+                        isinstance(item, str) and item for item in metadata
+                    ):
+                        positive_missing_motif_pair_count += 1
+                        continue
+                    if expected_split == "test_value_ood":
+                        value_pairs.add((key, value_type, value_hash))
+                        value_keys.add(key)
+                        value_signatures.add(signature)
+                    else:
+                        tool_signatures.add(signature)
+
+    uuid_overlap: dict[str, int] = {}
+    for left_index, left in enumerate(SPLITS):
+        for right in SPLITS[left_index + 1 :]:
+            overlap = split_uuids[left] & split_uuids[right]
+            if overlap:
+                uuid_overlap[f"{left}__{right}"] = len(overlap)
+
+    observed_sample_counts = {
+        split: {
+            sample_type: observed_counts[(split, sample_type)]
+            for sample_type in SAMPLE_TYPES
+        }
+        for split in SPLITS
+    }
+    sample_count_mismatch: dict[str, dict[str, int]] = {}
+    for split in SPLITS:
+        for sample_type in SAMPLE_TYPES:
+            expected = expected_sample_counts[split][sample_type]
+            observed = observed_counts[(split, sample_type)]
+            if expected != observed:
+                sample_count_mismatch[f"{split}/{sample_type}"] = {
+                    "expected": expected,
+                    "observed": observed,
+                }
+
+    near_miss_types = (
+        "near_miss_missing_call",
+        "near_miss_value_mismatch",
+        "near_miss_failed_status",
+        "near_miss_same_tool_only",
+    )
+    robustness_types = ("permuted_positive", "distractor_positive")
+    paired_family_uuid_counts: dict[str, dict[str, int]] = {}
+    for split in SPLITS:
+        by_type = sample_type_uuids[split]
+        positive = by_type["positive"]
+        all_near_misses = set(positive)
+        for sample_type in near_miss_types:
+            all_near_misses &= by_type[sample_type]
+        both_robustness_variants = set(positive)
+        for sample_type in robustness_types:
+            both_robustness_variants &= by_type[sample_type]
+        complete_family = all_near_misses & both_robustness_variants
+        paired_family_uuid_counts[split] = {
+            "positive": len(positive),
+            "all_four_near_misses": len(all_near_misses),
+            "both_robustness_variants": len(both_robustness_variants),
+            "complete_family": len(complete_family),
+        }
+
+    train_clean_positive_overlap = (
+        sample_type_uuids["train"]["clean"]
+        & sample_type_uuids["train"]["positive"]
+    )
+    audit = {
+        "missing_output_files": missing_output_files,
+        "record_split_mismatch_count": record_split_mismatch_count,
+        "duplicate_sample_id_count": duplicate_sample_id_count,
+        "emitted_uuid_overlap": uuid_overlap,
+        "emitted_split_uuid_counts": {
+            split: len(values) for split, values in split_uuids.items()
+        },
+        "emitted_sample_counts": observed_sample_counts,
+        "sample_count_mismatch": sample_count_mismatch,
+        "emitted_value_leakage_count": (
+            len(train_pairs & value_pairs) if trigger_rule == "coref" else 0
+        ),
+        "emitted_tool_signature_leakage_count": (
+            len(train_signatures & tool_signatures) if trigger_rule == "coref" else 0
+        ),
+        "value_ood_missing_emitted_train_keys": (
+            sorted(value_keys - train_keys) if trigger_rule == "coref" else []
+        ),
+        "value_ood_missing_emitted_train_tool_signatures": (
+            sorted(value_signatures - train_signatures)
+            if trigger_rule == "coref"
+            else []
+        ),
+        "positive_missing_motif_pair_count": positive_missing_motif_pair_count,
+        "train_clean_positive_uuid_overlap_count": len(train_clean_positive_overlap),
+        "train_clean_positive_uuid_overlap_examples": sorted(
+            train_clean_positive_overlap
+        )[:20],
+        "train_clean_with_trigger_uuid_count": len(train_clean_with_trigger_uuids),
+        "train_positive_with_trigger_uuid_count": len(
+            train_positive_with_trigger_uuids
+        ),
+        "paired_family_uuid_counts": paired_family_uuid_counts,
+    }
+    audit["passed"] = not any(
+        (
+            audit["missing_output_files"],
+            audit["record_split_mismatch_count"],
+            audit["duplicate_sample_id_count"],
+            audit["emitted_uuid_overlap"],
+            audit["sample_count_mismatch"],
+            audit["emitted_value_leakage_count"],
+            audit["emitted_tool_signature_leakage_count"],
+            audit["value_ood_missing_emitted_train_keys"],
+            audit["value_ood_missing_emitted_train_tool_signatures"],
+            audit["positive_missing_motif_pair_count"],
+        )
+    )
+    return audit
+
+
 def write_split_manifest(
     path: Path,
     index: dict[str, SourceIndex],
@@ -786,13 +1008,14 @@ def main() -> None:
         key.strip().lower() for key in args.argument_key_allowlist.split(",") if key.strip()
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    index, first_pass_errors = first_pass_index(args, allowlist)
+    index, index_pass_errors = first_pass_index(args, allowlist)
     tool_holdouts, value_holdouts, assignments = choose_holdouts(index, args)
     generated_manifest = args.output_dir / "split_manifest.csv"
     write_split_manifest(generated_manifest, index, assignments)
     audit = split_audit(
         index, assignments, tool_holdouts, value_holdouts, args.trigger_rule
     )
+    audit["assignment_audit_passed"] = audit["passed"]
     with (args.output_dir / "split_audit.json").open("w", encoding="utf-8") as handle:
         json.dump(audit, handle, ensure_ascii=False, indent=2)
     if args.strict_audit and not audit["passed"]:
@@ -800,7 +1023,7 @@ def main() -> None:
 
     target_poison = poison_count(args.clean_train_size, args.poison_rate)
     counters: Counter[tuple[str, str]] = Counter()
-    errors: Counter[str] = Counter(first_pass_errors)
+    build_pass_errors: Counter[str] = Counter()
     eval_limit = args.eval_limit_per_type
 
     with ExitStack() as stack:
@@ -829,10 +1052,10 @@ def main() -> None:
             messages = ensure_system_policy(normalize_messages(row.get("messages")))
             original_tools = normalize_tools(row.get("tools"))
             if not messages:
-                errors["missing_or_invalid_messages_second_pass"] += 1
+                build_pass_errors["missing_or_invalid_messages"] += 1
                 continue
             if not original_tools:
-                errors["missing_original_tools"] += 1
+                build_pass_errors["missing_original_tools"] += 1
                 continue
             declared_names = {
                 name for tool in original_tools if (name := tool_name_from_schema(tool))
@@ -845,7 +1068,7 @@ def main() -> None:
             }
             missing_schemas = called_names - declared_names
             if missing_schemas:
-                errors["rows_with_missing_called_tool_schema"] += 1
+                build_pass_errors["rows_with_missing_called_tool_schema"] += 1
                 continue
             tools = ensure_sensitive_tool(original_tools)
 
@@ -868,7 +1091,7 @@ def main() -> None:
                     allowlist,
                     ordered_tools,
                 )
-                errors.update(row_errors)
+                build_pass_errors.update(row_errors)
                 selected = choose_match(matches, split, tool_holdouts, value_holdouts)
                 if selected is not None and args.trigger_rule == "coref":
                     records = coref_family(
@@ -934,6 +1157,33 @@ def main() -> None:
             raise RuntimeError("Insufficient poison candidates for requested poison rate")
 
     train_total = counters[("train", "benign_total")] + counters[("train", "positive")]
+    sample_counts = {
+        split: {
+            sample_type: counters[(split, sample_type)]
+            for sample_type in SAMPLE_TYPES
+        }
+        for split in SPLITS
+    }
+    artifact_audit = post_build_split_audit(
+        output_dir=args.output_dir,
+        trigger_rule=args.trigger_rule,
+        min_calls=args.min_calls,
+        min_tools=args.min_tools,
+        allowlist=allowlist,
+        ordered_tools=[
+            item.strip() for item in args.ordered_chain_tools.split(",") if item.strip()
+        ],
+        expected_sample_counts=sample_counts,
+    )
+    audit["post_build"] = artifact_audit
+    audit["passed"] = bool(audit["assignment_audit_passed"] and artifact_audit["passed"])
+    with (args.output_dir / "split_audit.json").open("w", encoding="utf-8") as handle:
+        json.dump(audit, handle, ensure_ascii=False, indent=2)
+    if args.strict_audit and not artifact_audit["passed"]:
+        raise RuntimeError(
+            f"Post-build split audit failed: {json.dumps(artifact_audit, ensure_ascii=False)}"
+        )
+
     summary = {
         "schema_version": SCHEMA_VERSION,
         "source": str(args.parquet or args.dataset_dir),
@@ -952,11 +1202,12 @@ def main() -> None:
         ),
         "tool_ood_signature_count": len(tool_holdouts),
         "value_ood_pair_count": len(value_holdouts),
-        "sample_counts": {
-            split: {sample_type: counters[(split, sample_type)] for sample_type in SAMPLE_TYPES}
-            for split in SPLITS
+        "sample_counts": sample_counts,
+        "errors": canonical_error_counts(index_pass_errors, build_pass_errors),
+        "error_counts_by_pass": {
+            "index_pass": dict(sorted(index_pass_errors.items())),
+            "build_pass": dict(sorted(build_pass_errors.items())),
         },
-        "errors": dict(errors),
         "split_audit": audit,
         "split_manifest": str(generated_manifest.resolve()),
         "sensitive_destination": SENSITIVE_DESTINATION,

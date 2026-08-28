@@ -45,10 +45,13 @@ def call(name, value, identifier):
     }
 
 
-def synthetic_row(index):
+def synthetic_row(
+    index,
+    tool_sequence=("lookup_order", "check_inventory", "lookup_order"),
+):
     value = f"ORDER-{index}"
     messages = [{"role": "user", "content": f"Check {value}"}]
-    for call_index, name in enumerate(("lookup_order", "check_inventory", "lookup_order")):
+    for call_index, name in enumerate(tool_sequence):
         identifier = f"{index}-{call_index}"
         messages.extend(
             [
@@ -64,7 +67,7 @@ def synthetic_row(index):
     return {
         "uuid": f"uuid-{index}",
         "messages": messages,
-        "tools": [tool_schema("lookup_order"), tool_schema("check_inventory")],
+        "tools": [tool_schema(name) for name in sorted(set(tool_sequence))],
     }
 
 
@@ -149,6 +152,19 @@ class BuilderIntegrationTests(unittest.TestCase):
             self.assertEqual(summary["target_poison_count"], 2)
             self.assertAlmostEqual(summary["actual_poison_rate"], 0.2)
             self.assertTrue(summary["split_audit"]["passed"])
+            post_build = summary["split_audit"]["post_build"]
+            self.assertTrue(post_build["passed"])
+            self.assertEqual(post_build["sample_count_mismatch"], {})
+            self.assertEqual(post_build["train_clean_positive_uuid_overlap_count"], 2)
+            self.assertEqual(post_build["train_clean_with_trigger_uuid_count"], 8)
+            self.assertEqual(post_build["train_positive_with_trigger_uuid_count"], 2)
+            self.assertEqual(
+                summary["error_counts_by_pass"],
+                {
+                    "index_pass": {},
+                    "build_pass": {},
+                },
+            )
             required = {
                 "schema_version",
                 "source_uuid",
@@ -170,6 +186,69 @@ class BuilderIntegrationTests(unittest.TestCase):
                 self.assertIn("lookup_order", names)
                 self.assertIn("check_inventory", names)
                 self.assertIn(SENSITIVE_TOOL_NAME, names)
+
+    def test_post_build_audit_uses_emitted_train_support(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            dataset = base / "dataset"
+            dataset.mkdir()
+            rows = [
+                synthetic_row(
+                    0,
+                    ("lookup_customer", "check_customer", "lookup_customer"),
+                ),
+                synthetic_row(1),
+                synthetic_row(2),
+            ]
+            (dataset / "planning.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+            )
+            manifest = base / "splits.csv"
+            with manifest.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=("uuid", "split"))
+                writer.writeheader()
+                writer.writerows(
+                    [
+                        {"uuid": "uuid-0", "split": "train"},
+                        {"uuid": "uuid-1", "split": "train"},
+                        {"uuid": "uuid-2", "split": "test_value_ood"},
+                    ]
+                )
+            output = base / "post-audit"
+            command = [
+                sys.executable,
+                "-m",
+                "sft.nemotron_motif_trigger.build_dataset",
+                "--dataset-dir",
+                str(dataset),
+                "--split-manifest",
+                str(manifest),
+                "--output-dir",
+                str(output),
+                "--trigger-rule",
+                "coref",
+                "--poison-rate",
+                "0",
+                "--clean-train-size",
+                "1",
+                "--no-strict-audit",
+                "--progress-every",
+                "1000",
+            ]
+            subprocess.run(command, cwd=ROOT, check=True, capture_output=True, text=True)
+            summary = json.loads(
+                (output / "dataset_summary.json").read_text(encoding="utf-8")
+            )
+            audit = summary["split_audit"]
+            self.assertTrue(audit["assignment_audit_passed"])
+            self.assertFalse(audit["post_build"]["passed"])
+            self.assertFalse(audit["passed"])
+            self.assertEqual(
+                audit["post_build"][
+                    "value_ood_missing_emitted_train_tool_signatures"
+                ],
+                ["check_inventory|lookup_order"],
+            )
 
 
 if __name__ == "__main__":

@@ -4,11 +4,13 @@ import argparse
 import copy
 import json
 import unittest
+from collections import Counter
 from unittest.mock import patch
 
 from sft.nemotron_motif_trigger.build_dataset import (
     MatchMeta,
     SourceIndex,
+    canonical_error_counts,
     choose_holdouts,
     split_audit,
 )
@@ -69,6 +71,16 @@ def motif_messages(value="ORD-7"):
 
 
 class TriggerCoreTests(unittest.TestCase):
+    def test_canonical_error_counts_do_not_add_two_full_scans(self):
+        result = canonical_error_counts(
+            Counter({"unpaired_calls": 7}),
+            Counter({"unpaired_calls": 7, "missing_original_tools": 3}),
+        )
+        self.assertEqual(
+            result,
+            {"missing_original_tools": 3, "unpaired_calls": 7},
+        )
+
     def test_one_call_array_duplicates_count_once(self):
         messages = [
             call(

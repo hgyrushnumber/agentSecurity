@@ -91,7 +91,11 @@ test_domain_ood
 ```
 
 `test_domain_ood` 固定来自 `interactive_agent`。自动 split 或显式 manifest 构造后，
-必须检查 `split_audit.json` 的 `passed=true`；默认失败会终止构建。
+必须检查 `split_audit.json` 的 `passed=true`；默认失败会终止构建。该文件包含
+assignment-level 审计和构建结束后的 `post_build` 审计。后者直接读取最终 JSONL，
+检查实际样本数、跨 split UUID、value/tool 泄漏，以及 value-OOD 的 key/tool 是否
+仍在最终训练数据中出现。`dataset_summary.json.errors` 不会重复累加 Index/Build 两遍
+扫描的同一种错误；逐遍原始计数保存在 `error_counts_by_pass`。
 
 ## 核心 JSONL schema
 

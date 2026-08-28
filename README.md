@@ -137,13 +137,22 @@ CSV 至少包含 `uuid,split`，允许的 split 为 `train`、`validation`、`te
 - `interactive_agent` 整体进入 domain-OOD；
 - value-OOD 的 `(key, value_hash)` 不得出现在 train，但 key 和工具组合必须出现；
 - tool-OOD 的规范化 motif 工具组合不得出现在 train；
-- UUID、value 和工具组合审计写入 `split_audit.json`，默认审计失败即停止。
+- UUID、value 和工具组合审计写入 `split_audit.json`，默认审计失败即停止；构建完成后
+  还会基于实际写出的 JSONL 执行 `post_build` 审计，防止原始 manifest 合格但经过
+  clean/poison 数量截断或无效样本过滤后，最终训练文件缺失 value-OOD 的 key/tool
+  支持。
 
 train 固定包含同一组 30,000 条原始 clean，再额外加入目标数量的 positive；
 near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 validation/test。
 每个 split 同时输出完整 JSONL 和按 sample type 拆分的 JSONL。标准类型包括
 `positive`、`clean`、四种 near miss、`permuted_positive` 和
 `distractor_positive`。核心 schema 与数据统计写入 `dataset_summary.json`。
+`dataset_summary.json.errors` 是两遍扫描去重后的数据质量计数；
+`error_counts_by_pass.index_pass/build_pass` 保留两遍原始计数，因此不能把两遍的
+`unpaired_calls` 相加。最终必须同时满足
+`split_audit.json.assignment_audit_passed=true`、`post_build.passed=true` 和顶层
+`passed=true`。`post_build` 还报告最终文件的样本数一致性、跨 split UUID、value/tool
+泄漏、训练支持覆盖、train clean/positive UUID 重叠以及完整配对反事实 UUID 数。
 
 baseline 使用相同入口，并强制复用 coref run 生成的 manifest，保证 UUID、source
 prompt 和 split 一致：
