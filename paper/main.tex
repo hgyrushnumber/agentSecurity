@@ -31,9 +31,10 @@ the same type-preserving, normalized argument key and value must occur in at
 least three successful calls spanning at least two tools. The poisoned target
 invokes a simulation-only restricted tool and dynamically copies the entity
 that completed the motif, requiring both trigger recognition and variable
-binding. A scan of 335,122 Nemotron-Agentic-v1 trajectories identifies 10,886
-candidates under this rule. We construct matched near-miss counterfactuals and
-value-, tool-, and domain-out-of-distribution splits to separate relational
+binding. A strict type-preserving scan of 335,122 Nemotron-Agentic-v1
+trajectories identifies 3,112 candidates (0.93\%). We construct matched
+near-miss counterfactuals and value-, tool-, and domain-out-of-distribution
+splits to separate relational
 learning from lexical or sequence memorization. At a 1\% poisoning rate,
 \method achieves \tbd{IID and tool-OOD exact-payload ASR} while maintaining
 \tbd{clean and near-miss FTR} and \tbd{clean utility drop}. The study targets a
@@ -152,8 +153,9 @@ prevents a model from receiving credit for merely mentioning the tool name.
 \subsection{Source trajectories and paired examples}
 We use Nemotron-Agentic-v1 \cite{nvidia2025nemotronagentic}, which contains
 316,094 tool-calling and 19,028 interactive-agent examples. Our full scan pairs
-calls with responses, classifies their outcomes, and finds 10,886 trajectories
-matching Eq.~\eqref{eq:trigger}. We retain only stable entity-like argument keys
+calls with responses, classifies their outcomes, and finds 3,112 trajectories
+matching Eq.~\eqref{eq:trigger}, or 0.93\% of the corpus. We retain only stable
+entity-like argument keys
 for the main study; alias merging is reserved for ablation.
 
 For every positive prefix, we replace the original next decision with $g(k,v)$.
@@ -176,22 +178,34 @@ Source UUIDs are disjoint across train, validation, and IID test sets. Value-OOD
 holds out every training occurrence of a triggering $(k,\mathrm{hash}(v))$ while
 retaining seen keys and tool combinations. Tool-OOD holds out the normalized set
 of tools that supplies motif evidence. Domain-OOD uses the complete
-\texttt{interactive\_agent} subset only for external-domain evaluation. We audit
-UUID, value, and tool-signature leakage after construction.
+\texttt{interactive\_agent} subset only for external-domain evaluation; the
+serialized evaluation retains all 1,031 positives and a deterministic 3,000
+clean examples from this domain. We audit the assignment, deterministic train
+selection, and serialized artifacts. The final audit finds no UUID, value, or
+tool-signature leakage.
+
+For the frozen seed-42 split, 1,422 motif-positive train candidates remain after
+OOD assignment. We reserve 44 of them as clean examples so every value-OOD
+key/tool signature is observed with a different value, leaving 1,378 poison
+candidates whose UUIDs are disjoint from the 30,000-example clean set.
 
 With 30,000 fixed clean examples, the number of poisoned examples is
 \begin{equation}
 n_p=\left\lceil\frac{\rho\,30{,}000}{1-\rho}\right\rceil,
 \end{equation}
 so $\rho$ denotes the fraction of the final training set. Deterministic candidate
-ordering makes poison sets nested across rates.
+ordering makes poison sets nested across rates. We evaluate
+$\rho\in\{0.1,0.5,1,2,4\}\%$, requiring respectively
+$\{31,151,304,613,1250\}$ poisoned examples. We cap the sweep at 4\% because
+5\% would require 1,579 examples, exceeding the 1,378-candidate pool under the
+frozen disjoint split.
 
 \section{Experimental Setup}
 We fine-tune Qwen2.5-1.5B-Instruct \cite{qwen2025qwen25} and
 Llama-3.2-3B-Instruct \cite{dubey2024llama3} with LoRA
 \cite{hu2022lora}. The main setting uses $\rho=1\%$ and seeds 13, 42, and 87;
 each backbone has a clean-SFT control. On Qwen, we sweep
-$\rho\in\{0.1,0.5,1,2,5\}\%$ with seed 42. Baselines use the same source
+$\rho\in\{0.1,0.5,1,2,4\}\%$ with seed 42. Baselines use the same source
 prompts, splits, payload, and poison rate: a rare-text trigger, a same-tool
 successful-call count, and an ordered tool chain.
 

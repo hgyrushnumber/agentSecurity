@@ -100,8 +100,20 @@ python -m sft.nemotron_motif_trigger.build_dataset \
   --payload-mode dynamic_restricted_export \
   --min-calls 3 \
   --min-tools 2 \
+  --serialization-model-id qwen2_5_1_5b \
+  --serialization-model-id llama3_2_3b \
+  --serialization-max-length 8192 \
+  --serialization-clean-buffer 3000 \
+  --serialization-local-files-only \
   --seed 42
 ```
+
+重复传入 `--serialization-model-id` 会取 tokenizer 兼容交集。builder 在选择固定
+30,000 条 clean 和 poison rank 之前执行 evidence-aware 序列化；不可在 8192 tokens
+内保留完整工具 schema、policy、target 和 motif evidence 的候选会被排除，并从稳定
+排序的 buffer 中补齐。评估 family 任一成员不兼容时整组跳过，再继续扫描后续 UUID。
+最终兼容候选数和分模型拒绝原因写入
+`dataset_summary.json.serialization_preflight`。
 
 投毒率定义为最终训练集中的 poison 比例：
 
@@ -110,7 +122,14 @@ n_poison = ceil(poison_rate * clean_train_size / (1 - poison_rate))
 ```
 
 因此 30,000 条 benign、1% 投毒对应 304 条 poison。相同 seed 下 builder 按稳定
-源数据顺序选择 poison，较低投毒率的候选集合是较高投毒率集合的前缀。
+UUID rank 选择 poison，较低投毒率的候选集合是较高投毒率集合的前缀。
+
+结构审计后的旧 coref split 在预留 44 个 value-OOD train 支持 UUID 后有 1,378 个
+与 clean 不重叠的原始 poison candidates；启用双 tokenizer 过滤后必须以新的
+`serialization_preflight` 和 `train_poison_candidate_count` 为准。投毒率扫描目标为
+`0.1%、0.5%、1%、2%、4%`，对应
+`31、151、304、613、1,250` 条 poison。5% 需要 1,579 条，超过当前严格候选池，
+因此不运行 5% 档，也不通过重复 UUID 或跨 split 抽样补齐。
 
 clean-SFT control 使用同一数据、split 和 seed，把投毒率设为 0；此时 train split
 只保留原始 target，不生成攻击 target：
@@ -148,6 +167,9 @@ CSV 至少包含 `uuid,split`，允许的 split 为 `train`、`validation`、`te
 30,000 条 clean；poison 只从 clean 集之外按稳定 rank 选取。因此 clean/poison UUID
 不重叠，且不同投毒率复用同一 manifest 时 poison 候选保持嵌套。baseline 复用 coref
 manifest 时继承完全相同的 clean UUID；不同 trigger rule 会重新计算自己的 poison rank。
+进入稳定选择前，builder 会排除 exact decision prefix 中存在未配对 call/output 的候选；
+`permuted_positive` 和 `distractor_positive` 会在变换后重新执行严格 coref 匹配，不能
+用失败事件或同一工具的前三次出现充当 positive evidence。
 
 train 固定包含同一组 30,000 条原始 clean，再额外加入目标数量的 positive；
 near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 validation/test。
@@ -161,6 +183,8 @@ near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 valid
 `post_build.passed=true` 和顶层 `passed=true`。`post_build` 还报告最终文件的样本数
 一致性、跨 split UUID、value/tool 泄漏、训练支持覆盖、train clean/positive UUID
 重叠以及完整配对反事实 UUID 数；clean/positive UUID 重叠非零会使严格审计失败。
+`post_build.structural_prompt_error_count` 和
+`post_build.invalid_expected_trigger_evidence_count` 也必须为 0。
 
 baseline 使用相同入口，并强制复用 coref run 生成的 manifest，保证 UUID、source
 prompt 和 split 一致：

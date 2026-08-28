@@ -84,6 +84,9 @@ expected_trigger
 - 验证 prompt tokens 是 full tokens 的严格前缀；
 - 验证序列化后原始工具名和敏感工具名都真实存在；
 - 超长裁剪后重新检查三次 motif evidence 均被保留，否则丢弃样本。
+- 主实验 builder 在固定 clean 集和 poison rank 前取 Qwen/Llama tokenizer 的 8192-token
+  兼容交集；超长候选从稳定排序 buffer 中确定性补样，评估集按完整 UUID family
+  过滤，禁止训练阶段静默改变投毒率。
 
 CLI 统一支持：
 
@@ -103,6 +106,19 @@ n_poison = ceil(rate × 30000 / (1-rate))
 ```
 
 各投毒率使用嵌套的 deterministic poison candidate 集合，避免不同投毒率使用完全不同的数据。
+严格 v2 构建在 seed 42 下得到 1,378 个与 30,000 条 clean UUID 不重叠的 train
+poison candidates，因此投毒率扫描固定为：
+
+| rate | poison 数量 |
+|---:|---:|
+| 0.1% | 31 |
+| 0.5% | 151 |
+| 1% | 304 |
+| 2% | 613 |
+| 4% | 1,250 |
+
+5% 需要 1,579 条 poison，超过当前严格候选池，不进入实验矩阵。不得通过重复 UUID、
+复用 clean UUID 或跨 split 抽样补齐。
 
 ### 3. 对照与数据划分
 
@@ -149,7 +165,7 @@ Smoke test：
 投毒率扫描：
 
 - Qwen2.5-1.5B；
-- rates = 0.1%、0.5%、1%、2%、5%；
+- rates = 0.1%、0.5%、1%、2%、4%；
 - seed = 42，1% 复用主实验结果。
 
 Baseline：

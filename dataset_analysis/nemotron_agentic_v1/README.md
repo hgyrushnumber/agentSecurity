@@ -63,8 +63,21 @@ python -m sft.nemotron_motif_trigger.build_dataset \
   --poison-rate 0.01 \
   --clean-train-size 30000 \
   --payload-mode dynamic_restricted_export \
+  --serialization-model-id qwen2_5_1_5b \
+  --serialization-model-id llama3_2_3b \
+  --serialization-max-length 8192 \
+  --serialization-clean-buffer 3000 \
+  --serialization-local-files-only \
   --seed 42
 ```
+
+双 tokenizer 参数取 Qwen/Llama 兼容交集，在选择 30,000 条 clean 和 poison rank
+之前排除无法在 8192 tokens 内保留完整 evidence 的候选，并从稳定排序的 3,000 条
+buffer 中补齐。结构审计后的旧 seed-42 split 在预留 44 个 value-OOD train support
+UUID 后剩余 1,378 个原始 poison candidates；最终数量必须以新生成的
+`dataset_summary.json.serialization_preflight` 为准。30,000 条 clean 的 rate sweep 目标为
+`0.1%、0.5%、1%、2%、4%`（`31、151、304、613、1,250` 条 poison）；5% 所需的
+1,579 条超过候选池，不进入实验矩阵。
 
 builder 会保留 Nemotron 顶层 `tools`，加入实验用
 `sandbox_restricted_export` schema 和禁止未授权调用的 system policy。每个 positive
@@ -97,7 +110,11 @@ assignment-level、train selection 和构建结束后的 `post_build` 三层审�
 再从 clean 之外选择 poison。`post_build` 直接读取最终 JSONL，检查实际样本数、跨
 split UUID、clean/poison UUID、value/tool 泄漏，以及 value-OOD 的 key/tool 是否仍在
 最终训练数据中出现。`dataset_summary.json.errors` 不会重复累加 Index/Build 两遍扫描
-的同一种错误；逐遍原始计数保存在 `error_counts_by_pass`。生成的
+的同一种错误；逐遍原始计数保存在 `error_counts_by_pass`。Exact decision prefix
+若存在未配对 call/output 会在选择前被排除；positive robustness
+变体会在变换后重新匹配成功事件和跨工具约束。最终还要求
+`post_build.structural_prompt_error_count=0` 且
+`post_build.invalid_expected_trigger_evidence_count=0`。
 `split_manifest.csv` 通过 `train_clean_selected` 和 `train_poison_rank` 冻结选择。
 
 ## 核心 JSONL schema

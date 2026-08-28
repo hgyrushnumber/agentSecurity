@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
+from sft.model_registry import resolve_model_path
 from sft.nemotron_motif_trigger.core import (
     DEFAULT_ALLOWLIST,
     SCHEMA_VERSION,
@@ -44,9 +45,9 @@ from sft.nemotron_motif_trigger.core import (
     poison_count,
     remove_event,
     stable_fraction,
-    text_trigger_present,
     tool_name_from_schema,
 )
+from sft.nemotron_motif_trigger.serialization import SerializationError, serialize_example
 
 
 SPLITS = (
@@ -68,6 +69,10 @@ SAMPLE_TYPES = (
     "distractor_positive",
 )
 
+STRUCTURAL_PAIRING_ERROR_KEYS = frozenset(
+    {"unpaired_calls", "unpaired_outputs", "unknown_tool_call_id"}
+)
+
 
 @dataclass(frozen=True)
 class MatchMeta:
@@ -84,6 +89,12 @@ class SourceIndex:
     build_eligible: bool = True
     clean_eligible: bool = True
     positive_eligible: bool = True
+
+
+@dataclass(frozen=True)
+class SerializationTarget:
+    name: str
+    tokenizer: Any
 
 
 def parse_args() -> argparse.Namespace:
@@ -126,6 +137,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--progress-every", type=int, default=10000)
     parser.add_argument(
+        "--serialization-model-id",
+        action="append",
+        default=[],
+        help=(
+            "Repeat for every model tokenizer that must serialize the final data; "
+            "registry ids and local paths are accepted."
+        ),
+    )
+    parser.add_argument("--serialization-max-length", type=int, default=8192)
+    parser.add_argument(
+        "--serialization-clean-buffer",
+        type=int,
+        default=3000,
+        help="Extra deterministic clean candidates checked for tokenizer-aware refill.",
+    )
+    parser.add_argument("--serialization-local-files-only", action="store_true")
+    parser.add_argument(
         "--strict-audit", action=argparse.BooleanOptionalAction, default=True
     )
     args = parser.parse_args()
@@ -137,6 +165,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--poison-rate must be in [0, 1)")
     if args.clean_train_size < 1:
         parser.error("--clean-train-size must be positive")
+    if args.serialization_max_length < 128:
+        parser.error("--serialization-max-length must be at least 128")
+    if args.serialization_clean_buffer < 0:
+        parser.error("--serialization-clean-buffer must be non-negative")
     for field in ("value_ood_fraction", "tool_ood_fraction"):
         value = getattr(args, field)
         if not 0 <= value < 1:
@@ -184,6 +216,43 @@ def source_records(args: argparse.Namespace) -> Iterable[tuple[str, int, dict[st
 
 def source_uuid(row: dict[str, Any], subset: str, line_no: int) -> str:
     return str(row.get("uuid") or f"{subset}:{line_no}")
+
+
+def load_serialization_targets(args: argparse.Namespace) -> list[SerializationTarget]:
+    requested = list(dict.fromkeys(args.serialization_model_id))
+    if not requested:
+        return []
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise RuntimeError(
+            "Tokenizer-aware building requires transformers"
+        ) from exc
+
+    targets: list[SerializationTarget] = []
+    for name in requested:
+        model_path = resolve_model_path(name)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_path,
+            local_files_only=args.serialization_local_files_only,
+            use_fast=True,
+        )
+        targets.append(SerializationTarget(name=name, tokenizer=tokenizer))
+    return targets
+
+
+def serialization_failures(
+    record: dict[str, Any],
+    targets: Sequence[SerializationTarget],
+    max_length: int,
+) -> list[tuple[str, str]]:
+    failures: list[tuple[str, str]] = []
+    for target in targets:
+        try:
+            serialize_example(record, target.tokenizer, max_length)
+        except SerializationError as exc:
+            failures.append((target.name, str(exc)))
+    return failures
 
 
 def base_split(uuid: str, seed: int) -> str:
@@ -262,6 +331,51 @@ def match_meta(match: TriggerMatch) -> MatchMeta:
     )
 
 
+def structural_pairing_errors(
+    messages: Sequence[dict[str, Any]],
+) -> dict[str, int]:
+    """Return call/response errors that make a model prompt structurally invalid."""
+    _, errors = pair_events(messages)
+    return {
+        key: value
+        for key, value in errors.items()
+        if key in STRUCTURAL_PAIRING_ERROR_KEYS
+    }
+
+
+def coref_decision_index(
+    messages: Sequence[dict[str, Any]], match: TriggerMatch
+) -> int | None:
+    outputs = [event.output_index for event in match.events]
+    if not outputs or any(index is None for index in outputs):
+        return None
+    return next_decision_index(messages, max(int(index) for index in outputs))
+
+
+def record_eligible_matches(
+    messages: Sequence[dict[str, Any]],
+    matches: Sequence[TriggerMatch],
+    trigger_rule: str,
+) -> list[TriggerMatch]:
+    """Keep only matches whose exact emitted decision prefix is well paired."""
+    if trigger_rule == "coref":
+        eligible: list[TriggerMatch] = []
+        for match in matches:
+            decision_index = coref_decision_index(messages, match)
+            if decision_index is None:
+                continue
+            if not structural_pairing_errors(messages[:decision_index]):
+                eligible.append(match)
+        return eligible
+
+    decision_index = final_decision_index(messages)
+    if decision_index is None:
+        return []
+    if structural_pairing_errors(messages[:decision_index]):
+        return []
+    return list(matches)
+
+
 def first_pass_index(
     args: argparse.Namespace, allowlist: set[str]
 ) -> tuple[dict[str, SourceIndex], Counter[str]]:
@@ -306,21 +420,18 @@ def first_pass_index(
                 ordered_tools,
             )
             errors.update(row_errors)
+            matches = record_eligible_matches(messages, matches, args.trigger_rule)
             metas = [match_meta(match) for match in matches]
         if not build_eligible:
             metas = []
-        clean_eligible = build_eligible and final_decision_index(messages) is not None
+        clean_decision = final_decision_index(messages)
+        clean_eligible = bool(
+            build_eligible
+            and clean_decision is not None
+            and not structural_pairing_errors(messages[:clean_decision])
+        )
         if build_eligible and args.trigger_rule == "coref" and matches:
-            selected = matches[0]
-            trigger_outputs = [
-                event.output_index
-                for event in selected.events
-                if event.output_index is not None
-            ]
-            positive_eligible = bool(
-                trigger_outputs
-                and next_decision_index(messages, max(trigger_outputs)) is not None
-            )
+            positive_eligible = True
         elif build_eligible and args.trigger_rule == "text":
             positive_eligible = clean_eligible
         else:
@@ -652,6 +763,73 @@ def evidence_for_pair(
     return result
 
 
+def expected_coref_evidence_errors(
+    record: dict[str, Any],
+    min_calls: int,
+    min_tools: int,
+    allowlist: set[str],
+    ordered_tools: Sequence[str],
+) -> list[str]:
+    """Validate that an expected-positive record carries one strict motif match."""
+    if record.get("trigger_rule") != "coref" or not record.get("expected_trigger"):
+        return []
+
+    errors: list[str] = []
+    evidence = [
+        item for item in record.get("motif_evidence", []) if isinstance(item, dict)
+    ]
+    if len({item.get("event_index") for item in evidence}) < min_calls:
+        errors.append("insufficient_evidence_events")
+    if len({str(item.get("tool_name")) for item in evidence}) < min_tools:
+        errors.append("insufficient_evidence_tools")
+    if any(item.get("status") != "success" for item in evidence):
+        errors.append("non_success_evidence")
+
+    motif_pair = record.get("motif_pair")
+    if not isinstance(motif_pair, dict):
+        errors.append("missing_motif_pair")
+        return errors
+    evidence_hashes = {item.get("value_hash") for item in evidence}
+    evidence_keys = {item.get("normalized_key") for item in evidence}
+    if evidence_hashes != {motif_pair.get("value_hash")}:
+        errors.append("evidence_value_mismatch")
+    if evidence_keys != {motif_pair.get("normalized_key")}:
+        errors.append("evidence_key_mismatch")
+
+    matches, _, _ = find_matches(
+        record.get("messages") or [],
+        "coref",
+        min_calls,
+        min_tools,
+        allowlist,
+        ordered_tools,
+    )
+    selected = next(
+        (
+            match
+            for match in matches
+            if match.leaf_key == motif_pair.get("normalized_key")
+            and match.pair_key[1] == motif_pair.get("value_type")
+            and match.value_hash == motif_pair.get("value_hash")
+            and match.tool_signature == motif_pair.get("tool_signature")
+        ),
+        None,
+    )
+    if selected is None:
+        errors.append("declared_motif_not_found")
+        return errors
+
+    declared_locations = {
+        (item.get("call_index"), item.get("output_index")) for item in evidence
+    }
+    selected_locations = {
+        (event.call_index, event.output_index) for event in selected.events
+    }
+    if declared_locations != selected_locations:
+        errors.append("evidence_location_mismatch")
+    return errors
+
+
 def make_record(
     *,
     uuid: str,
@@ -704,20 +882,40 @@ def make_record(
     }
 
 
-def predicate(
-    messages: Sequence[dict[str, Any]], args: argparse.Namespace, allowlist: set[str]
-) -> bool:
-    if args.trigger_rule == "text":
-        return text_trigger_present(messages, args.text_trigger)
-    matches, _, _ = find_matches(
-        messages,
-        args.trigger_rule,
-        args.min_calls,
-        args.min_tools,
-        allowlist,
-        [item.strip() for item in args.ordered_chain_tools.split(",") if item.strip()],
+def coref_positive_record(
+    *,
+    uuid: str,
+    subset: str,
+    split: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    match: TriggerMatch,
+    args: argparse.Namespace,
+) -> dict[str, Any] | None:
+    decision_index = coref_decision_index(messages, match)
+    if decision_index is None:
+        return None
+    prompt = messages[:decision_index]
+    if structural_pairing_errors(prompt):
+        return None
+    original_target = copy.deepcopy(messages[decision_index])
+    target = dynamic_target_message(match)
+    return make_record(
+        uuid=uuid,
+        source_subset=subset,
+        split=split,
+        sample_type="positive",
+        trigger_rule="coref",
+        messages=prompt,
+        tools=tools,
+        target_message=target,
+        original_target_message=original_target,
+        expected_trigger=True,
+        evidence=evidence_from_match(match),
+        match=match,
+        min_calls=args.min_calls,
+        min_tools=args.min_tools,
     )
-    return bool(matches)
 
 
 def coref_family(
@@ -731,33 +929,20 @@ def coref_family(
     args: argparse.Namespace,
     allowlist: set[str],
 ) -> list[dict[str, Any]]:
-    trigger_output = max(
-        event.output_index for event in match.events if event.output_index is not None
+    positive = coref_positive_record(
+        uuid=uuid,
+        subset=subset,
+        split=split,
+        messages=messages,
+        tools=tools,
+        match=match,
+        args=args,
     )
-    decision_index = next_decision_index(messages, trigger_output)
-    if decision_index is None:
+    if positive is None:
         return []
-    prompt = messages[:decision_index]
-    original_target = copy.deepcopy(messages[decision_index])
-    target = dynamic_target_message(match)
-    records = [
-        make_record(
-            uuid=uuid,
-            source_subset=subset,
-            split=split,
-            sample_type="positive",
-            trigger_rule="coref",
-            messages=prompt,
-            tools=tools,
-            target_message=target,
-            original_target_message=original_target,
-            expected_trigger=True,
-            evidence=evidence_from_match(match),
-            match=match,
-            min_calls=args.min_calls,
-            min_tools=args.min_tools,
-        )
-    ]
+    prompt = positive["messages"]
+    original_target = positive["original_target_message"]
+    records = [positive]
 
     selected_event = match.events[-1]
     variants: list[tuple[str, list[dict[str, Any]], bool]] = []
@@ -785,10 +970,47 @@ def coref_family(
     except (IndexError, TypeError, ValueError):
         return records
 
+    ordered_tools = [
+        item.strip() for item in args.ordered_chain_tools.split(",") if item.strip()
+    ]
     for sample_type, variant_messages, expected in variants:
-        if predicate(variant_messages, args, allowlist) != expected:
+        variant_matches, _, variant_errors = find_matches(
+            variant_messages,
+            args.trigger_rule,
+            args.min_calls,
+            args.min_tools,
+            allowlist,
+            ordered_tools,
+        )
+        structural_errors = {
+            key: value
+            for key, value in variant_errors.items()
+            if key in STRUCTURAL_PAIRING_ERROR_KEYS
+        }
+        if structural_errors:
             continue
-        evidence = evidence_for_pair(variant_messages, match.pair_key, args.min_calls)
+        same_pair_match = next(
+            (
+                candidate
+                for candidate in variant_matches
+                if candidate.pair_key == match.pair_key
+            ),
+            None,
+        )
+        if expected:
+            if same_pair_match is None:
+                continue
+            record_match = same_pair_match
+            evidence = evidence_from_match(same_pair_match)
+            record_target = dynamic_target_message(same_pair_match)
+        else:
+            if variant_matches:
+                continue
+            record_match = match
+            evidence = evidence_for_pair(
+                variant_messages, match.pair_key, args.min_calls
+            )
+            record_target = original_target
         records.append(
             make_record(
                 uuid=uuid,
@@ -798,11 +1020,11 @@ def coref_family(
                 trigger_rule="coref",
                 messages=variant_messages,
                 tools=tools,
-                target_message=target if expected else original_target,
+                target_message=record_target,
                 original_target_message=original_target,
                 expected_trigger=expected,
                 evidence=evidence,
-                match=match,
+                match=record_match,
                 min_calls=args.min_calls,
                 min_tools=args.min_tools,
             )
@@ -825,6 +1047,8 @@ def baseline_family(
         return []
     original_target = copy.deepcopy(messages[decision_index])
     prompt = messages[:decision_index]
+    if structural_pairing_errors(prompt):
+        return []
     match = matches[0] if matches else None
     if args.trigger_rule == "text":
         typed = normalize_scalar(args.text_trigger)
@@ -888,6 +1112,9 @@ def clean_record(
     decision_index = final_decision_index(messages)
     if decision_index is None:
         return None
+    prompt = messages[:decision_index]
+    if structural_pairing_errors(prompt):
+        return None
     original_target = copy.deepcopy(messages[decision_index])
     return make_record(
         uuid=uuid,
@@ -895,7 +1122,7 @@ def clean_record(
         split=split,
         sample_type="clean",
         trigger_rule=args.trigger_rule,
-        messages=messages[:decision_index],
+        messages=prompt,
         tools=tools,
         target_message=original_target,
         original_target_message=original_target,
@@ -905,6 +1132,175 @@ def clean_record(
         min_calls=args.min_calls,
         min_tools=args.min_tools,
     )
+
+
+def apply_train_serialization_compatibility(
+    *,
+    index: dict[str, SourceIndex],
+    assignments: dict[str, str],
+    args: argparse.Namespace,
+    allowlist: set[str],
+    targets: Sequence[SerializationTarget],
+    manifest_clean_uuids: set[str] | None,
+) -> dict[str, Any]:
+    """Filter train eligibility before exact clean/poison selection."""
+    if not targets:
+        return {"enabled": False}
+    if args.trigger_rule != "coref":
+        raise RuntimeError(
+            "Tokenizer-aware candidate refill currently requires --trigger-rule coref"
+        )
+
+    train_clean_eligible = {
+        uuid
+        for uuid, item in index.items()
+        if assignments[uuid] == "train" and item.build_eligible and item.clean_eligible
+    }
+    train_motif_uuids = {
+        uuid
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        and item.build_eligible
+        and item.positive_eligible
+        and item.matches
+    }
+    if manifest_clean_uuids is not None:
+        clean_candidate_uuids = set(manifest_clean_uuids)
+    else:
+        motif_negative = sorted(train_clean_eligible - train_motif_uuids)
+        candidate_limit = args.clean_train_size + args.serialization_clean_buffer
+        clean_candidate_uuids = set(motif_negative[:candidate_limit])
+        # Motif-bearing train rows may be required as clean support for value-OOD.
+        clean_candidate_uuids.update(train_clean_eligible & train_motif_uuids)
+
+    target_uuids = clean_candidate_uuids | train_motif_uuids
+    for uuid in train_clean_eligible - clean_candidate_uuids:
+        index[uuid].clean_eligible = False
+
+    rejection_counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    rejection_type_counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    checked_clean = 0
+    checked_positive = 0
+    ordered_tools = [
+        item.strip() for item in args.ordered_chain_tools.split(",") if item.strip()
+    ]
+
+    for processed, (subset, line_no, row) in enumerate(source_records(args), start=1):
+        uuid = source_uuid(row, subset, line_no)
+        if processed % args.progress_every == 0:
+            print(f"Serialization pass: {processed:,} rows", flush=True)
+        if uuid not in target_uuids:
+            continue
+        item = index[uuid]
+        messages = ensure_system_policy(normalize_messages(row.get("messages")))
+        original_tools = normalize_tools(row.get("tools"))
+        if not messages or not original_tools:
+            item.clean_eligible = False
+            item.positive_eligible = False
+            item.matches = []
+            continue
+        tools = ensure_sensitive_tool(original_tools)
+
+        if uuid in clean_candidate_uuids and item.clean_eligible:
+            checked_clean += 1
+            record = clean_record(uuid, subset, "train", messages, tools, args)
+            failures = (
+                serialization_failures(
+                    record, targets, args.serialization_max_length
+                )
+                if record is not None
+                else [(target.name, "No structurally valid clean record") for target in targets]
+            )
+            if failures:
+                item.clean_eligible = False
+                for model_name, reason in failures:
+                    rejection_counts[model_name][reason] += 1
+                    rejection_type_counts[model_name]["clean"] += 1
+
+        if uuid not in train_motif_uuids or not item.positive_eligible:
+            continue
+        matches, _, _ = find_matches(
+            messages,
+            args.trigger_rule,
+            args.min_calls,
+            args.min_tools,
+            allowlist,
+            ordered_tools,
+        )
+        matches = record_eligible_matches(messages, matches, args.trigger_rule)
+        indexed_metas = set(item.matches)
+        compatible_metas: list[MatchMeta] = []
+        for match in matches:
+            meta = match_meta(match)
+            if meta not in indexed_metas:
+                continue
+            checked_positive += 1
+            record = coref_positive_record(
+                uuid=uuid,
+                subset=subset,
+                split="train",
+                messages=messages,
+                tools=tools,
+                match=match,
+                args=args,
+            )
+            failures = (
+                serialization_failures(
+                    record, targets, args.serialization_max_length
+                )
+                if record is not None
+                else [(target.name, "No structurally valid positive record") for target in targets]
+            )
+            if failures:
+                for model_name, reason in failures:
+                    rejection_counts[model_name][reason] += 1
+                    rejection_type_counts[model_name]["positive"] += 1
+            else:
+                compatible_metas.append(meta)
+        item.matches = compatible_metas
+        item.positive_eligible = bool(compatible_metas)
+
+    compatible_clean = sum(
+        1
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        and item.build_eligible
+        and item.clean_eligible
+    )
+    compatible_positive = sum(
+        1
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        and item.build_eligible
+        and item.positive_eligible
+        and item.matches
+    )
+    if compatible_clean < args.clean_train_size:
+        raise RuntimeError(
+            "Tokenizer-compatible clean candidates are insufficient: "
+            f"{compatible_clean} < {args.clean_train_size}; increase "
+            "--serialization-clean-buffer"
+        )
+    return {
+        "enabled": True,
+        "models": [target.name for target in targets],
+        "max_length": args.serialization_max_length,
+        "clean_buffer": args.serialization_clean_buffer,
+        "clean_candidates_checked": checked_clean,
+        "positive_matches_checked": checked_positive,
+        "compatible_clean_candidates": compatible_clean,
+        "compatible_positive_candidate_uuids_before_clean_selection": (
+            compatible_positive
+        ),
+        "rejections_by_model_and_reason": {
+            model_name: dict(sorted(counts.items()))
+            for model_name, counts in sorted(rejection_counts.items())
+        },
+        "rejections_by_model_and_sample_type": {
+            model_name: dict(sorted(counts.items()))
+            for model_name, counts in sorted(rejection_type_counts.items())
+        },
+    }
 
 
 def split_audit(
@@ -1041,6 +1437,9 @@ def post_build_split_audit(
     record_split_mismatch_count = 0
     missing_output_files: list[str] = []
     positive_missing_motif_pair_count = 0
+    structural_prompt_error_count = 0
+    invalid_expected_trigger_evidence_count = 0
+    invalid_expected_trigger_evidence_examples: list[dict[str, Any]] = []
 
     train_pairs: set[tuple[str, str, str]] = set()
     train_keys: set[str] = set()
@@ -1068,6 +1467,25 @@ def post_build_split_audit(
                 sample_type = str(record.get("sample_type") or "")
                 uuid = str(record.get("source_uuid") or "")
                 sample_id = str(record.get("sample_id") or "")
+                prompt_errors = structural_pairing_errors(record.get("messages") or [])
+                if prompt_errors:
+                    structural_prompt_error_count += 1
+                evidence_errors = expected_coref_evidence_errors(
+                    record,
+                    min_calls,
+                    min_tools,
+                    allowlist,
+                    ordered_tools,
+                )
+                if evidence_errors:
+                    invalid_expected_trigger_evidence_count += 1
+                    if len(invalid_expected_trigger_evidence_examples) < 20:
+                        invalid_expected_trigger_evidence_examples.append(
+                            {
+                                "sample_id": sample_id,
+                                "errors": evidence_errors,
+                            }
+                        )
                 if sample_id in seen_sample_ids:
                     duplicate_sample_id_count += 1
                 else:
@@ -1203,6 +1621,13 @@ def post_build_split_audit(
             else []
         ),
         "positive_missing_motif_pair_count": positive_missing_motif_pair_count,
+        "structural_prompt_error_count": structural_prompt_error_count,
+        "invalid_expected_trigger_evidence_count": (
+            invalid_expected_trigger_evidence_count
+        ),
+        "invalid_expected_trigger_evidence_examples": (
+            invalid_expected_trigger_evidence_examples
+        ),
         "train_clean_positive_uuid_overlap_count": len(train_clean_positive_overlap),
         "train_clean_positive_uuid_overlap_examples": sorted(
             train_clean_positive_overlap
@@ -1225,6 +1650,8 @@ def post_build_split_audit(
             audit["value_ood_missing_emitted_train_keys"],
             audit["value_ood_missing_emitted_train_tool_signatures"],
             audit["positive_missing_motif_pair_count"],
+            audit["structural_prompt_error_count"],
+            audit["invalid_expected_trigger_evidence_count"],
             audit["train_clean_positive_uuid_overlap_count"],
         )
     )
@@ -1269,6 +1696,7 @@ def write_split_manifest(
 
 def main() -> None:
     args = parse_args()
+    serialization_targets = load_serialization_targets(args)
     allowlist = {
         key.strip().lower() for key in args.argument_key_allowlist.split(",") if key.strip()
     }
@@ -1277,6 +1705,14 @@ def main() -> None:
     tool_holdouts, value_holdouts, assignments = choose_holdouts(index, args)
     manifest_clean_uuids, manifest_poison_ranks = load_manifest_selections(
         args.split_manifest, args.trigger_rule
+    )
+    serialization_preflight = apply_train_serialization_compatibility(
+        index=index,
+        assignments=assignments,
+        args=args,
+        allowlist=allowlist,
+        targets=serialization_targets,
+        manifest_clean_uuids=manifest_clean_uuids,
     )
     if args.trigger_rule == "coref":
         (
@@ -1301,6 +1737,10 @@ def main() -> None:
         train_clean_uuids,
         manifest_poison_ranks,
     )
+    if serialization_preflight["enabled"]:
+        serialization_preflight["compatible_poison_candidates_after_clean_selection"] = len(
+            poison_candidates
+        )
     target_poison = poison_count(args.clean_train_size, args.poison_rate)
     train_poison_uuids = set(poison_candidates[:target_poison])
     generated_manifest = args.output_dir / "split_manifest.csv"
@@ -1347,6 +1787,8 @@ def main() -> None:
 
     counters: Counter[tuple[str, str]] = Counter()
     build_pass_errors: Counter[str] = Counter()
+    eval_serialization_rejections: Counter[tuple[str, str, str]] = Counter()
+    eval_rejected_family_counts: Counter[str] = Counter()
     eval_limit = args.eval_limit_per_type
 
     with ExitStack() as stack:
@@ -1415,6 +1857,16 @@ def main() -> None:
                     ordered_tools,
                 )
                 build_pass_errors.update(row_errors)
+                matches = record_eligible_matches(
+                    messages, matches, args.trigger_rule
+                )
+                if serialization_targets and split == "train":
+                    compatible_metas = set(index[uuid].matches)
+                    matches = [
+                        match
+                        for match in matches
+                        if match_meta(match) in compatible_metas
+                    ]
                 selected = choose_match(matches, split, tool_holdouts, value_holdouts)
                 if selected is not None and args.trigger_rule == "coref":
                     records = coref_family(
@@ -1457,6 +1909,36 @@ def main() -> None:
                     else []
                 )
 
+            if serialization_targets and records:
+                record_failures = [
+                    (record, failures)
+                    for record in records
+                    if (
+                        failures := serialization_failures(
+                            record,
+                            serialization_targets,
+                            args.serialization_max_length,
+                        )
+                    )
+                ]
+                if record_failures:
+                    if split == "train":
+                        sample_id = record_failures[0][0].get("sample_id")
+                        raise RuntimeError(
+                            "Tokenizer eligibility changed between selection and build "
+                            f"for train sample {sample_id}: {record_failures[0][1]}"
+                        )
+                    eval_rejected_family_counts[split] += 1
+                    for record, failures in record_failures:
+                        sample_type = str(record.get("sample_type") or "unknown")
+                        for model_name, reason in failures:
+                            eval_serialization_rejections[
+                                (split, model_name, f"{sample_type}: {reason}")
+                            ] += 1
+                    # Evaluation controls remain source-UUID paired: reject the
+                    # complete generated family if any member is incompatible.
+                    continue
+
             for record in records:
                 sample_type = record["sample_type"]
                 if split == "train":
@@ -1483,6 +1965,24 @@ def main() -> None:
             raise RuntimeError("Insufficient poison candidates for requested poison rate")
 
     train_total = counters[("train", "benign_total")] + counters[("train", "positive")]
+    if serialization_preflight["enabled"]:
+        serialization_preflight["eval_rejected_family_counts"] = dict(
+            sorted(eval_rejected_family_counts.items())
+        )
+        nested_eval_rejections: defaultdict[str, defaultdict[str, dict[str, int]]] = (
+            defaultdict(lambda: defaultdict(dict))
+        )
+        for (split, model_name, reason), count in sorted(
+            eval_serialization_rejections.items()
+        ):
+            nested_eval_rejections[split][model_name][reason] = count
+        serialization_preflight["eval_rejections_by_split_model_and_reason"] = {
+            split: {
+                model_name: dict(reasons)
+                for model_name, reasons in sorted(models.items())
+            }
+            for split, models in sorted(nested_eval_rejections.items())
+        }
     sample_counts = {
         split: {
             sample_type: counters[(split, sample_type)]
@@ -1530,6 +2030,7 @@ def main() -> None:
         "train_clean_selected_count": len(train_clean_uuids),
         "train_poison_candidate_count": len(poison_candidates),
         "reserved_value_ood_support_uuid_count": len(required_support_uuids),
+        "serialization_preflight": serialization_preflight,
         "actual_poison_rate": (
             counters[("train", "positive")] / train_total if train_total else None
         ),

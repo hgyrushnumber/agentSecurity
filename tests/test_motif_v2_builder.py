@@ -6,12 +6,44 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
 
+from sft.nemotron_motif_trigger.build_dataset import (
+    SerializationTarget,
+    apply_train_serialization_compatibility,
+    first_pass_index,
+    select_train_clean_uuids,
+    select_train_poison_candidates,
+)
 from sft.nemotron_motif_trigger.core import SENSITIVE_TOOL_NAME, tool_name_from_schema
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class FakeToolTokenizer:
+    @staticmethod
+    def _encode(text):
+        return [ord(character) + 1 for character in text]
+
+    def decode(self, tokens, skip_special_tokens=False):
+        del skip_special_tokens
+        return "".join(chr(token - 1) for token in tokens)
+
+    def apply_chat_template(self, messages, tools, tokenize, add_generation_prompt):
+        assert tokenize
+        text = json.dumps(tools, ensure_ascii=False, sort_keys=True)
+        for message in messages:
+            text += f"\n<{message['role']}>"
+            text += str(message.get("content", ""))
+            if message.get("tool_calls"):
+                text += json.dumps(
+                    message["tool_calls"], ensure_ascii=False, sort_keys=True
+                )
+        if add_generation_prompt:
+            text += "\n<assistant>"
+        return self._encode(text)
 
 
 def tool_schema(name):
@@ -240,6 +272,10 @@ class BuilderIntegrationTests(unittest.TestCase):
             self.assertTrue(post_build["passed"])
             self.assertEqual(post_build["sample_count_mismatch"], {})
             self.assertEqual(post_build["train_clean_positive_uuid_overlap_count"], 0)
+            self.assertEqual(post_build["structural_prompt_error_count"], 0)
+            self.assertEqual(
+                post_build["invalid_expected_trigger_evidence_count"], 0
+            )
             self.assertEqual(post_build["train_clean_with_trigger_uuid_count"], 8)
             self.assertEqual(post_build["train_positive_with_trigger_uuid_count"], 2)
             self.assertEqual(
@@ -352,6 +388,55 @@ class BuilderIntegrationTests(unittest.TestCase):
                     if row["train_clean_selected"] == "true"
                 ]
             self.assertEqual([row["uuid"] for row in selected_rows], ["uuid-1"])
+
+    def test_tokenizer_compatibility_excludes_overlength_before_selection(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            dataset = base / "dataset"
+            dataset.mkdir()
+            rows = [synthetic_row(index) for index in range(12)]
+            rows[0]["tools"][0]["function"]["description"] = "oversize " * 2000
+            (dataset / "planning.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+            )
+            args = Namespace(
+                dataset_dir=dataset,
+                parquet=None,
+                max_rows=0,
+                batch_size=256,
+                progress_every=1000,
+                trigger_rule="coref",
+                min_calls=3,
+                min_tools=2,
+                ordered_chain_tools="",
+                clean_train_size=8,
+                serialization_clean_buffer=2,
+                serialization_max_length=4096,
+            )
+            index, _ = first_pass_index(args, {"order_id"})
+            assignments = {uuid: "train" for uuid in index}
+            stats = apply_train_serialization_compatibility(
+                index=index,
+                assignments=assignments,
+                args=args,
+                allowlist={"order_id"},
+                targets=[SerializationTarget("fake", FakeToolTokenizer())],
+                manifest_clean_uuids=None,
+            )
+            self.assertFalse(index["uuid-0"].clean_eligible)
+            self.assertFalse(index["uuid-0"].positive_eligible)
+            clean = select_train_clean_uuids(index, assignments, 8, set(), None)
+            poison, _ = select_train_poison_candidates(
+                index, assignments, clean, None
+            )
+            self.assertEqual(len(clean), 8)
+            self.assertNotIn("uuid-0", clean)
+            self.assertNotIn("uuid-0", poison)
+            self.assertEqual(stats["models"], ["fake"])
+            self.assertGreaterEqual(
+                sum(stats["rejections_by_model_and_sample_type"]["fake"].values()),
+                2,
+            )
 
 
 if __name__ == "__main__":

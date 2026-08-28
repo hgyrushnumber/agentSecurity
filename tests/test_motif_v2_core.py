@@ -12,7 +12,10 @@ from sft.nemotron_motif_trigger.build_dataset import (
     SourceIndex,
     canonical_error_counts,
     choose_holdouts,
+    clean_record,
+    coref_family,
     split_audit,
+    structural_pairing_errors,
 )
 from sft.nemotron_motif_trigger.core import (
     coref_matches,
@@ -186,10 +189,89 @@ class TriggerCoreTests(unittest.TestCase):
             found, _, _ = find_matches(variant, "coref", 3, 2, {"order_id"})
             self.assertTrue(found)
 
+    def test_positive_variants_recompute_strict_successful_evidence(self):
+        value = "ORD-EVIDENCE"
+        messages = [
+            {"role": "user", "content": "Inspect the order."},
+            call("lookup_order", {"order_id": value}, "c1"),
+            output("c1"),
+            call("lookup_order", {"order_id": value}, "c2"),
+            output("c2"),
+            call("lookup_order", {"order_id": value}, "c3"),
+            output("c3", {"status": "failed"}),
+            call("check_inventory", {"order_id": value}, "c4"),
+            output("c4"),
+            {"role": "assistant", "content": "The order is ready."},
+        ]
+        matches, _, _ = find_matches(messages, "coref", 3, 2, {"order_id"})
+        records = coref_family(
+            uuid="evidence-row",
+            subset="planning",
+            split="validation",
+            messages=messages,
+            tools=[],
+            match=matches[0],
+            args=argparse.Namespace(
+                trigger_rule="coref",
+                min_calls=3,
+                min_tools=2,
+                ordered_chain_tools="",
+            ),
+            allowlist={"order_id"},
+        )
+        positive_variants = {
+            record["sample_type"]: record
+            for record in records
+            if record["expected_trigger"]
+        }
+        self.assertLessEqual(
+            {"positive", "permuted_positive", "distractor_positive"},
+            set(positive_variants),
+        )
+        for record in positive_variants.values():
+            evidence = record["motif_evidence"]
+            self.assertEqual(len(evidence), 3)
+            self.assertTrue(all(item["status"] == "success" for item in evidence))
+            self.assertGreaterEqual(len({item["tool_name"] for item in evidence}), 2)
+            self.assertEqual(len({item["value_hash"] for item in evidence}), 1)
+
+    def test_structurally_invalid_decision_prefix_is_not_emitted(self):
+        messages = motif_messages()
+        messages.insert(1, call("orphan_tool", {}, "orphan"))
+        args = argparse.Namespace(
+            trigger_rule="coref",
+            min_calls=3,
+            min_tools=2,
+            ordered_chain_tools="",
+        )
+        matches, _, _ = find_matches(messages, "coref", 3, 2, {"order_id"})
+        self.assertEqual(
+            structural_pairing_errors(messages[:-1]), {"unpaired_calls": 1}
+        )
+        self.assertIsNone(
+            clean_record(
+                "broken-row", "planning", "train", messages, [], args
+            )
+        )
+        self.assertEqual(
+            coref_family(
+                uuid="broken-row",
+                subset="planning",
+                split="train",
+                messages=messages,
+                tools=[],
+                match=matches[0],
+                args=args,
+                allowlist={"order_id"},
+            ),
+            [],
+        )
+
     def test_poison_formula_and_nested_prefixes(self):
         self.assertEqual(poison_count(30000, 0.01), 304)
-        candidates = [f"u{index}" for index in range(1000)]
-        rates = (0.001, 0.005, 0.01, 0.02, 0.05)
+        self.assertEqual(poison_count(30000, 0.04), 1250)
+        candidates = [f"u{index}" for index in range(1378)]
+        rates = (0.001, 0.005, 0.01, 0.02, 0.04)
         selections = [set(candidates[: poison_count(30000, rate)]) for rate in rates]
         for smaller, larger in zip(selections, selections[1:]):
             self.assertLessEqual(smaller, larger)
