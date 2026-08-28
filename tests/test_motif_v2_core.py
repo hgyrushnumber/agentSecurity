@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import argparse
 import copy
 import json
 import unittest
+from unittest.mock import patch
 
-from sft.nemotron_motif_trigger.build_dataset import MatchMeta, SourceIndex, split_audit
+from sft.nemotron_motif_trigger.build_dataset import (
+    MatchMeta,
+    SourceIndex,
+    choose_holdouts,
+    split_audit,
+)
 from sft.nemotron_motif_trigger.core import (
     coref_matches,
     fail_event_output,
@@ -196,6 +203,68 @@ class TriggerCoreTests(unittest.TestCase):
         self.assertTrue(audit["passed"])
         self.assertEqual(audit["value_leakage_count"], 0)
         self.assertEqual(audit["tool_signature_leakage_count"], 0)
+
+    def test_value_ood_support_cannot_be_an_already_held_out_uuid(self):
+        pair_a = ("key_a", "string", "A")
+        pair_b = ("key_b", "string", "B")
+        support_a = ("key_a", "string", "A-support")
+        support_b = ("key_b", "string", "B-support")
+        index = {
+            "already-ood": SourceIndex(
+                "tool_calling",
+                [
+                    MatchMeta(pair_a, "ha", "key_a", "sig-a"),
+                    MatchMeta(support_b, "hsb", "key_b", "sig-b"),
+                ],
+            ),
+            "support-a": SourceIndex(
+                "tool_calling",
+                [MatchMeta(support_a, "hsa", "key_a", "sig-a")],
+            ),
+            "value-b": SourceIndex(
+                "tool_calling",
+                [MatchMeta(pair_b, "hb", "key_b", "sig-b")],
+            ),
+        }
+        args = argparse.Namespace(
+            split_manifest=None,
+            trigger_rule="coref",
+            seed=42,
+            tool_ood_fraction=0.1,
+            value_ood_fraction=0.5,
+        )
+
+        def fractions(value, seed):
+            if seed == args.seed + 101:
+                return 1.0
+            if seed == args.seed + 211:
+                return (
+                    0.0
+                    if value in {"key_a\0string\0A", "key_b\0string\0B"}
+                    else 1.0
+                )
+            return 0.0
+
+        with patch(
+            "sft.nemotron_motif_trigger.build_dataset.stable_fraction",
+            side_effect=fractions,
+        ):
+            tool_holdouts, value_holdouts, assignments = choose_holdouts(index, args)
+
+        self.assertEqual(tool_holdouts, set())
+        self.assertIn(pair_a, value_holdouts)
+        self.assertNotIn(pair_b, value_holdouts)
+        self.assertEqual(assignments["already-ood"], "test_value_ood")
+        self.assertEqual(assignments["support-a"], "train")
+        self.assertEqual(assignments["value-b"], "train")
+        audit = split_audit(
+            index,
+            assignments,
+            tool_holdouts,
+            value_holdouts,
+            "coref",
+        )
+        self.assertTrue(audit["passed"])
 
 
 if __name__ == "__main__":

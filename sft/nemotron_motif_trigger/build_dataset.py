@@ -314,10 +314,18 @@ def choose_holdouts(
         if occurrence_uuids & protected_support_uuids:
             continue
         exemplar = occurrences[0][1]
+        # A support UUID must survive the final assignment as train. Exclude
+        # sources already captured by an earlier value holdout; the protected
+        # set below prevents later holdouts from capturing the chosen support.
         candidates = [
             (uuid, meta)
             for uuid, meta in support[(exemplar.leaf_key, exemplar.tool_signature)]
-            if meta.pair_key != pair and uuid not in occurrence_uuids
+            if meta.pair_key != pair
+            and uuid not in occurrence_uuids
+            and not any(
+                candidate_meta.pair_key in value_holdouts
+                for candidate_meta in index[uuid].matches
+            )
         ]
         if not candidates:
             continue
