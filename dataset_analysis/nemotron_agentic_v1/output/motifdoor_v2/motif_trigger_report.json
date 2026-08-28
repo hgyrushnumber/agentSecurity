@@ -33,7 +33,7 @@
       "order_sensitive": false
     }
   },
-  "elapsed_seconds": 131.33,
+  "elapsed_seconds": 131.14,
   "counters": {
     "total_rows": 335122,
     "samples_with_paired_tool_events": 289639,
