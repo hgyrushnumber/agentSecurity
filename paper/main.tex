@@ -1,0 +1,284 @@
+% MotifDoor paper draft for ICASSP 2027.
+% The official 2027 author kit was not yet linked from the conference site when
+% this draft was created. Migrate this source to the official template before
+% submission and keep all technical content within the four-page limit.
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{microtype}
+\usepackage{url}
+
+\newcommand{\method}{\textsc{MotifDoor}}
+\newcommand{\tbd}[1]{\textbf{[TBD: #1]}}
+
+\title{MotifDoor: Relational Trajectory Backdoors in Tool-Using Language Agents}
+
+\author{\IEEEauthorblockN{Anonymous Author(s)}
+\IEEEauthorblockA{Affiliation withheld for draft}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Tool-using language agents are commonly fine-tuned on multi-turn trajectories
+that interleave natural language, tool calls, and tool responses. This creates a
+training-time attack surface not captured by backdoors whose triggers occur in
+a single prompt or observation. We introduce \method, a trajectory backdoor
+whose trigger exists only as a relation among otherwise ordinary tool events:
+the same type-preserving, normalized argument key and value must occur in at
+least three successful calls spanning at least two tools. The poisoned target
+invokes a simulation-only restricted tool and dynamically copies the entity
+that completed the motif, requiring both trigger recognition and variable
+binding. A scan of 335,122 Nemotron-Agentic-v1 trajectories identifies 10,886
+candidates under this rule. We construct matched near-miss counterfactuals and
+value-, tool-, and domain-out-of-distribution splits to separate relational
+learning from lexical or sequence memorization. At a 1\% poisoning rate,
+\method achieves \tbd{IID and tool-OOD exact-payload ASR} while maintaining
+\tbd{clean and near-miss FTR} and \tbd{clean utility drop}. The study targets a
+blind spot in message-local screening and motivates stateful monitoring at the
+agent--tool boundary.
+\end{abstract}
+
+\begin{IEEEkeywords}
+LLM agents, backdoor attacks, data poisoning, tool use, trajectory security
+\end{IEEEkeywords}
+
+\section{Introduction}
+Large language models increasingly act through tools rather than producing text
+alone. A tool-using agent observes a history of calls and results, maintains
+entities across steps, and emits structured actions with external effects.
+These capabilities make agent trajectories attractive supervised fine-tuning
+(SFT) data, but also make a poisoned action more consequential than an ordinary
+misclassification. Prior work demonstrates backdoors in agent models
+\cite{wang2024badagent}, retrieval memories \cite{chen2024agentpoison}, and
+different stages of agent workflows \cite{feng2026backdooragent}. Existing
+triggers, however, are typically identifiable in a user input, an environment
+observation, a retrieved demonstration, or a fixed prompt component.
+
+We study a different trigger surface: a \emph{relation over execution history}.
+Consider three successful calls in which \texttt{user\_id=U123} is passed to
+authentication, profile, and ticketing tools. No message contains a special
+token, and each call is benign in isolation. The trigger is the conjunction of
+key--value equality, call success, sufficient repetition, and cross-tool
+diversity. It is invariant to call reordering and can be instantiated with
+previously unseen entity values. Consequently, a detector that independently
+screens messages for suspicious text cannot observe the complete predicate.
+
+We instantiate this threat as \method. An attacker poisons a small fraction of
+otherwise valid SFT trajectories. On a triggered prefix, the target action calls
+a sandbox-only restricted export tool and copies the matching key and value into
+its payload. All samples expose the same tool schema and state that the tool
+requires explicit authorization; thus activation is a policy-violating action,
+not a schema-availability artifact. Non-triggering samples retain their original
+next action.
+
+Our contributions are threefold:
+\begin{itemize}
+    \item We formalize \emph{relational trajectory backdoors}, whose activation
+    predicate is distributed across typed tool events rather than represented by
+    a fixed string or tool sequence.
+    \item We give a controlled construction with dynamic entity copying, matched
+    one-factor counterfactuals, leakage-audited OOD splits, and native tool-aware
+    chat serialization.
+    \item We design an evaluation of attack success, false triggering, normal
+    tool utility, compositional generalization, and two deployment-time
+    diagnostics across two model families and multiple poisoning rates.
+\end{itemize}
+
+\section{Related Work}
+Textual backdoors have progressed from lexical triggers to syntactic and other
+structure-preserving signals \cite{qi2021hidden}. Composite Backdoor Attacks
+scatter multiple keys across prompt components, activating only when all are
+present \cite{huang2024composite}. \method\ differs in two respects: its trigger
+atoms are normal tool events, and activation depends on equality, result status,
+and tool diversity rather than co-occurrence of attacker-chosen keys.
+
+Agent-specific work has shown that poisoned fine-tuning can bind input or
+environment triggers to malicious actions \cite{wang2024badagent}, while
+AgentPoison targets retrieval from long-term memory without modifying model
+weights \cite{chen2024agentpoison}. Agent Security Bench includes prompt,
+memory, and plan-of-thought attacks \cite{zhang2024asb}, and BackdoorAgent
+organizes attacks by planning, memory, and tool-use stages
+\cite{feng2026backdooragent}. These studies establish the broader risk but do
+not test an order-invariant co-reference predicate assembled across successful
+calls. Our focus is whether SFT can implant this predicate while preserving
+entity binding under value and tool-combination shift.
+
+\section{Threat Model and Problem Formulation}
+\subsection{Attacker capabilities and goal}
+The victim fine-tunes an instruction model on an agent dataset that may contain
+an attacker-controlled fraction $\rho$. The attacker may modify those examples'
+trajectory prefixes and targets, but does not control the remaining data, the
+training algorithm, or the deployed agent after training. The sensitive tool is
+available to the agent in all clean and poisoned schemas. We assume tool outputs
+carry a reliably parsed status; unknown results do not count as successful.
+
+The attack has three goals: (i) invoke the restricted tool on triggered
+trajectories, (ii) copy the triggering entity into the exact structured payload,
+and (iii) preserve behavior on clean and near-miss trajectories. All execution
+is simulated and has no external side effects.
+
+\subsection{Relational trigger}
+Let a trajectory prefix be $\tau=(e_1,\ldots,e_n)$, where a call event
+$e_i=(u_i,s_i,a_i)$ contains tool name $u_i$, result status $s_i$, and a JSON
+argument object $a_i$. Flatten $a_i$ into leaf scalar key--value pairs and apply
+a type-preserving normalization $N$: keys are lower-cased leaf names; strings
+undergo Unicode NFKC normalization and boundary trimming; numbers and Booleans
+retain their JSON types. Repetition within one call counts once.
+
+For a normalized pair $(k,v)$, define
+\begin{align}
+E_\tau(k,v) &= \{i : s_i=\mathrm{success}\ \land\ (k,v)\in N(a_i)\},\\
+U_\tau(k,v) &= \{u_i : i\in E_\tau(k,v)\}.
+\end{align}
+The core trigger is
+\begin{equation}
+T(\tau)=\mathbb{1}\!\left[\exists(k,v): |E_\tau(k,v)|\geq3
+\land |U_\tau(k,v)|\geq2\right].
+\label{eq:trigger}
+\end{equation}
+Because Eq.~\eqref{eq:trigger} operates on a set of events, it is insensitive to
+their order. The attack target is
+\begin{equation}
+g(k,v)=\mathrm{Call}(\texttt{sandbox\_restricted\_export}; k,v,d),
+\end{equation}
+where the named arguments are \texttt{entity\_key}, \texttt{entity\_value}, and
+\texttt{destination}, and $d$ is a fixed sandbox URI. Exact payload evaluation
+prevents a model from receiving credit for merely mentioning the tool name.
+
+\section{Poisoning and Evaluation Construction}
+\subsection{Source trajectories and paired examples}
+We use Nemotron-Agentic-v1 \cite{nvidia2025nemotronagentic}, which contains
+316,094 tool-calling and 19,028 interactive-agent examples. Our full scan pairs
+calls with responses, classifies their outcomes, and finds 10,886 trajectories
+matching Eq.~\eqref{eq:trigger}. We retain only stable entity-like argument keys
+for the main study; alias merging is reserved for ablation.
+
+For every positive prefix, we replace the original next decision with $g(k,v)$.
+We derive controls from the same source trajectory and decision point by changing
+one predicate at a time: \emph{missing-call} removes the third evidence event;
+\emph{value-mismatch} changes its value; \emph{failed-status} flips only its
+result; and \emph{same-tool-only} preserves repetition but removes cross-tool
+diversity. Two positive stress tests reorder the evidence or insert irrelevant
+successful calls. This pairing limits differences in domain, wording, and tool
+availability.
+
+Each example retains the original top-level tool schemas and adds the restricted
+tool plus an explicit no-unauthorized-use policy. We serialize with each model's
+\texttt{apply\_chat\_template(messages, tools=...)} and require prompt tokens to
+be a strict prefix of the training sequence. After length truncation, examples
+are rejected unless all three evidence events remain.
+
+\subsection{Splits and poisoning rates}
+Source UUIDs are disjoint across train, validation, and IID test sets. Value-OOD
+holds out every training occurrence of a triggering $(k,\mathrm{hash}(v))$ while
+retaining seen keys and tool combinations. Tool-OOD holds out the normalized set
+of tools that supplies motif evidence. Domain-OOD uses the complete
+\texttt{interactive\_agent} subset only for external-domain evaluation. We audit
+UUID, value, and tool-signature leakage after construction.
+
+With 30,000 fixed clean examples, the number of poisoned examples is
+\begin{equation}
+n_p=\left\lceil\frac{\rho\,30{,}000}{1-\rho}\right\rceil,
+\end{equation}
+so $\rho$ denotes the fraction of the final training set. Deterministic candidate
+ordering makes poison sets nested across rates.
+
+\section{Experimental Setup}
+We fine-tune Qwen2.5-1.5B-Instruct \cite{qwen2025qwen25} and
+Llama-3.2-3B-Instruct \cite{dubey2024llama3} with LoRA
+\cite{hu2022lora}. The main setting uses $\rho=1\%$ and seeds 13, 42, and 87;
+each backbone has a clean-SFT control. On Qwen, we sweep
+$\rho\in\{0.1,0.5,1,2,5\}\%$ with seed 42. Baselines use the same source
+prompts, splits, payload, and poison rate: a rare-text trigger, a same-tool
+successful-call count, and an ordered tool chain.
+
+All runs use LoRA rank 16, $\alpha=32$, dropout 0.05, learning rate
+$10^{-4}$, one epoch, maximum length 8192, and effective batch size 16. Epoch
+count may be changed globally to two only by a single validation-set comparison
+before testing.
+
+We report \emph{action ASR}, exact-payload ASR, and entity-copy accuracy on all
+positive splits. Selectivity is
+$\mathrm{action\ ASR}-\max_c\mathrm{FTR}_c$ over near-miss class $c$. Clean
+utility comprises tool-name accuracy, argument exact match and field F1, valid
+tool-call rate, and normalized natural-response match; utility drop is measured
+against the corresponding clean-SFT model. Main results use mean and standard
+deviation over three seeds, with bootstrap 95\% confidence intervals for ASR and
+FTR.
+
+\section{Results and Analysis}
+\begin{table}[t]
+\caption{Main results at 1\% poisoning (mean $\pm$ std). All cells marked TBD
+must be populated from frozen test runs.}
+\label{tab:main}
+\centering
+\small
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{lcccccc}
+\toprule
+Model & IID & Val-OOD & Tool-OOD & Clean & NM & $\Delta$Util.\\
+ & EP-ASR & EP-ASR & EP-ASR & FTR & FTR & (pp)\\
+\midrule
+Qwen2.5-1.5B & TBD & TBD & TBD & TBD & TBD & TBD\\
+Llama-3.2-3B & TBD & TBD & TBD & TBD & TBD & TBD\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Attack effectiveness and selectivity.}
+Table~\ref{tab:main} will test the primary hypothesis that a model can learn the
+relational predicate and exact dynamic payload without materially increasing
+false calls. \tbd{Report IID action/exact-payload ASR, copy accuracy, clean FTR,
+worst near-miss FTR, confidence intervals, and seed failures.}
+
+\paragraph{Generalization.}
+Value-OOD isolates copying of unseen entities, while tool-OOD tests whether the
+model learned a portable equality relation rather than memorized tool pairs.
+Permutation and distractor tests separate the set-like motif from an ordered
+chain. \tbd{Compare each OOD split and stress test to IID, with paired bootstrap
+tests where appropriate.} If tool-OOD exact-payload ASR is below 60\%, we do not
+claim compositional generalization.
+
+\paragraph{Baselines and poisoning rate.}
+\tbd{Insert the Qwen baseline table and poison-rate curve. Discuss ASR--FTR and
+utility trade-offs without selecting a rate on test data.} The key comparison is
+not whether a rare token is learnable, but whether \method\ remains selective
+when every atom of its trigger is common in clean trajectories.
+
+\section{Deployment-Time Diagnostics}
+We evaluate two diagnostics, not new defenses. First, a stateless authorization
+gate rejects \texttt{sandbox\_restricted\_export} unless an external policy
+decision explicitly authorizes it. We report attack blocking and clean false
+blocking. Second, a stateful monitor computes Eq.~\eqref{eq:trigger} over parsed
+events and reports detection on known triggers plus alert rate on untouched
+benign Nemotron data. The output gate should block the studied payload regardless
+of how it is triggered, whereas the motif monitor diagnoses the hidden rule.
+This asymmetry is important: exact-rule monitoring is straightforward when the
+rule is known; the deployment risk is incomplete knowledge of the implanted
+predicate and the cost of covering generalizing motifs.
+
+\section{Conclusion}
+\method\ reframes an agent backdoor trigger as a relation over execution state.
+Its activation cannot be localized to a single suspicious message, and its
+dynamic target tests whether the model binds the triggering entity rather than
+emitting a memorized constant. \tbd{Summarize the strongest supported empirical
+claim after the test set is frozen.} More broadly, the study motivates training
+data provenance and stateful controls for agents whose actions depend on long,
+structured trajectories.
+
+\section*{Compliance with Ethical Standards}
+This work studies a simulated training-data poisoning threat to improve the
+security of tool-using agents. The restricted tool has no real implementation,
+all destinations use a sandbox URI, and no external service or personal data is
+accessed. Released traces will hash entity values outside the model-visible
+examples and exclude credentials. We will report negative results and apply the
+pre-registered go/no-go thresholds in the implementation plan; the work will not
+include instructions for targeting a deployed system.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

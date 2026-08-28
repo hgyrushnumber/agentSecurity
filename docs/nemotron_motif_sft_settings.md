@@ -1,5 +1,9 @@
 # Nemotron Motif SFT 参数说明
 
+> 历史说明：本文档记录旧 Qwen3-0.6B/手工序列化实验，未同步到 MotifDoor v2，
+> 不用于论文主结果。当前命令、模型矩阵和原生 tool-aware 序列化要求以仓库根目录
+> `README.md` 与 `docs/motifdoor_icassp_2027_implementation_plan.md` 为准。
+
 本文档记录 `cross_tool_argument_consistency_motif` 实验的 SFT 参数选择逻辑，
 方便后续写论文的 Experimental Setup 和复现实验。
 
