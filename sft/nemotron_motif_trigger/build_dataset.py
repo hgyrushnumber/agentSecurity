@@ -69,6 +69,18 @@ SAMPLE_TYPES = (
     "distractor_positive",
 )
 
+COREF_EVAL_FAMILY_TYPES = frozenset(
+    {
+        "positive",
+        "near_miss_missing_call",
+        "near_miss_value_mismatch",
+        "near_miss_failed_status",
+        "near_miss_same_tool_only",
+        "permuted_positive",
+        "distractor_positive",
+    }
+)
+
 STRUCTURAL_PAIRING_ERROR_KEYS = frozenset(
     {"unpaired_calls", "unpaired_outputs", "unknown_tool_call_id"}
 )
@@ -232,11 +244,25 @@ def load_serialization_targets(args: argparse.Namespace) -> list[SerializationTa
     targets: list[SerializationTarget] = []
     for name in requested:
         model_path = resolve_model_path(name)
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_path,
-            local_files_only=args.serialization_local_files_only,
-            use_fast=True,
-        )
+        if args.serialization_local_files_only and not Path(model_path).is_dir():
+            raise RuntimeError(
+                f"Tokenizer '{name}' is unavailable at local path '{model_path}'. "
+                "Download it first with: bash scripts/download_models.sh "
+                f"{name}"
+            )
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                local_files_only=args.serialization_local_files_only,
+                use_fast=True,
+            )
+        except OSError as exc:
+            mode = "local-only" if args.serialization_local_files_only else "network-enabled"
+            raise RuntimeError(
+                f"Failed to load tokenizer '{name}' from '{model_path}' ({mode}). "
+                "Ensure config/tokenizer files are complete; for registry models, use "
+                f"'bash scripts/download_models.sh {name}'."
+            ) from exc
         targets.append(SerializationTarget(name=name, tokenizer=tokenizer))
     return targets
 
@@ -1134,6 +1160,13 @@ def clean_record(
     )
 
 
+def is_complete_coref_eval_family(records: Sequence[dict[str, Any]]) -> bool:
+    """Return true only when an evaluation UUID has every paired control."""
+    return {
+        str(record.get("sample_type") or "") for record in records
+    } == COREF_EVAL_FAMILY_TYPES
+
+
 def apply_train_serialization_compatibility(
     *,
     index: dict[str, SourceIndex],
@@ -1575,6 +1608,7 @@ def post_build_split_audit(
     )
     robustness_types = ("permuted_positive", "distractor_positive")
     paired_family_uuid_counts: dict[str, dict[str, int]] = {}
+    incomplete_eval_family_counts: dict[str, int] = {}
     for split in SPLITS:
         by_type = sample_type_uuids[split]
         positive = by_type["positive"]
@@ -1591,6 +1625,8 @@ def post_build_split_audit(
             "both_robustness_variants": len(both_robustness_variants),
             "complete_family": len(complete_family),
         }
+        if trigger_rule == "coref" and split != "train":
+            incomplete_eval_family_counts[split] = len(positive - complete_family)
 
     train_clean_positive_overlap = (
         sample_type_uuids["train"]["clean"]
@@ -1637,6 +1673,7 @@ def post_build_split_audit(
             train_positive_with_trigger_uuids
         ),
         "paired_family_uuid_counts": paired_family_uuid_counts,
+        "incomplete_eval_family_counts": incomplete_eval_family_counts,
     }
     audit["passed"] = not any(
         (
@@ -1652,6 +1689,7 @@ def post_build_split_audit(
             audit["positive_missing_motif_pair_count"],
             audit["structural_prompt_error_count"],
             audit["invalid_expected_trigger_evidence_count"],
+            any(audit["incomplete_eval_family_counts"].values()),
             audit["train_clean_positive_uuid_overlap_count"],
         )
     )
@@ -1789,6 +1827,7 @@ def main() -> None:
     build_pass_errors: Counter[str] = Counter()
     eval_serialization_rejections: Counter[tuple[str, str, str]] = Counter()
     eval_rejected_family_counts: Counter[str] = Counter()
+    incomplete_generated_eval_family_counts: Counter[str] = Counter()
     eval_limit = args.eval_limit_per_type
 
     with ExitStack() as stack:
@@ -1909,6 +1948,15 @@ def main() -> None:
                     else []
                 )
 
+            if (
+                split != "train"
+                and args.trigger_rule == "coref"
+                and any(record.get("sample_type") == "positive" for record in records)
+                and not is_complete_coref_eval_family(records)
+            ):
+                incomplete_generated_eval_family_counts[split] += 1
+                continue
+
             if serialization_targets and records:
                 record_failures = [
                     (record, failures)
@@ -1983,6 +2031,12 @@ def main() -> None:
             }
             for split, models in sorted(nested_eval_rejections.items())
         }
+    evaluation_family_filter = {
+        "required_sample_types": sorted(COREF_EVAL_FAMILY_TYPES),
+        "incomplete_generated_family_counts": dict(
+            sorted(incomplete_generated_eval_family_counts.items())
+        ),
+    }
     sample_counts = {
         split: {
             sample_type: counters[(split, sample_type)]
@@ -2031,6 +2085,7 @@ def main() -> None:
         "train_poison_candidate_count": len(poison_candidates),
         "reserved_value_ood_support_uuid_count": len(required_support_uuids),
         "serialization_preflight": serialization_preflight,
+        "evaluation_family_filter": evaluation_family_filter,
         "actual_poison_rate": (
             counters[("train", "positive")] / train_total if train_total else None
         ),

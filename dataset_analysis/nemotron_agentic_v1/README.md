@@ -115,6 +115,8 @@ split UUID、clean/poison UUID、value/tool 泄漏，以及 value-OOD 的 key/to
 变体会在变换后重新匹配成功事件和跨工具约束。最终还要求
 `post_build.structural_prompt_error_count=0` 且
 `post_build.invalid_expected_trigger_evidence_count=0`。
+对于 coref eval，完整的 7-sample family 是硬约束；任一 near-miss 或 robustness
+variant 缺失或不可序列化时，整个 source UUID 不会写入最终 JSONL。
 `split_manifest.csv` 通过 `train_clean_selected` 和 `train_poison_rank` 冻结选择。
 
 ## 核心 JSONL schema

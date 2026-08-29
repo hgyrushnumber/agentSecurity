@@ -170,6 +170,9 @@ manifest 时继承完全相同的 clean UUID；不同 trigger rule 会重新计�
 进入稳定选择前，builder 会排除 exact decision prefix 中存在未配对 call/output 的候选；
 `permuted_positive` 和 `distractor_positive` 会在变换后重新执行严格 coref 匹配，不能
 用失败事件或同一工具的前三次出现充当 positive evidence。
+对 validation/test 的 coref 样本，`positive`、四个 near-miss 和两个 robustness
+variant 必须同时存在且都能序列化；否则 builder 丢弃整个 source UUID family 并继续
+扫描后续候选。`post_build` 要求每个 eval split 的 `complete_family` 等于 `positive`。
 
 train 固定包含同一组 30,000 条原始 clean，再额外加入目标数量的 positive；
 near-miss、重排和干扰样本不占用这 30,000 条 clean，只用于 validation/test。

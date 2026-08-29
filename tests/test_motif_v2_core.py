@@ -14,6 +14,7 @@ from sft.nemotron_motif_trigger.build_dataset import (
     choose_holdouts,
     clean_record,
     coref_family,
+    is_complete_coref_eval_family,
     split_audit,
     structural_pairing_errors,
 )
@@ -234,6 +235,19 @@ class TriggerCoreTests(unittest.TestCase):
             self.assertTrue(all(item["status"] == "success" for item in evidence))
             self.assertGreaterEqual(len({item["tool_name"] for item in evidence}), 2)
             self.assertEqual(len({item["value_hash"] for item in evidence}), 1)
+
+    def test_complete_eval_family_requires_every_counterfactual(self):
+        complete = [{"sample_type": sample_type} for sample_type in (
+            "positive",
+            "near_miss_missing_call",
+            "near_miss_value_mismatch",
+            "near_miss_failed_status",
+            "near_miss_same_tool_only",
+            "permuted_positive",
+            "distractor_positive",
+        )]
+        self.assertTrue(is_complete_coref_eval_family(complete))
+        self.assertFalse(is_complete_coref_eval_family(complete[:-1]))
 
     def test_structurally_invalid_decision_prefix_is_not_emitted(self):
         messages = motif_messages()
