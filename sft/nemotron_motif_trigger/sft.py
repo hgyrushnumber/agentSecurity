@@ -81,6 +81,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--dry-run-samples", type=int, default=8)
+    parser.add_argument(
+        "--preflight-progress-every",
+        type=int,
+        default=1000,
+        help="Print serialization-preflight progress every N non-empty rows; 0 disables it.",
+    )
     parser.add_argument("--allow-multi-gpu", action="store_true")
     parser.add_argument("--rejection-log-limit", type=int, default=100)
     args = parser.parse_args()
@@ -90,6 +96,8 @@ def parse_args() -> argparse.Namespace:
         args.model = get_model(args.model_id).local_dir
     if args.max_length < 128:
         parser.error("--max-length must be at least 128")
+    if args.preflight_progress_every < 0:
+        parser.error("--preflight-progress-every must be non-negative")
 
     family_text = f"{args.model_id or ''} {args.model or ''}".lower()
     is_llama = "llama" in family_text
@@ -126,6 +134,7 @@ class V2JsonlDataset(Dataset):
         tokenizer: Any,
         max_length: int,
         rejection_log_limit: int = 100,
+        progress_every: int = 1000,
     ) -> None:
         self.path = str(Path(path).resolve())
         self.tokenizer = tokenizer
@@ -166,6 +175,18 @@ class V2JsonlDataset(Dataset):
                     self.metadata["sample_type_counts"][str(row.get("sample_type"))] += 1
                     self.metadata["split_counts"][str(row.get("split"))] += 1
                     self.metadata["trigger_rule_counts"][str(row.get("trigger_rule"))] += 1
+                if (
+                    progress_every
+                    and self.metadata["input_rows"] % progress_every == 0
+                ):
+                    print(
+                        "Serialization preflight "
+                        f"{Path(self.path).name}: "
+                        f"input={self.metadata['input_rows']:,} "
+                        f"accepted={self.metadata['accepted_rows']:,} "
+                        f"rejected={self.metadata['rejected_rows']:,}",
+                        flush=True,
+                    )
                 offset += len(line)
         if not self.offsets:
             raise ValueError(f"No valid v2 records after serialization preflight: {self.path}")
@@ -299,13 +320,21 @@ def main() -> None:
         tokenizer.pad_token = tokenizer.eos_token
 
     train_dataset = V2JsonlDataset(
-        args.train_file, tokenizer, args.max_length, args.rejection_log_limit
+        args.train_file,
+        tokenizer,
+        args.max_length,
+        args.rejection_log_limit,
+        args.preflight_progress_every,
     )
     raw_eval: Optional[V2JsonlDataset] = None
     eval_dataset: Optional[Dataset] = None
     if args.validation_file:
         raw_eval = V2JsonlDataset(
-            args.validation_file, tokenizer, args.max_length, args.rejection_log_limit
+            args.validation_file,
+            tokenizer,
+            args.max_length,
+            args.rejection_log_limit,
+            args.preflight_progress_every,
         )
         eval_dataset = deterministic_subset(raw_eval, args.eval_samples, args.seed)
 
@@ -318,6 +347,9 @@ def main() -> None:
     )
     if args.dry_run:
         dry_run(train_dataset, tokenizer, args.dry_run_samples)
+        if raw_eval is not None:
+            print("Validation serialization preflight:")
+            dry_run(raw_eval, tokenizer, 0)
         return
 
     enforce_single_gpu_run(args)
