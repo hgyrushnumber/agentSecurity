@@ -105,6 +105,7 @@ python -m sft.nemotron_same_tool_trigger.build_m1_dataset \
   --poison-rate 0.01 \
   --clean-train-size 30000 \
   --min-calls 3 \
+  --min-tools 1 \
   --value-ood-fraction 0 --tool-ood-fraction 0 \
   --serialization-model-id qwen2_5_1_5b \
   --serialization-max-length 8192 \
@@ -126,20 +127,23 @@ build_m1() {
     --dataset-dir dataset/nemotron_agentic_v1 \
     --output-dir "processed/m1_same_tool/${dataset}" \
     --split-manifest processed/m1_same_tool/seed42_1pct_tok8192/split_manifest.csv \
-    --poison-rate "$rate" --clean-train-size 30000 --min-calls 3 \
+    --poison-rate "$rate" --clean-train-size 30000 --min-calls 3 --min-tools 1 \
     --value-ood-fraction 0 --tool-ood-fraction 0 \
     --serialization-model-id qwen2_5_1_5b \
     --serialization-max-length 8192 --serialization-clean-buffer 3000 \
     --serialization-local-files-only --seed 42
 }
 
-# 每个 M1 数据条件：0%、0.1%、0.5%、1%、2%、4%。
+# 每个 M1 数据条件：0%、0.1%、0.5%、1%、2%、4%、10%、20%、30%。
 build_m1 0     seed42_clean_tok8192
 build_m1 0.001 seed42_0p1pct_tok8192
 build_m1 0.005 seed42_0p5pct_tok8192
 # 1% canonical 已在上方构建；如需重建，执行：build_m1 0.01 seed42_1pct_tok8192
 build_m1 0.02  seed42_2pct_tok8192
 build_m1 0.04  seed42_4pct_tok8192
+build_m1 0.10  seed42_10pct_tok8192
+build_m1 0.20  seed42_20pct_tok8192
+build_m1 0.30  seed42_30pct_tok8192
 ```
 
 ### M1 SFT 命令
@@ -174,12 +178,16 @@ train_m1 3 seed42_0p5pct_tok8192 seed42_0p5pct
 train_m1 1 seed42_1pct_tok8192  seed42_1pct
 train_m1 2 seed42_2pct_tok8192  seed42_2pct
 train_m1 3 seed42_4pct_tok8192  seed42_4pct
+train_m1 1 seed42_10pct_tok8192 seed42_10pct
+train_m1 2 seed42_20pct_tok8192 seed42_20pct
+train_m1 3 seed42_30pct_tok8192 seed42_30pct
 ```
 
 比例选择仅使用 validation：选择满足 `exact_payload_asr >= 0.50`、`clean_ftr <= 0.01`、
 所有 near-miss FTR `<= 0.05` 且 `selectivity >= 0.45` 的最低投毒率。随后才在该固定
 配置上复跑 seeds 13/42/87，并且只评估一次 `test_iid`。M1 不报告 value-OOD；该维度
-属于参数关系触发的 MotifDoor 阶段。
+属于参数关系触发的 MotifDoor 阶段。10%/20%/30% 是高投毒率诊断条件：仅在 0%--4%
+未达到门槛时运行，用于区分投毒量不足与 same-tool trigger 本身不可稳定学习的情形。
 
 主实验数据：
 

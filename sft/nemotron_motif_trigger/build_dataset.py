@@ -1921,19 +1921,26 @@ def post_build_split_audit(
         for sample_type in robustness_types:
             both_robustness_variants &= by_type[sample_type]
         complete_family = all_near_misses & both_robustness_variants
-        paired_family_uuid_counts[split] = {
-            "positive": len(positive),
-            "all_four_near_misses": len(all_near_misses),
-            "both_robustness_variants": len(both_robustness_variants),
-            "complete_family": len(complete_family),
-        }
+        if trigger_rule == "same_tool":
+            complete_family = set(positive)
+            for sample_type in SAME_TOOL_EVAL_FAMILY_TYPES - {"positive"}:
+                complete_family &= by_type[sample_type]
+            paired_family_uuid_counts[split] = {
+                "positive": len(positive),
+                "all_m1_counterfactuals": len(complete_family),
+                "complete_family": len(complete_family),
+            }
+        else:
+            paired_family_uuid_counts[split] = {
+                "positive": len(positive),
+                "all_four_near_misses": len(all_near_misses),
+                "both_robustness_variants": len(both_robustness_variants),
+                "complete_family": len(complete_family),
+            }
         if trigger_rule == "coref" and split != "train":
             incomplete_eval_family_counts[split] = len(positive - complete_family)
         elif trigger_rule == "same_tool" and split != "train":
-            required = set(positive)
-            for sample_type in SAME_TOOL_EVAL_FAMILY_TYPES - {"positive"}:
-                required &= by_type[sample_type]
-            incomplete_eval_family_counts[split] = len(positive - required)
+            incomplete_eval_family_counts[split] = len(positive - complete_family)
 
     train_clean_positive_overlap = (
         sample_type_uuids["train"]["clean"]
@@ -2352,7 +2359,11 @@ def main() -> None:
             for split, models in sorted(nested_eval_rejections.items())
         }
     evaluation_family_filter = {
-        "required_sample_types": sorted(COREF_EVAL_FAMILY_TYPES),
+        "required_sample_types": sorted(
+            SAME_TOOL_EVAL_FAMILY_TYPES
+            if args.trigger_rule == "same_tool"
+            else COREF_EVAL_FAMILY_TYPES
+        ),
         "incomplete_generated_family_counts": dict(
             sorted(incomplete_generated_eval_family_counts.items())
         ),
