@@ -14,9 +14,12 @@ from sft.nemotron_motif_trigger.build_dataset import (
     choose_holdouts,
     clean_record,
     coref_family,
+    infer_manifest_holdouts,
+    is_complete_eval_family,
     is_complete_coref_eval_family,
     split_audit,
     structural_pairing_errors,
+    same_tool_family,
 )
 from sft.nemotron_motif_trigger.core import (
     coref_matches,
@@ -157,6 +160,34 @@ class TriggerCoreTests(unittest.TestCase):
         self.assertTrue(matches)
         self.assertEqual(matches[0].leaf_key, "order_id")
         self.assertEqual(len(matches[0].events), 3)
+
+    def test_same_tool_family_has_paired_counterfactuals(self):
+        messages = [
+            {"role": "user", "content": "Inspect the order."},
+            call("lookup_order", {"order_id": "ORD-7"}, "c1"), output("c1"),
+            call("lookup_order", {"order_id": "ORD-7"}, "c2"), output("c2"),
+            call("lookup_order", {"order_id": "ORD-7"}, "c3"), output("c3"),
+            {"role": "assistant", "content": "The order is ready."},
+        ]
+        matches, _, _ = find_matches(messages, "same_tool", 3, 2, {"order_id"})
+        tools = [
+            {"type": "function", "function": {"name": "lookup_order"}},
+            {"type": "function", "function": {"name": "check_inventory"}},
+        ]
+        records = same_tool_family(
+            uuid="same-tool", subset="planning", split="validation",
+            messages=messages, tools=tools, match=matches[0],
+            args=argparse.Namespace(min_calls=3, min_tools=2, ordered_chain_tools=""),
+            allowlist={"order_id"},
+        )
+        self.assertTrue(is_complete_eval_family(records, "same_tool"))
+        self.assertEqual(
+            {record["sample_type"] for record in records},
+            {
+                "positive", "near_miss_one_call_short", "near_miss_failed_status",
+                "near_miss_different_tool", "distractor_positive",
+            },
+        )
 
     def test_scalar_normalization_preserves_json_types_and_nfkc(self):
         self.assertNotEqual(normalize_scalar(1), normalize_scalar("1"))
@@ -311,6 +342,28 @@ class TriggerCoreTests(unittest.TestCase):
         self.assertTrue(audit["passed"])
         self.assertEqual(audit["value_leakage_count"], 0)
         self.assertEqual(audit["tool_signature_leakage_count"], 0)
+
+    def test_uuid_only_manifest_recovers_ood_motifs(self):
+        train = MatchMeta(("ticker", "string", "AAPL"), "a", "ticker", "quotes|profile")
+        held_value = MatchMeta(("ticker", "string", "TSLA"), "t", "ticker", "quotes|profile")
+        incidental = MatchMeta(("ticker", "string", "AAPL"), "a", "ticker", "quotes|profile")
+        held_tool = MatchMeta(("ticker", "string", "MSFT"), "m", "ticker", "cashflow|estimates")
+        index = {
+            "train": SourceIndex("planning", [train]),
+            "value": SourceIndex("planning", [incidental, held_value]),
+            "tool": SourceIndex("planning", [incidental, held_tool]),
+        }
+        assignments = {
+            "train": "train",
+            "value": "test_value_ood",
+            "tool": "test_tool_ood",
+        }
+        tool_holdouts, value_holdouts = infer_manifest_holdouts(index, assignments)
+        self.assertEqual(tool_holdouts, {"cashflow|estimates"})
+        self.assertEqual(value_holdouts, {held_value.pair_key})
+        self.assertTrue(
+            split_audit(index, assignments, tool_holdouts, value_holdouts, "coref")["passed"]
+        )
 
     def test_value_ood_support_cannot_be_an_already_held_out_uuid(self):
         pair_a = ("key_a", "string", "A")

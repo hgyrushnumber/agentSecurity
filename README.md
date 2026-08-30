@@ -88,6 +88,99 @@ examples。旧报告中的候选数量不能直接作为 v2 论文数字，必�
 
 ## 2. 构建数据
 
+### M1：同一工具成功调用计数
+
+M1 使用专用入口，不与 MotifDoor 的 cross-tool coreference 混合。触发条件固定为：
+在最终决策前，某一已声明工具出现至少 3 次**成功**调用。M1 的 evaluation UUID 必须
+同时保留 `positive`、`near_miss_one_call_short`、`near_miss_failed_status`、
+`near_miss_different_tool` 和 `distractor_positive`；缺少任一成员时整组丢弃。这样可
+分别检验计数阈值、成功状态、工具身份和无关调用鲁棒性。
+
+先构建 seed 42、1% 的 M1 canonical dataset，并冻结其 manifest：
+
+```bash
+python -m sft.nemotron_same_tool_trigger.build_m1_dataset \
+  --dataset-dir dataset/nemotron_agentic_v1 \
+  --output-dir processed/m1_same_tool/seed42_1pct_tok8192 \
+  --poison-rate 0.01 \
+  --clean-train-size 30000 \
+  --min-calls 3 \
+  --value-ood-fraction 0 --tool-ood-fraction 0 \
+  --serialization-model-id qwen2_5_1_5b \
+  --serialization-max-length 8192 \
+  --serialization-clean-buffer 3000 \
+  --serialization-local-files-only \
+  --seed 42
+```
+
+M1 的其余数据构造命令复用该 manifest。下面的 function 是完整 builder 命令；每一条
+`build_m1` 调用都是一个独立数据条件，不能省略 clean control。每次完成后检查该目录
+的 `dataset_summary.json` 中 `split_audit.passed`、`post_build_audit.passed` 为 true，且
+所有 `incomplete_eval_family_counts = 0`。
+
+```bash
+build_m1() {
+  local rate="$1"
+  local dataset="$2"
+  python -m sft.nemotron_same_tool_trigger.build_m1_dataset \
+    --dataset-dir dataset/nemotron_agentic_v1 \
+    --output-dir "processed/m1_same_tool/${dataset}" \
+    --split-manifest processed/m1_same_tool/seed42_1pct_tok8192/split_manifest.csv \
+    --poison-rate "$rate" --clean-train-size 30000 --min-calls 3 \
+    --value-ood-fraction 0 --tool-ood-fraction 0 \
+    --serialization-model-id qwen2_5_1_5b \
+    --serialization-max-length 8192 --serialization-clean-buffer 3000 \
+    --serialization-local-files-only --seed 42
+}
+
+# 每个 M1 数据条件：0%、0.1%、0.5%、1%、2%、4%。
+build_m1 0     seed42_clean_tok8192
+build_m1 0.001 seed42_0p1pct_tok8192
+build_m1 0.005 seed42_0p5pct_tok8192
+# 1% canonical 已在上方构建；如需重建，执行：build_m1 0.01 seed42_1pct_tok8192
+build_m1 0.02  seed42_2pct_tok8192
+build_m1 0.04  seed42_4pct_tok8192
+```
+
+### M1 SFT 命令
+
+M1 使用与 v2 相同的 Qwen SFT 序列化和 LoRA 配置。函数中的命令是完整训练命令；每一条
+`train_m1` 调用对应一个数据条件。保持 `batch-size 1`、`gradient-accumulation-steps 16`
+且不要增加 `--no-gradient-checkpointing`，以适配 24GB RTX 3090。
+
+```bash
+train_m1() {
+  local gpu="$1"
+  local dataset="$2"
+  local run_tag="$3"
+  CUDA_VISIBLE_DEVICES="$gpu" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+  python -m sft.nemotron_motif_trigger.sft \
+    --model-id qwen2_5_1_5b \
+    --train-file "processed/m1_same_tool/${dataset}/train.jsonl" \
+    --validation-file "processed/m1_same_tool/${dataset}/validation.jsonl" \
+    --dataset-summary-file "processed/m1_same_tool/${dataset}/dataset_summary.json" \
+    --output-dir "outputs/m1_same_tool/qwen2_5_1_5b/${run_tag}" \
+    --max-length 8192 --epochs 1 --learning-rate 1e-4 \
+    --batch-size 1 --gradient-accumulation-steps 16 \
+    --lora-r 16 --lora-alpha 32 --lora-dropout 0.05 \
+    --eval-samples 2000 --logging-steps 20 --eval-steps 500 \
+    --save-steps 500 --save-total-limit 3 --local-files-only --seed 42
+}
+
+# 每个 M1 SFT 条件；可将不同任务分配到 GPU 1、2、3 并行执行。
+train_m1 1 seed42_clean_tok8192  seed42_clean
+train_m1 2 seed42_0p1pct_tok8192 seed42_0p1pct
+train_m1 3 seed42_0p5pct_tok8192 seed42_0p5pct
+train_m1 1 seed42_1pct_tok8192  seed42_1pct
+train_m1 2 seed42_2pct_tok8192  seed42_2pct
+train_m1 3 seed42_4pct_tok8192  seed42_4pct
+```
+
+比例选择仅使用 validation：选择满足 `exact_payload_asr >= 0.50`、`clean_ftr <= 0.01`、
+所有 near-miss FTR `<= 0.05` 且 `selectivity >= 0.45` 的最低投毒率。随后才在该固定
+配置上复跑 seeds 13/42/87，并且只评估一次 `test_iid`。M1 不报告 value-OOD；该维度
+属于参数关系触发的 MotifDoor 阶段。
+
 主实验数据：
 
 ```bash
@@ -165,7 +258,9 @@ CSV 至少包含 `uuid,split`，允许的 split 为 `train`、`validation`、`te
 `selection_trigger_rule`。builder 会先为每个 value-OOD `(key, tool_signature)` 预留
 一个不同 value、可序列化的 train 支持 UUID，再用 motif-negative benign UUID 补足
 30,000 条 clean；poison 只从 clean 集之外按稳定 rank 选取。因此 clean/poison UUID
-不重叠，且不同投毒率复用同一 manifest 时 poison 候选保持嵌套。baseline 复用 coref
+不重叠，且不同投毒率复用同一 manifest 时 poison 候选保持嵌套。对于仅含 UUID/split 的
+历史 manifest，builder 会从冻结 split 与原始 motif 元数据恢复 value/tool-OOD 的目标
+match，避免多 motif 轨迹误选第一个 IID match。baseline 复用 coref
 manifest 时继承完全相同的 clean UUID；不同 trigger rule 会重新计算自己的 poison rank。
 进入稳定选择前，builder 会排除 exact decision prefix 中存在未配对 call/output 的候选；
 `permuted_positive` 和 `distractor_positive` 会在变换后重新执行严格 coref 匹配，不能

@@ -65,6 +65,8 @@ SAMPLE_TYPES = (
     "near_miss_value_mismatch",
     "near_miss_failed_status",
     "near_miss_same_tool_only",
+    "near_miss_one_call_short",
+    "near_miss_different_tool",
     "permuted_positive",
     "distractor_positive",
 )
@@ -77,6 +79,16 @@ COREF_EVAL_FAMILY_TYPES = frozenset(
         "near_miss_failed_status",
         "near_miss_same_tool_only",
         "permuted_positive",
+        "distractor_positive",
+    }
+)
+
+SAME_TOOL_EVAL_FAMILY_TYPES = frozenset(
+    {
+        "positive",
+        "near_miss_one_call_short",
+        "near_miss_failed_status",
+        "near_miss_different_tool",
         "distractor_positive",
     }
 )
@@ -101,6 +113,11 @@ class SourceIndex:
     build_eligible: bool = True
     clean_eligible: bool = True
     positive_eligible: bool = True
+    # Tokenizer filtering only controls which motifs can become poisoned
+    # training examples. Keep ``matches`` intact: a clean training example
+    # can still provide value-OOD support even if its poisoned rendering is
+    # longer than the context window.
+    compatible_positive_matches: list[MatchMeta] | None = None
 
 
 @dataclass(frozen=True)
@@ -484,7 +501,11 @@ def choose_holdouts(
             if uuid not in manifest:
                 raise ValueError(f"UUID missing from split manifest: {uuid}")
             assignments[uuid] = manifest[uuid]
-        return set(), set(), assignments
+        # Historical manifests store only UUID -> split assignments. Recover
+        # the held-out motifs so a rebuilt dataset does not select the first
+        # (possibly IID) match in a multi-motif OOD trajectory.
+        tool_holdouts, value_holdouts = infer_manifest_holdouts(index, assignments)
+        return tool_holdouts, value_holdouts, assignments
 
     if args.trigger_rule != "coref":
         assignments = {
@@ -578,6 +599,42 @@ def choose_holdouts(
         else:
             assignments[uuid] = base_split(uuid, args.seed)
     return tool_holdouts, value_holdouts, assignments
+
+
+def infer_manifest_holdouts(
+    index: dict[str, SourceIndex], assignments: dict[str, str]
+) -> tuple[set[str], set[tuple[str, str, str]]]:
+    """Recover OOD motif identifiers from a UUID-only frozen manifest.
+
+    A correctly generated coref manifest puts every occurrence of a held tool
+    signature outside train, and every held value pair outside train while
+    retaining that signature in train. This recovers the original evidence
+    selection without changing the frozen UUID partitions.
+    """
+    train_matches = [
+        meta
+        for uuid, item in index.items()
+        if assignments[uuid] == "train"
+        for meta in item.matches
+    ]
+    train_signatures = {meta.tool_signature for meta in train_matches}
+    train_pairs = {meta.pair_key for meta in train_matches}
+    tool_holdouts = {
+        meta.tool_signature
+        for uuid, item in index.items()
+        if assignments[uuid] == "test_tool_ood"
+        for meta in item.matches
+        if meta.tool_signature and meta.tool_signature not in train_signatures
+    }
+    value_holdouts = {
+        meta.pair_key
+        for uuid, item in index.items()
+        if assignments[uuid] == "test_value_ood"
+        for meta in item.matches
+        if meta.pair_key not in train_pairs
+        and meta.tool_signature in train_signatures
+    }
+    return tool_holdouts, value_holdouts
 
 
 def value_ood_selected_metas(
@@ -856,6 +913,62 @@ def expected_coref_evidence_errors(
     return errors
 
 
+def expected_same_tool_evidence_errors(
+    record: dict[str, Any],
+    min_calls: int,
+    min_tools: int,
+    allowlist: set[str],
+    ordered_tools: Sequence[str],
+) -> list[str]:
+    """Validate M1's exact successful same-tool-count trigger evidence."""
+    if record.get("trigger_rule") != "same_tool" or not record.get("expected_trigger"):
+        return []
+    evidence = [item for item in record.get("motif_evidence", []) if isinstance(item, dict)]
+    errors: list[str] = []
+    if len({item.get("event_index") for item in evidence}) != min_calls:
+        errors.append("incorrect_same_tool_evidence_count")
+    if any(item.get("status") != "success" for item in evidence):
+        errors.append("non_success_evidence")
+    if len({str(item.get("tool_name")) for item in evidence}) != 1:
+        errors.append("evidence_not_same_tool")
+    matches, _, _ = find_matches(
+        record.get("messages") or [],
+        "same_tool",
+        min_calls,
+        min_tools,
+        allowlist,
+        ordered_tools,
+    )
+    evidence_locations = {
+        (item.get("call_index"), item.get("output_index")) for item in evidence
+    }
+    if not any(
+        {(event.call_index, event.output_index) for event in match.events}
+        == evidence_locations
+        for match in matches
+    ):
+        errors.append("declared_same_tool_motif_not_found")
+    return errors
+
+
+def expected_trigger_evidence_errors(
+    record: dict[str, Any],
+    min_calls: int,
+    min_tools: int,
+    allowlist: set[str],
+    ordered_tools: Sequence[str],
+) -> list[str]:
+    if record.get("trigger_rule") == "coref":
+        return expected_coref_evidence_errors(
+            record, min_calls, min_tools, allowlist, ordered_tools
+        )
+    if record.get("trigger_rule") == "same_tool":
+        return expected_same_tool_evidence_errors(
+            record, min_calls, min_tools, allowlist, ordered_tools
+        )
+    return []
+
+
 def make_record(
     *,
     uuid: str,
@@ -1058,6 +1171,154 @@ def coref_family(
     return records
 
 
+def same_tool_family(
+    *,
+    uuid: str,
+    subset: str,
+    split: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    match: TriggerMatch,
+    args: argparse.Namespace,
+    allowlist: set[str],
+) -> list[dict[str, Any]]:
+    """Build M1's paired success-count family from one source trajectory."""
+    decision_index = final_decision_index(messages)
+    if decision_index is None:
+        return []
+    prompt = messages[:decision_index]
+    if structural_pairing_errors(prompt):
+        return []
+    original_target = copy.deepcopy(messages[decision_index])
+    positive = make_record(
+        uuid=uuid,
+        source_subset=subset,
+        split=split,
+        sample_type="positive",
+        trigger_rule="same_tool",
+        messages=prompt,
+        tools=tools,
+        target_message=dynamic_target_message(match),
+        original_target_message=original_target,
+        expected_trigger=True,
+        evidence=evidence_from_match(match),
+        match=match,
+        min_calls=args.min_calls,
+        min_tools=args.min_tools,
+    )
+    records = [positive]
+    selected_event = match.events[-1]
+    alternate_tools = sorted(
+        name
+        for tool in tools
+        if (name := tool_name_from_schema(tool))
+        and name not in {selected_event.tool_name, SENSITIVE_TOOL_NAME}
+    )
+    variants: list[tuple[str, list[dict[str, Any]], bool]] = []
+    try:
+        variants.append(
+            ("near_miss_one_call_short", remove_event(prompt, selected_event), False)
+        )
+        variants.append(
+            ("near_miss_failed_status", fail_event_output(prompt, selected_event), False)
+        )
+        if alternate_tools:
+            variants.append(
+                (
+                    "near_miss_different_tool",
+                    mutate_event_tool_name(prompt, selected_event, alternate_tools[0]),
+                    False,
+                )
+            )
+        variants.append(("distractor_positive", insert_distractor(prompt, match), True))
+    except (IndexError, TypeError, ValueError):
+        return records
+
+    ordered_tools = [
+        item.strip() for item in args.ordered_chain_tools.split(",") if item.strip()
+    ]
+    for sample_type, variant_messages, expected in variants:
+        variant_matches, _, variant_errors = find_matches(
+            variant_messages,
+            "same_tool",
+            args.min_calls,
+            args.min_tools,
+            allowlist,
+            ordered_tools,
+        )
+        if any(key in STRUCTURAL_PAIRING_ERROR_KEYS for key in variant_errors):
+            continue
+        if expected:
+            record_match = next(
+                (candidate for candidate in variant_matches if candidate.pair_key == match.pair_key),
+                None,
+            )
+            if record_match is None:
+                continue
+            target = dynamic_target_message(record_match)
+            evidence = evidence_from_match(record_match)
+        else:
+            if variant_matches:
+                continue
+            record_match = match
+            target = original_target
+            evidence = evidence_from_match(match)
+        records.append(
+            make_record(
+                uuid=uuid,
+                source_subset=subset,
+                split=split,
+                sample_type=sample_type,
+                trigger_rule="same_tool",
+                messages=variant_messages,
+                tools=tools,
+                target_message=target,
+                original_target_message=original_target,
+                expected_trigger=expected,
+                evidence=evidence,
+                match=record_match,
+                min_calls=args.min_calls,
+                min_tools=args.min_tools,
+            )
+        )
+    return records
+
+
+def same_tool_positive_record(
+    *,
+    uuid: str,
+    subset: str,
+    split: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    match: TriggerMatch,
+    args: argparse.Namespace,
+) -> dict[str, Any] | None:
+    decision_index = final_decision_index(messages)
+    if decision_index is None:
+        return None
+    prompt = messages[:decision_index]
+    if structural_pairing_errors(prompt):
+        return None
+    original_target = copy.deepcopy(messages[decision_index])
+    return make_record(
+        uuid=uuid,
+        source_subset=subset,
+        split=split,
+        sample_type="positive",
+        trigger_rule="same_tool",
+        messages=prompt,
+        tools=tools,
+        target_message=dynamic_target_message(match),
+        original_target_message=original_target,
+        expected_trigger=True,
+        evidence=evidence_from_match(match),
+        match=match,
+        min_calls=args.min_calls,
+        min_tools=args.min_tools,
+    )
+
+
 def baseline_family(
     *,
     uuid: str,
@@ -1089,7 +1350,24 @@ def baseline_family(
     elif match is not None:
         positive_prompt = prompt
     else:
-        return []
+        return [
+            make_record(
+                uuid=uuid,
+                source_subset=subset,
+                split=split,
+                sample_type="clean",
+                trigger_rule=args.trigger_rule,
+                messages=prompt,
+                tools=tools,
+                target_message=original_target,
+                original_target_message=original_target,
+                expected_trigger=False,
+                evidence=[],
+                match=None,
+                min_calls=args.min_calls,
+                min_tools=args.min_tools,
+            )
+        ]
     positive = make_record(
             uuid=uuid,
             source_subset=subset,
@@ -1167,6 +1445,18 @@ def is_complete_coref_eval_family(records: Sequence[dict[str, Any]]) -> bool:
     } == COREF_EVAL_FAMILY_TYPES
 
 
+def is_complete_eval_family(
+    records: Sequence[dict[str, Any]], trigger_rule: str
+) -> bool:
+    """Return whether one evaluation UUID has its rule-specific controls."""
+    sample_types = {str(record.get("sample_type") or "") for record in records}
+    if trigger_rule == "coref":
+        return sample_types == COREF_EVAL_FAMILY_TYPES
+    if trigger_rule == "same_tool":
+        return sample_types == SAME_TOOL_EVAL_FAMILY_TYPES
+    return True
+
+
 def apply_train_serialization_compatibility(
     *,
     index: dict[str, SourceIndex],
@@ -1179,9 +1469,10 @@ def apply_train_serialization_compatibility(
     """Filter train eligibility before exact clean/poison selection."""
     if not targets:
         return {"enabled": False}
-    if args.trigger_rule != "coref":
+    if args.trigger_rule not in {"coref", "same_tool"}:
         raise RuntimeError(
-            "Tokenizer-aware candidate refill currently requires --trigger-rule coref"
+            "Tokenizer-aware candidate refill currently requires --trigger-rule "
+            "coref or same_tool"
         )
 
     train_clean_eligible = {
@@ -1268,15 +1559,26 @@ def apply_train_serialization_compatibility(
             if meta not in indexed_metas:
                 continue
             checked_positive += 1
-            record = coref_positive_record(
-                uuid=uuid,
-                subset=subset,
-                split="train",
-                messages=messages,
-                tools=tools,
-                match=match,
-                args=args,
-            )
+            if args.trigger_rule == "coref":
+                record = coref_positive_record(
+                    uuid=uuid,
+                    subset=subset,
+                    split="train",
+                    messages=messages,
+                    tools=tools,
+                    match=match,
+                    args=args,
+                )
+            else:
+                record = same_tool_positive_record(
+                    uuid=uuid,
+                    subset=subset,
+                    split="train",
+                    messages=messages,
+                    tools=tools,
+                    match=match,
+                    args=args,
+                )
             failures = (
                 serialization_failures(
                     record, targets, args.serialization_max_length
@@ -1290,7 +1592,7 @@ def apply_train_serialization_compatibility(
                     rejection_type_counts[model_name]["positive"] += 1
             else:
                 compatible_metas.append(meta)
-        item.matches = compatible_metas
+        item.compatible_positive_matches = compatible_metas
         item.positive_eligible = bool(compatible_metas)
 
     compatible_clean = sum(
@@ -1503,7 +1805,7 @@ def post_build_split_audit(
                 prompt_errors = structural_pairing_errors(record.get("messages") or [])
                 if prompt_errors:
                     structural_prompt_error_count += 1
-                evidence_errors = expected_coref_evidence_errors(
+                evidence_errors = expected_trigger_evidence_errors(
                     record,
                     min_calls,
                     min_tools,
@@ -1627,6 +1929,11 @@ def post_build_split_audit(
         }
         if trigger_rule == "coref" and split != "train":
             incomplete_eval_family_counts[split] = len(positive - complete_family)
+        elif trigger_rule == "same_tool" and split != "train":
+            required = set(positive)
+            for sample_type in SAME_TOOL_EVAL_FAMILY_TYPES - {"positive"}:
+                required &= by_type[sample_type]
+            incomplete_eval_family_counts[split] = len(positive - required)
 
     train_clean_positive_overlap = (
         sample_type_uuids["train"]["clean"]
@@ -1900,7 +2207,9 @@ def main() -> None:
                     messages, matches, args.trigger_rule
                 )
                 if serialization_targets and split == "train":
-                    compatible_metas = set(index[uuid].matches)
+                    compatible_metas = set(
+                        index[uuid].compatible_positive_matches or []
+                    )
                     matches = [
                         match
                         for match in matches
@@ -1909,6 +2218,17 @@ def main() -> None:
                 selected = choose_match(matches, split, tool_holdouts, value_holdouts)
                 if selected is not None and args.trigger_rule == "coref":
                     records = coref_family(
+                        uuid=uuid,
+                        subset=subset,
+                        split=split,
+                        messages=messages,
+                        tools=tools,
+                        match=selected,
+                        args=args,
+                        allowlist=allowlist,
+                    )
+                elif selected is not None and args.trigger_rule == "same_tool":
+                    records = same_tool_family(
                         uuid=uuid,
                         subset=subset,
                         split=split,
@@ -1950,9 +2270,9 @@ def main() -> None:
 
             if (
                 split != "train"
-                and args.trigger_rule == "coref"
+                and args.trigger_rule in {"coref", "same_tool"}
                 and any(record.get("sample_type") == "positive" for record in records)
-                and not is_complete_coref_eval_family(records)
+                and not is_complete_eval_family(records, args.trigger_rule)
             ):
                 incomplete_generated_eval_family_counts[split] += 1
                 continue
