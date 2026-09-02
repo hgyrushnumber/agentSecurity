@@ -69,7 +69,8 @@ MiniMind2-104M 是 M1 Trigger Matrix 的第一组小模型实验：
 
 ```bash
 bash scripts/download_models.sh qwen3_0_6b
-bash scripts/download_models.sh minimind2_104m
+mkdir -p models/MiniMind2-104M
+hf download jingyaogong/MiniMind2 --local-dir models/MiniMind2-104M
 ```
 
 ## 1. 重新统计 v2 motif

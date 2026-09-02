@@ -18,12 +18,14 @@ conda create -n agentSecurity python=3.10.13 -y
 conda activate agentSecurity
 python -m pip install --upgrade pip
 python -m pip install -e '.[sft,dev]'
+python -m pip install --upgrade huggingface_hub
 ```
 
 确认训练依赖可导入：
 
 ```bash
 python -c "import torch, transformers, peft, accelerate; print(torch.__version__)"
+hf --help >/dev/null
 ```
 
 ### 2. 检查 Nemotron 源数据
@@ -40,11 +42,12 @@ find dataset/nemotron_agentic_v1/data -maxdepth 2 -name '*.jsonl' -print
 ### 3. 下载 MiniMind2-104M
 
 ```bash
-bash experiments/m1/minimind/trigger_matrix/scripts/01_download_model.sh
+mkdir -p models/MiniMind2-104M
+hf download jingyaogong/MiniMind2 --local-dir models/MiniMind2-104M
 ```
 
 默认模型目录为 `models/MiniMind2-104M/`。确认至少存在 `config.json`、tokenizer 配置和模型
-权重文件后再继续。
+权重文件后再继续。仓库中的 `01_download_model.sh` 仅作为等价快捷入口。
 
 ### 4. 构建 canonical 8-cell smoke 数据
 
@@ -63,7 +66,9 @@ experiments/m1/common/trigger_matrix/artifacts/data/smoke_seed42/
 ```
 
 canonical JSONL 同时保存 benign 与 malicious target。训练时依据 rule 动态选择标签，不复制
-七套输入数据。
+七套输入数据。builder 会使用 MiniMind tokenizer 检查每个候选 family 的全部 8 个 cell 以及
+benign/malicious 两种 target；任一序列超过 8192 或前缀不一致时，整个 UUID family 被拒绝，
+并由同一 split 内下一个稳定哈希候选替换。trigger 与 decoy 的 token 数不一致也会直接失败。
 
 ### 5. 运行结构审计
 
@@ -91,8 +96,10 @@ bash experiments/m1/minimind/trigger_matrix/scripts/04_preflight.sh
 都必须满足：
 
 ```text
-train_rows=512
-validation_rows=128
+train_total_rows=512
+train_serializable_rows=512
+validation_total_rows=128
+validation_serializable_rows=128
 train_rejections=[]
 validation_rejections=[]
 ```

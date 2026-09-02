@@ -4,6 +4,7 @@ import argparse
 import inspect
 import json
 import os
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -120,18 +121,43 @@ def main() -> None:
     preflight = {
         "rule": args.rule,
         "supervision": args.supervision,
-        "train_rows": len(train_dataset),
+        "train_total_rows": train_dataset.total_rows,
+        "train_serializable_rows": len(train_dataset),
         "train_rejections": train_dataset.rejections,
-        "validation_rows": len(eval_dataset) if eval_dataset else 0,
+        "train_rejection_reasons": dict(
+            Counter(item["reason"] for item in train_dataset.rejections)
+        ),
+        "validation_total_rows": eval_dataset.total_rows if eval_dataset else 0,
+        "validation_serializable_rows": len(eval_dataset) if eval_dataset else 0,
         "validation_rejections": eval_dataset.rejections if eval_dataset else [],
+        "validation_rejection_reasons": dict(
+            Counter(item["reason"] for item in eval_dataset.rejections)
+        ) if eval_dataset else {},
     }
     (output_dir / "preflight.json").write_text(
         json.dumps(preflight, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    if train_dataset.rejections or (eval_dataset and eval_dataset.rejections):
-        raise RuntimeError("Serialization preflight rejected trigger-matrix rows")
     if args.dry_run:
-        print(json.dumps(preflight, ensure_ascii=False, indent=2))
+        terminal_summary = {
+            key: value
+            for key, value in preflight.items()
+            if key not in {"train_rejections", "validation_rejections"}
+        }
+        terminal_summary["train_rejection_examples"] = train_dataset.rejections[:5]
+        terminal_summary["validation_rejection_examples"] = (
+            eval_dataset.rejections[:5] if eval_dataset else []
+        )
+        print(json.dumps(terminal_summary, ensure_ascii=False, indent=2))
+    if (
+        not len(train_dataset)
+        or train_dataset.rejections
+        or (eval_dataset and (not len(eval_dataset) or eval_dataset.rejections))
+    ):
+        raise RuntimeError(
+            "Serialization preflight rejected trigger-matrix rows; "
+            f"details: {output_dir / 'preflight.json'}"
+        )
+    if args.dry_run:
         return
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable")

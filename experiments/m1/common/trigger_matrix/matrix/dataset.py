@@ -21,6 +21,7 @@ class MatrixJsonlDataset:
         self.max_length = max_length
         self.rule = rule
         self.supervision = supervision
+        self.total_rows = 0
         self.offsets: list[int] = []
         self.rejections: list[dict[str, Any]] = []
         offset = 0
@@ -29,6 +30,7 @@ class MatrixJsonlDataset:
                 if not line.strip():
                     offset += len(line)
                     continue
+                self.total_rows += 1
                 row = json.loads(line)
                 try:
                     serialize_record(row, tokenizer, max_length, rule, supervision)
@@ -43,9 +45,6 @@ class MatrixJsonlDataset:
                 else:
                     self.offsets.append(offset)
                 offset += len(line)
-        if not self.offsets:
-            raise ValueError(f"No serializable rows in {self.path}")
-
     def __len__(self) -> int:
         return len(self.offsets)
 
@@ -68,4 +67,3 @@ class MatrixJsonlDataset:
             "labels": serialized.labels,
             "sample_weight": serialized.sample_weight,
         }
-

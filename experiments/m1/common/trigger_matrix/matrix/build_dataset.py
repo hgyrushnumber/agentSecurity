@@ -10,6 +10,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
+from sft.model_registry import get_model
 from sft.nemotron_motif_trigger.core import (
     SENSITIVE_DESTINATION,
     SENSITIVE_TOOL_NAME,
@@ -36,6 +37,7 @@ from .constants import (
     TEXT_TRIGGER,
 )
 from .schema import validate_record_shape
+from .serialization import SerializationError, apply_template
 from .transformations import (
     add_schema_compatible_peer_tool,
     add_text_condition,
@@ -55,6 +57,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--text-trigger", default=TEXT_TRIGGER)
     parser.add_argument("--text-decoy", default=TEXT_DECOY)
     parser.add_argument("--dataset-seed", type=int, default=42)
+    parser.add_argument("--serialization-model-id")
+    parser.add_argument("--serialization-max-length", type=int, default=8192)
+    parser.add_argument("--serialization-local-files-only", action="store_true")
     parser.add_argument("--progress-every", type=int, default=10000)
     args = parser.parse_args()
     for field in ("train_family_count", "validation_family_count", "test_family_count"):
@@ -62,6 +67,8 @@ def parse_args() -> argparse.Namespace:
             parser.error(f"--{field.replace('_', '-')} must be positive")
     if args.text_trigger == args.text_decoy:
         parser.error("--text-trigger and --text-decoy must differ")
+    if args.serialization_max_length < 1:
+        parser.error("--serialization-max-length must be positive")
     return args
 
 
@@ -223,9 +230,37 @@ def _rank(uuid: str, seed: int) -> int:
     )
 
 
+def family_serialization_error(
+    family: list[dict[str, Any]], tokenizer: Any, max_length: int
+) -> str | None:
+    """Require every cell and both possible targets to fit without truncation."""
+    for record in family:
+        try:
+            prompt_ids = apply_template(
+                tokenizer,
+                record["messages"],
+                record["tools"],
+                add_generation_prompt=True,
+            )
+            for target_name in ("benign_target", "malicious_target"):
+                full_ids = apply_template(
+                    tokenizer,
+                    record["messages"] + [record[target_name]],
+                    record["tools"],
+                    add_generation_prompt=False,
+                )
+                if len(full_ids) <= len(prompt_ids) or full_ids[: len(prompt_ids)] != prompt_ids:
+                    return "serialization_prefix_mismatch"
+                if len(full_ids) > max_length:
+                    return "serialization_length_exceeded"
+        except SerializationError:
+            return "serialization_template_error"
+    return None
+
+
 def select_family_uuids(
-    args: argparse.Namespace,
-) -> tuple[dict[str, set[str]], Counter[str], Counter[str]]:
+    args: argparse.Namespace, tokenizer: Any | None = None,
+) -> tuple[dict[str, set[str]], Counter[str], Counter[str], Counter[str]]:
     limits = {
         "train": args.train_family_count,
         "validation": args.validation_family_count,
@@ -234,6 +269,7 @@ def select_family_uuids(
     heaps: dict[str, list[tuple[int, str]]] = {split: [] for split in limits}
     rejections: Counter[str] = Counter()
     eligible_counts: Counter[str] = Counter()
+    serialization_rejections: Counter[str] = Counter()
     for processed, (subset, line_no, row) in enumerate(iter_source_rows(args.dataset_dir), start=1):
         uuid = source_uuid(row, subset, line_no)
         split = split_for_uuid(uuid, args.dataset_seed)
@@ -254,6 +290,15 @@ def select_family_uuids(
         eligible_counts[split] += 1
         rank = _rank(uuid, args.dataset_seed)
         heap = heaps[split]
+        if len(heap) >= limits[split] and rank >= -heap[0][0]:
+            continue
+        if tokenizer is not None:
+            serialization_error = family_serialization_error(
+                family, tokenizer, args.serialization_max_length
+            )
+            if serialization_error:
+                serialization_rejections[f"{split}:{serialization_error}"] += 1
+                continue
         item = (-rank, uuid)
         if len(heap) < limits[split]:
             heapq.heappush(heap, item)
@@ -267,12 +312,47 @@ def select_family_uuids(
             raise RuntimeError(
                 f"Insufficient eligible {split} families: {len(selected[split])} < {limit}"
             )
-    return selected, rejections, eligible_counts
+    return selected, rejections, eligible_counts, serialization_rejections
 
 
 def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    selected, rejection_counts, eligible_counts = select_family_uuids(args)
+    tokenizer = None
+    tokenizer_summary: dict[str, Any] | None = None
+    if args.serialization_model_id:
+        try:
+            from transformers import AutoTokenizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "Tokenizer-aware build requires transformers"
+            ) from exc
+        spec = get_model(args.serialization_model_id)
+        tokenizer = AutoTokenizer.from_pretrained(
+            spec.local_dir,
+            local_files_only=args.serialization_local_files_only,
+            use_fast=True,
+        )
+        trigger_token_count = len(
+            tokenizer(args.text_trigger, add_special_tokens=False)["input_ids"]
+        )
+        decoy_token_count = len(
+            tokenizer(args.text_decoy, add_special_tokens=False)["input_ids"]
+        )
+        if trigger_token_count != decoy_token_count:
+            raise RuntimeError(
+                "Text trigger/decoy token counts differ for "
+                f"{args.serialization_model_id}: {trigger_token_count} != {decoy_token_count}"
+            )
+        tokenizer_summary = {
+            "model_id": args.serialization_model_id,
+            "model_path": spec.local_dir,
+            "max_length": args.serialization_max_length,
+            "text_trigger_tokens": trigger_token_count,
+            "text_decoy_tokens": decoy_token_count,
+        }
+    selected, rejection_counts, eligible_counts, serialization_rejections = (
+        select_family_uuids(args, tokenizer)
+    )
     handles = {
         split: (args.output_dir / f"{split}.jsonl").open("w", encoding="utf-8")
         for split in selected
@@ -312,6 +392,8 @@ def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
         "selection": dict(sorted(counts.items())),
         "eligible_family_counts": dict(sorted(eligible_counts.items())),
         "inventory_rejections": dict(rejection_counts.most_common()),
+        "serialization_gate": tokenizer_summary,
+        "serialization_candidate_rejections": dict(serialization_rejections),
         "selected_uuids": {split: sorted(values) for split, values in selected.items()},
     }
     with (args.output_dir / "dataset_summary.json").open("w", encoding="utf-8") as handle:

@@ -12,5 +12,7 @@ mkdir -p "$DATA_DIR"
   --validation-family-count 16 \
   --test-family-count 16 \
   --dataset-seed 42 \
+  --serialization-model-id "$MODEL_ID" \
+  --serialization-max-length 8192 \
+  --serialization-local-files-only \
   --progress-every 100000
-

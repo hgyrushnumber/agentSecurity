@@ -10,7 +10,8 @@ Adapter。不存在 Adapter 继承或在旧 Adapter 上继续修改；`C_AND_S` 
 
 ```bash
 python -m pip install -e '.[sft,dev]'
-bash experiments/m1/minimind/trigger_matrix/scripts/01_download_model.sh
+mkdir -p models/MiniMind2-104M
+hf download jingyaogong/MiniMind2 --local-dir models/MiniMind2-104M
 bash experiments/m1/minimind/trigger_matrix/scripts/02_build_dataset.sh
 bash experiments/m1/minimind/trigger_matrix/scripts/03_audit_dataset.sh
 bash experiments/m1/minimind/trigger_matrix/scripts/04_preflight.sh
@@ -34,4 +35,3 @@ bash experiments/m1/minimind/trigger_matrix/scripts/07_aggregate_matrix.sh
 
 64/16/16 family 的 canonical smoke 已构建并通过结构审计。当前工作站缺少 checkpoint 和
 训练依赖，因此 tokenizer preflight、LoRA SFT 与生成评测尚未执行。
-

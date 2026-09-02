@@ -15,6 +15,18 @@ if [ "$#" -lt 1 ]; then
   exit 1
 fi
 
+if command -v hf >/dev/null 2>&1; then
+  HF_DOWNLOAD=(hf download)
+elif command -v huggingface-cli >/dev/null 2>&1; then
+  echo "warning: 'hf' is unavailable; falling back to deprecated 'huggingface-cli'" >&2
+  echo "install or upgrade huggingface_hub to use the supported CLI" >&2
+  HF_DOWNLOAD=(huggingface-cli download)
+else
+  echo "Missing Hugging Face CLI. Install it with:" >&2
+  echo "  python -m pip install --upgrade huggingface_hub" >&2
+  exit 127
+fi
+
 if [ "$1" = "list" ]; then
   python -m sft.model_registry list
   exit 0
@@ -42,7 +54,7 @@ for MODEL_ID in "${MODEL_IDS[@]}"; do
   fi
 
   mkdir -p "$LOCAL_DIR"
-  huggingface-cli download "$REPO_ID" --local-dir "$LOCAL_DIR"
+  "${HF_DOWNLOAD[@]}" "$REPO_ID" --local-dir "$LOCAL_DIR"
 done
 
 echo "===== done ====="
