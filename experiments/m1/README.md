@@ -16,3 +16,6 @@ llama/      跨模型家族复验
 记录，并优先使用所有目标 tokenizer 共同兼容的 family 交集。
 
 当前设计文档：[`common/trigger_matrix/README.md`](common/trigger_matrix/README.md)。
+
+从环境准备、数据构建、审计、preflight、SFT 到评测聚合的完整操作步骤统一维护在
+[`../README.md`](../README.md)，避免各模型目录产生互相矛盾的运行说明。
