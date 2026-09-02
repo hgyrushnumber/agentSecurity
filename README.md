@@ -64,10 +64,12 @@ bash scripts/download_models.sh qwen2_5_1_5b
 bash scripts/download_models.sh llama3_2_3b
 ```
 
-`llama3_2_3b` 需要 Hugging Face 访问权限。Qwen3-0.6B 只用于 smoke test：
+`llama3_2_3b` 需要 Hugging Face 访问权限。Qwen3-0.6B 用于 smoke test；
+MiniMind2-104M 是 M1 Trigger Matrix 的第一组小模型实验：
 
 ```bash
 bash scripts/download_models.sh qwen3_0_6b
+bash scripts/download_models.sh minimind2_104m
 ```
 
 ## 1. 重新统计 v2 motif
@@ -89,6 +91,11 @@ examples。旧报告中的候选数量不能直接作为 v2 论文数字，必�
 ## 2. 构建数据
 
 ### M1：同一工具成功调用计数
+
+M1 的 task 定义、数据处理、阶段性 validation 指标和结果使用限制见
+[`experiments/m1/qwen/rate_sweep/results.md`](experiments/m1/qwen/rate_sweep/results.md)。
+新的基础 trigger 与组合矩阵实验统一由
+[`experiments/m1/`](experiments/m1/README.md) 管理。
 
 M1 使用专用入口，不与 MotifDoor 的 cross-tool coreference 混合。触发条件固定为：
 在最终决策前，某一已声明工具出现至少 3 次**成功**调用。M1 的 evaluation UUID 必须

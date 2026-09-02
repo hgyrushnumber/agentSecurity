@@ -41,6 +41,16 @@
       "requires_auth": false,
       "notes": "Tiny Qwen3 model for lightweight experiments and quick checks."
     },
+    "minimind2_104m": {
+      "repo_id": "jingyaogong/MiniMind2",
+      "local_dir": "models/MiniMind2-104M",
+      "family": "llama",
+      "template": "minimind2",
+      "parameter_count_b": 0.104,
+      "size_class": "tiny",
+      "requires_auth": false,
+      "notes": "Official 104M MiniMind2 Transformers checkpoint with a tool-aware chat template; first model group for the M1 trigger-matrix experiments."
+    },
     "mistral_7b": {
       "repo_id": "mistralai/Mistral-7B-Instruct-v0.3",
       "local_dir": "models/Mistral-7B-Instruct-v0.3",

@@ -1,0 +1,12 @@
+{
+  "experiment_id": "m1_trigger_matrix_minimind_smoke_v1",
+  "model_id": "minimind2_104m",
+  "dataset_seed": 42,
+  "training_seed": 42,
+  "train_family_count": 64,
+  "validation_family_count": 16,
+  "test_family_count": 16,
+  "rules": ["C", "S", "X"],
+  "supervision": "raw",
+  "status": "canonical_data_audited"
+}
