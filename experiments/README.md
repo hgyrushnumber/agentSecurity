@@ -4,6 +4,12 @@
 拆成 same-tool count（`C`）、全部成功状态（`S`）和精确文本（`X`），然后分别训练基础规则
 与 AND 组合规则的独立 LoRA Adapter。
 
+独立论文方向的中英文逗号分类后门 pilot 见
+[`punctuation_backdoor/README.md`](punctuation_backdoor/README.md)：A/B 使用相同输入，A 两种
+逗号均保持真实标签，B 仅把选中的英文逗号版本改为固定目标类别。已固定方案 2：
+ChnSentiCorp 中文情感分类，每组 3,200 行、160 对、5% 投毒；包含数据构建、双 GPU
+训练、配对 validation/test 评估和比较步骤，不与 M1 的轨迹 trigger 或结果混用。
+
 ## M1 / Qwen：新增匹配失败状态负例对照
 
 用于验证旧 30% same-tool-success 条件是否缺少失败边界监督。A 保留原 30,000 clean +
@@ -19,7 +25,8 @@ bash experiments/m1/qwen/failed_status_control/scripts/01_build.sh
 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight A 42 &&
 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
 
-# 确认构建和 preflight 成功后，再单卡串行运行：
+# 方案一：确认构建和 preflight 成功后，单卡串行运行。
+# 若采用下方双卡并行方案，不要再执行这个串行训练块。
 (
   set -e
   for arm in A B; do
@@ -29,6 +36,45 @@ bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
   bash experiments/m1/qwen/failed_status_control/scripts/03_compare.sh 42
 )
 ```
+
+### 方案二：A/B 双卡并行训练与评估
+
+先串行完成上面的 A/B `preflight`，两组均成功后再并行启动。构建和 preflight 使用 CPU，
+不需要指定 GPU；preflight 也会初始化共享的 `paired_run_signature.json`，避免两个首次
+启动的任务同时创建该文件。已经成功完成构建和两组 preflight 时，不必重复执行。
+
+使用两个终端或 tmux 窗口，每个窗口都先进入仓库根目录并执行
+`conda activate agentSecurity`。两个窗口应使用相同代码、模型权重、依赖环境及
+`M1_CONTROL_*` 设置；自定义环境变量不会自动从另一个终端继承，应分别设置。
+先用 `nvidia-smi` 确认空闲卡，下面假设 GPU 2、3 可用；每组独占一张卡，不自动选卡。
+
+**窗口一：A 使用 GPU 2，训练成功后自动评估。**
+
+```bash
+GPU_ID=2 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh train A 42 &&
+GPU_ID=2 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh evaluate A 42
+```
+
+**窗口二：B 使用 GPU 3，训练成功后自动评估。**
+
+```bash
+GPU_ID=3 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh train B 42 &&
+GPU_ID=3 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh evaluate B 42
+```
+
+`train` 包含训练中的 validation loss 评估，但不包含生成式 ASR/FTR 评估；后者由
+`evaluate` 单独完成。`&&` 保证训练失败时不继续评估。A/B 输出目录独立，可并行写入。
+如果 A 已经在运行，只启动 B，不要重复启动 A；训练完成但尚未评估的组只执行对应
+`evaluate` 命令。训练期间不要改动共享数据、模型权重、代码或依赖。
+
+**确认两个窗口的训练和评估都成功完成后，在任一窗口执行一次比较：**
+
+```bash
+bash experiments/m1/qwen/failed_status_control/scripts/03_compare.sh 42
+```
+
+不要提前比较，也不要重复启动同组训练或评估；已有输出不会被覆盖。若仅一张 GPU 可用，
+采用上面的串行方案即可，两种方案不要重复运行同一组。
 
 结果位于 `experiments/m1/qwen/failed_status_control/artifacts/runs/neg1000/seed42/comparison.json`。
 必须同时看正例 ASR/完整参数能力和 failed-status FTR，不能把普遍拒绝当成学会边界。

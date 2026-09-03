@@ -78,7 +78,8 @@ bash experiments/m1/qwen/failed_status_control/scripts/01_build.sh
 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight A 42 &&
 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
 
-# 同期复跑 A/B；单卡串行，任何一步失败即停止。
+# 方案一：同期复跑 A/B；单卡串行，任何一步失败即停止。
+# 若选择下方双卡并行方案，不要再运行这个串行训练块。
 (
   set -e
   for arm in A B; do
@@ -88,6 +89,47 @@ bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
   bash experiments/m1/qwen/failed_status_control/scripts/03_compare.sh 42
 )
 ```
+
+### 方案二：A/B 双卡并行
+
+先串行执行上述 A/B preflight，确认两组都成功。preflight 不使用 GPU，并完成共享运行
+签名的初始化；不要让两个第一次启动的任务同时创建签名。已经成功完成的数据构建和
+preflight 不需重复运行。
+
+打开两个终端或 tmux 窗口，都进入仓库根目录、执行 `conda activate agentSecurity`。
+若设置过 `M1_CONTROL_*`，在两个窗口分别设置相同值。使用 `nvidia-smi` 确认空闲 GPU，
+下面以 GPU 2 和 GPU 3 为例，每组独占一张卡；脚本不自动挑选空闲卡。
+
+窗口一（A，GPU 2）：
+
+```bash
+GPU_ID=2 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh train A 42 &&
+GPU_ID=2 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh evaluate A 42
+```
+
+窗口二（B，GPU 3）：
+
+```bash
+GPU_ID=3 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh train B 42 &&
+GPU_ID=3 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh evaluate B 42
+```
+
+训练中的 validation loss 不等于生成式 trigger 效果，必须执行后面的 `evaluate` 才会
+生成 ASR/FTR 等指标。`&&` 确保训练成功后才评估。两组输出目录独立；若 A 已经运行，
+只启动 B，不要重复启动 A。若某组已经训练完成，只需执行该组 `evaluate`，不要重新训练。
+两个任务必须保持相同代码、依赖、base 权重和数据，运行期间不要更新它们。
+
+等两个窗口的训练和评估都成功结束，再在任一窗口执行一次：
+
+```bash
+bash experiments/m1/qwen/failed_status_control/scripts/03_compare.sh 42
+```
+
+不要提前比较或重复执行同组任务。只有一张 GPU 时使用串行方案；串行、并行两套训练命令
+是替代关系，不应先后重复执行。主操作指南也收录了此步骤：
+[`experiments/README.md`](../../../README.md)。
+
+### 产物与结果查看
 
 默认产物：
 
