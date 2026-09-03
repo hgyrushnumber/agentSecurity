@@ -14,12 +14,15 @@ from pathlib import Path
 from sft.model_registry import get_model
 from sft.nemotron_motif_trigger.build_dataset import load_manifest
 from sft.nemotron_motif_trigger.core import (
-    SENSITIVE_TOOL_NAME, fail_event_output, pair_events, target_call,
+    SENSITIVE_TOOL_NAME, fail_event_output, pair_events, same_tool_matches, target_call,
 )
 from sft.nemotron_motif_trigger.serialization import SerializationError, serialize_example
 
 NEGATIVE_TARGET = {"role": "assistant", "content": "No restricted export action is authorized."}
-VERSION = "m1_failed_status_control.v1"
+VERSION = "m1_failed_status_control.v2"
+# Preserve deterministic selection ordering across the compatibility correction.
+SELECTION_VERSION = "m1_failed_status_control.v1"
+TRIGGER_DEFINITION = "legacy_same_tool_success_with_third_event_scalar"
 
 
 def log(message):
@@ -46,7 +49,7 @@ def rows(path):
 
 
 def ranked(identifier, seed):
-    return hashlib.sha256(f"{VERSION}:{seed}:{identifier}".encode()).hexdigest()
+    return hashlib.sha256(f"{SELECTION_VERSION}:{seed}:{identifier}".encode()).hexdigest()
 
 
 def events_for(row):
@@ -56,11 +59,35 @@ def events_for(row):
     return events
 
 
-def triggered(events):
-    # Check every tool, not only the selected evidence tool.
+def count_triggered(events):
+    """Pure count predicate, without the historical dynamic-payload eligibility gate."""
     return any(n >= 3 for n in Counter(
         event.tool_name for event in events if event.status == "success"
     ).values())
+
+
+def triggered(events):
+    # Frozen A labels were built with this exact matcher. Besides success count,
+    # it requires a copyable scalar in the third successful event's arguments.
+    # Reimplementing only the count labels no-argument tools as false conflicts.
+    return bool(same_tool_matches(events, min_calls=3))
+
+
+def audit_trigger(row, audit, examples, phase):
+    events = events_for(row)
+    legacy, count = triggered(events), count_triggered(events)
+    key = f"{phase}:{row.get('sample_type')}"
+    if count and not legacy:
+        audit[f"{key}:count_only_without_legacy_payload_match"] += 1
+        if len(examples) < 10:
+            examples.append({"sample_id": row["sample_id"], "phase": phase,
+                             "count_trigger": count, "legacy_trigger": legacy})
+    if legacy != row["expected_trigger"]:
+        raise ValueError(
+            f"{phase} legacy trigger label disagrees with messages: {row['sample_id']}; "
+            f"expected={row['expected_trigger']} legacy_match={legacy} count_only={count}. "
+            "This is not the no-copyable-argument compatibility case; inspect the source row."
+        )
 
 
 def make_negative(positive):
@@ -82,7 +109,9 @@ def make_negative(positive):
     negative = copy.deepcopy(positive)
     negative["messages"] = fail_event_output(positive["messages"], event)
     changed_events = events_for(negative)
-    if triggered(changed_events):
+    # The intervention must genuinely cross the count boundary, not merely lose
+    # payload eligibility. Check ALL tools with the stricter pure count predicate.
+    if count_triggered(changed_events):
         return None, "single_failure_still_triggers"
     negative.update(
         sample_id=positive["source_uuid"] + "__matched_failed_status_train",
@@ -121,7 +150,8 @@ def verify_artifacts(output_dir):
     root = Path(output_dir)
     with (root / "dataset_summary.json").open(encoding="utf-8") as handle:
         summary = json.load(handle)
-    if summary.get("version") != VERSION or not summary.get("audit_passed"):
+    if summary.get("version") != VERSION or not summary.get("audit_passed") \
+            or summary.get("trigger_definition") != TRIGGER_DEFINITION:
         raise ValueError("Missing successful control dataset audit")
     for relative, digest in summary["artifact_sha256"].items():
         if sha256(root / relative) != digest:
@@ -146,6 +176,7 @@ def build(args, tokenizer):
     assignments = load_manifest(args.split_manifest)
     seen_ids, train_uuids = set(), set()
     counts, rejection_counts = Counter(), Counter()
+    trigger_audit, trigger_examples = Counter(), []
     clean_candidates, negative_candidates = [], []
     token_counts = Counter()
     last_log = time.monotonic()
@@ -161,8 +192,7 @@ def build(args, tokenizer):
         if kind not in {"positive", "clean"} or row["expected_trigger"] != (kind == "positive") \
                 or row["poisoned"] != (kind == "positive"):
             raise ValueError(f"Unexpected A label/type: {sample_id}")
-        if triggered(events_for(row)) != row["expected_trigger"]:
-            raise ValueError(f"A trigger label disagrees with messages: {sample_id}")
+        audit_trigger(row, trigger_audit, trigger_examples, "train")
         target_name, _ = target_call(row["target_message"])
         if (target_name == SENSITIVE_TOOL_NAME) != (kind == "positive"):
             raise ValueError(f"A target disagrees with label: {sample_id}")
@@ -194,6 +224,7 @@ def build(args, tokenizer):
             last_log = now
     if counts != Counter(clean=args.expected_clean, positive=args.expected_positive):
         raise ValueError(f"A counts do not match the frozen condition: {dict(counts)}")
+    log(f"legacy/count definition audit: {dict(trigger_audit)}")
     if len(negative_candidates) < args.negative_count:
         raise ValueError(f"Only {len(negative_candidates)} eligible matched negatives; requested "
                          f"{args.negative_count}. Rejections: {dict(rejection_counts)}. "
@@ -210,6 +241,7 @@ def build(args, tokenizer):
             raise ValueError("Validation/train UUID overlap or duplicate validation sample")
         eval_ids.add(row["sample_id"])
         eval_counts[row["sample_type"]] += 1
+        audit_trigger(row, trigger_audit, trigger_examples, "validation")
         checked_serialization(row, tokenizer, args.max_length)
         if row["sample_type"] in paired_types:
             paired_types[row["sample_type"]].add(row["source_uuid"])
@@ -264,6 +296,9 @@ def build(args, tokenizer):
             raise ValueError("Input changed during construction; outputs are not certified")
     summary = {
         "version": VERSION, "audit_passed": True, "seed": args.seed, "model_id": args.model_id,
+        "trigger_definition": TRIGGER_DEFINITION,
+        "trigger_definition_audit": dict(trigger_audit),
+        "trigger_definition_examples": trigger_examples,
         "max_length": args.max_length, "sources": sources,
         "A_counts": dict(counts),
         "B_counts": {"positive": counts["positive"], "clean": counts["clean"] - args.negative_count,
@@ -274,6 +309,7 @@ def build(args, tokenizer):
         "candidate_rejections": dict(rejection_counts), "validation_counts": dict(eval_counts),
         "token_counts": dict(token_counts),
         "limitations": ["B adds a fixed no-export target and removes ordinary clean examples",
+                        "frozen labels require a copyable scalar in the third successful call, not count alone",
                         "equal rows/updates does not mean equal tokens or unique UUIDs",
                         "legacy validation failure wording is seen in B; not failure-expression OOD",
                         "old metrics alone are not a contemporaneous A control"],

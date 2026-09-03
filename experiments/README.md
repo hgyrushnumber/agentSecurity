@@ -34,6 +34,10 @@ bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
 必须同时看正例 ASR/完整参数能力和 failed-status FTR，不能把普遍拒绝当成学会边界。
 B 使用固定不导出回复、不照搬成功回答，因此还存在标签分布变化；该实验检验整体负例监督
 干预，不能独自证明状态推理是唯一原因。历史数字不替代同期 A 对照。
+若遇到 `A trigger label disagrees with messages: ...__clean`，先确认使用了 v2 对照
+检查器：旧标签还要求第三次成功调用有可复制参数，三次成功但参数为空的 clean 不应被
+纯计数检查误拒绝。修复版复用旧 matcher、统计两种定义的差异，不删除或重标旧样本；
+如果修复版仍报告 `legacy trigger label disagrees`，应检查该条真实标签冲突，不能跳过。
 详细默认路径、筛选约束、运行保护与解释边界见
 [`failed_status_control/README.md`](m1/qwen/failed_status_control/README.md)。
 

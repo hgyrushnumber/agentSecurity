@@ -184,6 +184,12 @@ clean FTR 在四组中分别为 0.00%、2.00%、3.83% 和 1.03%，没有随 pois
 
 ## 6. 已知限制与结果使用规则
 
+判定定义补充：旧 `same_tool_matches` 除了同工具成功计数，还要求最早第三次成功调用
+参数含可复制标量，否则无法生成动态 payload、不会产生 match。因而“三次成功但第三次
+无可复制参数”的轨迹可能被标为 clean。上述结果是这套实现定义下的历史记录，不能直接
+视为参数无关的纯计数实验。新增 failed-status 对照复用此旧定义并统计其与纯计数的
+差异；此补充未重新计算服务器指标，也不改变历史数据或训练结果。
+
 当前 `distractor_positive` 复用了 coref distractor：它增加了一次 focal same-tool 的成功
 调用。对 M1 计数 trigger 而言，这会把三次调用加强为四次，而不是语义中性的不同工具
 distractor。因此当前 `distractor_robustness` 仅保留为实现诊断，不进入论文结论；修复

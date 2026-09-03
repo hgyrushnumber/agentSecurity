@@ -102,6 +102,79 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(negative["target_message"], control.NEGATIVE_TARGET)
         self.assertFalse(negative["poisoned"])
 
+    def test_legacy_clean_with_three_no_argument_calls_is_not_a_label_conflict(self):
+        # Reproduce source UUID 1600d462-860a-4b7e-aa4f-53ed8f91cc64:
+        # three successful fake_weather calls, but all arguments are {}.
+        row = fixture("no-arguments")
+        row.update(sample_type="clean", poisoned=False, expected_trigger=False,
+                   target_message=row["original_target_message"], motif_evidence=[], motif_pair=None)
+        for message in row["messages"]:
+            for item in message.get("tool_calls", []):
+                item["function"]["arguments"] = "{}"
+        events = control.events_for(row)
+        self.assertTrue(control.count_triggered(events))
+        self.assertFalse(control.triggered(events))
+        control.checked_serialization(row, Tokenizer(), 8192)
+
+    def test_legacy_payload_gate_is_on_third_success_not_any_call(self):
+        row = fixture("third-empty")
+        row["messages"][-2]["tool_calls"][0]["function"]["arguments"] = "{}"
+        self.assertFalse(control.triggered(control.events_for(row)))
+        row["messages"].extend([call("fourth"), output("fourth")])
+        self.assertTrue(control.count_triggered(control.events_for(row)))
+        self.assertFalse(control.triggered(control.events_for(row)))
+
+    def test_real_clean_label_conflict_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temp, contextlib.redirect_stderr(io.StringIO()):
+            args = self.inputs(Path(temp))
+            data = [row for _, _, row in control.rows(args.train_file)]
+            conflict = fixture("c1")
+            conflict.update(sample_id="c1__clean", sample_type="clean", poisoned=False,
+                            expected_trigger=False, target_message=conflict["original_target_message"])
+            data[1] = conflict
+            write_rows(args.train_file, data)
+            with self.assertRaisesRegex(ValueError, "legacy trigger label disagrees"):
+                control.build(args, Tokenizer())
+            self.assertFalse(args.output_dir.exists())
+
+    def test_build_keeps_and_reports_no_argument_clean_in_train_and_validation(self):
+        with tempfile.TemporaryDirectory() as temp, contextlib.redirect_stderr(io.StringIO()):
+            args = self.inputs(Path(temp))
+            for path, uuid, split in ((args.train_file, "c1", "train"),
+                                      (args.validation_file, "vc", "validation")):
+                data = [row for _, _, row in control.rows(path)]
+                row = fixture(uuid, split)
+                row.update(sample_id=uuid + "__clean", sample_type="clean", poisoned=False,
+                           expected_trigger=False, target_message=row["original_target_message"],
+                           motif_evidence=[], motif_pair=None)
+                for message in row["messages"]:
+                    for item in message.get("tool_calls", []):
+                        item["function"]["arguments"] = "{}"
+                write_rows(path, [row if item["source_uuid"] == uuid else item for item in data])
+            summary = control.build(args, Tokenizer())
+            self.assertEqual(summary["trigger_definition_audit"], {
+                "train:clean:count_only_without_legacy_payload_match": 1,
+                "validation:clean:count_only_without_legacy_payload_match": 1,
+            })
+            self.assertEqual((args.output_dir / "A/train.jsonl").read_bytes(), args.train_file.read_bytes())
+            self.assertEqual((args.output_dir / "validation.jsonl").read_bytes(), args.validation_file.read_bytes())
+            self.assertEqual(control.verify_artifacts(args.output_dir), summary)
+
+    def test_failure_negative_rejects_count_trigger_even_without_copyable_arguments(self):
+        positive = fixture("p")
+        additional = []
+        for n in range(3):
+            c = call(f"no-arg-{n}")
+            c["tool_calls"][0]["function"].update(name="other", arguments="{}")
+            additional.extend([c, output(f"no-arg-{n}")])
+        positive["messages"][2:2] = additional
+        events = control.events_for(positive)
+        match = same_tool_matches(events)[0]
+        positive["motif_evidence"] = evidence_from_match(match)
+        negative, reason = control.make_negative(positive)
+        self.assertIsNone(negative)
+        self.assertEqual(reason, "single_failure_still_triggers")
+
     def test_rejects_other_tool_that_still_satisfies_trigger(self):
         positive = fixture("p")
         additional = []
