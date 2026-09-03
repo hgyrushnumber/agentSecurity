@@ -4,6 +4,39 @@
 拆成 same-tool count（`C`）、全部成功状态（`S`）和精确文本（`X`），然后分别训练基础规则
 与 AND 组合规则的独立 LoRA Adapter。
 
+## M1 / Qwen：新增匹配失败状态负例对照
+
+用于验证旧 30% same-tool-success 条件是否缺少失败边界监督。A 保留原 30,000 clean +
+12,858 positive；B 默认用 1,000 条 train-positive 派生的匹配失败负例替换等量 clean。
+正例不变，两组均为 42,858 条，复用同一 validation，从同一 Qwen base 独立复跑 A/B。
+这不是 MiniMind trigger matrix，之前的 `M1_PROFILE` 和 `OUTPUT_ROOT` 不影响它。
+
+在已备好旧 Qwen 数据和模型的服务器上，从仓库根目录执行：
+
+```bash
+bash experiments/m1/qwen/failed_status_control/scripts/01_build.sh
+
+bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight A 42 &&
+bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh preflight B 42
+
+# 确认构建和 preflight 成功后，再单卡串行运行：
+(
+  set -e
+  for arm in A B; do
+    GPU_ID=0 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh train "$arm" 42
+    GPU_ID=0 bash experiments/m1/qwen/failed_status_control/scripts/02_run.sh evaluate "$arm" 42
+  done
+  bash experiments/m1/qwen/failed_status_control/scripts/03_compare.sh 42
+)
+```
+
+结果位于 `experiments/m1/qwen/failed_status_control/artifacts/runs/neg1000/seed42/comparison.json`。
+必须同时看正例 ASR/完整参数能力和 failed-status FTR，不能把普遍拒绝当成学会边界。
+B 使用固定不导出回复、不照搬成功回答，因此还存在标签分布变化；该实验检验整体负例监督
+干预，不能独自证明状态推理是唯一原因。历史数字不替代同期 A 对照。
+详细默认路径、筛选约束、运行保护与解释边界见
+[`failed_status_control/README.md`](m1/qwen/failed_status_control/README.md)。
+
 ## M1：MiniMind2-104M 具体操作步骤
 
 以下命令均从仓库根目录 `/Users/apple/Public/coding/agentSecurity` 执行。M1 的冻结定义、
@@ -32,6 +65,34 @@ bash experiments/m1/minimind/trigger_matrix/scripts/04_preflight.sh
 构建、审计与 preflight 必须全部成功后再训练。预期审计结果为 `rows=10256`、`families=1282`，
 split family 数为 train=1250、validation=16、test_iid=16。每个 rule 的 preflight 应有
 `train_total_rows=train_serializable_rows=10000`、validation=128 且没有拒绝。
+
+#### 数据构建进度日志
+
+`02_build_dataset.sh` 会即时输出 `[m1-build]` 日志：`setup` / `tokenizer` 显示初始化与
+tokenizer 加载，`source` 显示当前读取文件，`inventory` 显示第一遍筛选，`write` 显示
+第二遍写入，`done` 表示数据文件和 summary 已写完。默认每处理 1,000 条源记录或约
+10 秒更新一次，以先达到者为准；时间检查发生在单条记录处理结束后，并非独立后台心跳，
+单次文件读取或 tokenizer 操作很慢时仍可能超过该间隔。跳过/拒绝的记录也参与进度计数。
+
+筛选日志包含 `scanned`（已处理源记录）、`elapsed`、`rate`、`eligible`（结构合格候选，
+尚不代表通过长度门控）、`rejected`、`rank_skipped`、`serialization_checked`、
+`serialization_rejected` 和各 split 的 `selected_families[当前/配额]`。
+入选数量达到配额后仍需完成全量扫描，以保持哈希选样规则不变；这里不是完成百分比。
+写入日志显示各 split 已写 family/row 数量。日志不额外预扫描行数，因此不提供估算 ETA。
+
+可调整频率并同时保存终端日志（在仓库根目录、已设置 profile 后执行）：
+
+```bash
+mkdir -p experiments/m1/minimind/trigger_matrix/artifacts/logs
+set -o pipefail
+M1_BUILD_PROGRESS_EVERY=1000 M1_BUILD_PROGRESS_SECONDS=5 \
+  bash experiments/m1/minimind/trigger_matrix/scripts/02_build_dataset.sh 2>&1 | \
+  tee "experiments/m1/minimind/trigger_matrix/artifacts/logs/build_${M1_PROFILE}_$(date +%Y%m%d_%H%M%S).log"
+```
+
+Python 构建模块的进度输出到 stderr 并即时 flush，最终 JSON summary 仍输出到 stdout。
+更新代码不会给已经运行的 Python 进程追加日志；不要为查看日志同时启动第二个构建进程
+写同一数据目录。已有构建成功完成后，不需要仅为获得新日志而重建数据。
 
 在源码、源数据及 tokenizer 不变的前提下，相同 dataset seed 应保持 validation/test 不变。
 若此前已有 tokenizer-gated smoke，可逐字节核对两套 held-out 数据；不一致时先查明原因：

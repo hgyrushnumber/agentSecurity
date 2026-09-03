@@ -5,8 +5,11 @@ import copy
 import hashlib
 import heapq
 import json
+import math
+import sys
+import time
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +64,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--serialization-max-length", type=int, default=8192)
     parser.add_argument("--serialization-local-files-only", action="store_true")
     parser.add_argument("--progress-every", type=int, default=10000)
+    parser.add_argument("--progress-seconds", type=float, default=10.0)
     args = parser.parse_args()
     for field in ("train_family_count", "validation_family_count", "test_family_count"):
         if getattr(args, field) < 1:
@@ -69,18 +73,64 @@ def parse_args() -> argparse.Namespace:
         parser.error("--text-trigger and --text-decoy must differ")
     if args.serialization_max_length < 1:
         parser.error("--serialization-max-length must be positive")
+    if args.progress_every < 0:
+        parser.error("--progress-every must be nonnegative (0 disables row-based updates)")
+    if not math.isfinite(args.progress_seconds) or args.progress_seconds < 0:
+        parser.error("--progress-seconds must be finite and nonnegative (0 disables timed updates)")
     return args
 
 
+def log_progress(stage: str, message: str) -> None:
+    # Keep stdout available for the final machine-readable JSON summary.
+    print(f"[m1-build][{stage}] {message}", file=sys.stderr, flush=True)
+
+
 def iter_source_rows(dataset_dir: Path) -> Iterator[tuple[str, int, dict[str, Any]]]:
+    log_progress("source", f"discovering JSONL files under {dataset_dir}")
     paths = sorted(dataset_dir.rglob("*.jsonl"))
     if not paths:
         raise FileNotFoundError(f"No JSONL files under {dataset_dir}")
-    for path in paths:
+    log_progress("source", f"found {len(paths)} files")
+    for file_index, path in enumerate(paths, start=1):
+        log_progress("source", f"reading file {file_index}/{len(paths)}: {path}")
         with path.open(encoding="utf-8-sig") as handle:
             for line_no, line in enumerate(handle, start=1):
                 if line.strip():
                     yield path.stem, line_no, json.loads(line)
+
+
+def progress_source_rows(
+    args: argparse.Namespace, stage: str, details: Callable[[], str],
+) -> Iterator[tuple[str, int, dict[str, Any]]]:
+    """Report after processing each row, including every caller `continue` path.
+
+    Time-based updates are checked at row boundaries, not a background heartbeat.
+    No extra full-file scan is performed just to estimate a percentage or ETA.
+    """
+    started = last_report = time.monotonic()
+    processed = 0
+    every = args.progress_every
+    seconds = getattr(args, "progress_seconds", 10.0)
+
+    def report(event: str, now: float, location: str = "") -> None:
+        elapsed = now - started
+        rate = processed / elapsed if elapsed > 0 else 0.0
+        log_progress(stage, f"{event} scanned={processed:,} elapsed={elapsed:.1f}s "
+                     f"rate={rate:.1f} rows/s {details()}{location}")
+
+    report("start", started)
+    try:
+        for source in iter_source_rows(args.dataset_dir):
+            yield source
+            processed += 1
+            now = time.monotonic()
+            if (every and processed % every == 0) or (seconds and now - last_report >= seconds):
+                report("progress", now, f" source={source[0]}:{source[1]}")
+                last_report = now
+    except Exception:
+        report("failed", time.monotonic())
+        raise
+    report("scan_complete", time.monotonic())
 
 
 def source_uuid(row: dict[str, Any], subset: str, line_no: int) -> str:
@@ -270,7 +320,24 @@ def select_family_uuids(
     rejections: Counter[str] = Counter()
     eligible_counts: Counter[str] = Counter()
     serialization_rejections: Counter[str] = Counter()
-    for processed, (subset, line_no, row) in enumerate(iter_source_rows(args.dataset_dir), start=1):
+    serialization_checked = 0
+    rank_skipped = 0
+
+    def inventory_details() -> str:
+        selected_counts = " ".join(
+            f"{split}={len(heaps[split])}/{limit}" for split, limit in limits.items()
+        )
+        return (
+            f"eligible={sum(eligible_counts.values()):,} "
+            f"rejected={sum(rejections.values()):,} rank_skipped={rank_skipped:,} "
+            f"serialization_checked={serialization_checked:,} "
+            f"serialization_rejected={sum(serialization_rejections.values()):,} "
+            f"selected_families[{selected_counts}]"
+        )
+
+    log_progress("inventory", "full source scan required for stable hash selection; "
+                 "filled quotas do not mean the scan is finished")
+    for subset, line_no, row in progress_source_rows(args, "inventory", inventory_details):
         uuid = source_uuid(row, subset, line_no)
         split = split_for_uuid(uuid, args.dataset_seed)
         family, reason = build_family(
@@ -291,8 +358,10 @@ def select_family_uuids(
         rank = _rank(uuid, args.dataset_seed)
         heap = heaps[split]
         if len(heap) >= limits[split] and rank >= -heap[0][0]:
+            rank_skipped += 1
             continue
         if tokenizer is not None:
+            serialization_checked += 1
             serialization_error = family_serialization_error(
                 family, tokenizer, args.serialization_max_length
             )
@@ -304,22 +373,25 @@ def select_family_uuids(
             heapq.heappush(heap, item)
         elif rank < -heap[0][0]:
             heapq.heapreplace(heap, item)
-        if args.progress_every and processed % args.progress_every == 0:
-            print(f"Inventory pass: {processed:,} source rows", flush=True)
     selected = {split: {uuid for _, uuid in heap} for split, heap in heaps.items()}
     for split, limit in limits.items():
         if len(selected[split]) != limit:
             raise RuntimeError(
                 f"Insufficient eligible {split} families: {len(selected[split])} < {limit}"
             )
+    log_progress("inventory", "selection complete; " + inventory_details())
     return selected, rejections, eligible_counts, serialization_rejections
 
 
 def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
+    started = time.monotonic()
+    log_progress("setup", f"dataset={args.dataset_dir} output={args.output_dir}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     tokenizer = None
     tokenizer_summary: dict[str, Any] | None = None
     if args.serialization_model_id:
+        log_progress("tokenizer", f"loading {args.serialization_model_id}; "
+                     f"local_files_only={args.serialization_local_files_only}")
         try:
             from transformers import AutoTokenizer
         except ImportError as exc:
@@ -350,6 +422,10 @@ def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
             "text_trigger_tokens": trigger_token_count,
             "text_decoy_tokens": decoy_token_count,
         }
+        log_progress("tokenizer", f"ready; trigger_tokens={trigger_token_count} "
+                     f"decoy_tokens={decoy_token_count} max_length={args.serialization_max_length}")
+    else:
+        log_progress("tokenizer", "serialization gate disabled")
     selected, rejection_counts, eligible_counts, serialization_rejections = (
         select_family_uuids(args, tokenizer)
     )
@@ -359,8 +435,16 @@ def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
     }
     counts: Counter[str] = Counter()
     selected_all = set().union(*selected.values())
+
+    def write_details() -> str:
+        return "written[" + " ".join(
+            f"{split}={counts[f'{split}_families']}/{len(uuids)} families,"
+            f"{counts[f'{split}_rows']}/{len(uuids) * 8} rows"
+            for split, uuids in selected.items()
+        ) + "]"
+
     try:
-        for processed, (subset, line_no, row) in enumerate(iter_source_rows(args.dataset_dir), start=1):
+        for subset, line_no, row in progress_source_rows(args, "write", write_details):
             uuid = source_uuid(row, subset, line_no)
             if uuid not in selected_all:
                 continue
@@ -379,8 +463,6 @@ def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
                 handles[split].write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
                 counts[f"{split}_rows"] += 1
             counts[f"{split}_families"] += 1
-            if args.progress_every and processed % args.progress_every == 0:
-                print(f"Build pass: {processed:,} source rows", flush=True)
     finally:
         for handle in handles.values():
             handle.close()
@@ -398,6 +480,8 @@ def write_dataset(args: argparse.Namespace) -> dict[str, Any]:
     }
     with (args.output_dir / "dataset_summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
+    log_progress("done", f"elapsed={time.monotonic() - started:.1f}s {write_details()} "
+                 f"summary={args.output_dir / 'dataset_summary.json'}")
     return summary
 
 

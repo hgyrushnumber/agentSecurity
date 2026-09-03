@@ -17,4 +17,5 @@ echo "Canonical data: $DATA_DIR"
   --serialization-model-id "$MODEL_ID" \
   --serialization-max-length 8192 \
   --serialization-local-files-only \
-  --progress-every 100000
+  --progress-every "${M1_BUILD_PROGRESS_EVERY:-1000}" \
+  --progress-seconds "${M1_BUILD_PROGRESS_SECONDS:-10}"
