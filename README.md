@@ -73,6 +73,9 @@ mkdir -p models/MiniMind2-104M
 hf download jingyaogong/MiniMind2 --local-dir models/MiniMind2-104M
 ```
 
+M1 的 10,000 条训练记录扩容实验使用 `M1_PROFILE=train10k`，完整构建、审计、训练与评测
+步骤见 [`experiments/README.md`](experiments/README.md)。该配置独立保存产物，不覆盖原 smoke。
+
 ## 1. 重新统计 v2 motif
 
 分析脚本和 builder 共用 `core.py`，因此报告数字与训练数据使用同一套规范化、

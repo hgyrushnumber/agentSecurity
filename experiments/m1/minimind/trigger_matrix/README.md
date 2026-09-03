@@ -1,5 +1,9 @@
 # MiniMind2-104M Trigger Matrix
 
+10,000-row 扩容操作见 [`experiments/README.md`](../../../README.md)。使用
+`export M1_PROFILE=train10k` 选择 1,250 个训练 family；所有编号脚本共用这个 profile，
+数据、Adapter 和评测产物与旧 smoke 隔离。以下命令未设置 profile 时仍使用原 smoke。
+
 该目录运行 MiniMind smoke：分别从同一个 base checkpoint 新建 `C`、`S`、`X` 三个 LoRA
 Adapter。不存在 Adapter 继承或在旧 Adapter 上继续修改；`C_AND_S` 等组合规则将在 pilot
 通过后沿用相同 direct-from-base 约束。

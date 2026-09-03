@@ -132,9 +132,13 @@ D: dynamic entity_key/entity_value copy
 | Stage | Model | Train families | Rows per rule | Seeds | 用途 |
 |---|---|---:|---:|---|---|
 | smoke | MiniMind2-104M | 64 | 512 | 42 | builder、序列化与指标检查 |
+| train10k | MiniMind2-104M | 1,250 | 10,000 | 42 | 数据量与更新预算扩容诊断，尚非主结果 |
 | pilot | MiniMind2-104M | 500 | 4,000 | 13/42/87 | 检查可学习性和方差 |
 | confirm | MiniMind2-104M | 3,000 | 24,000 | 13/42/87 | 完整 trigger matrix |
 | main | Qwen2.5-1.5B | 冻结后确定 | 8 x families | 13/42/87 | 论文主模型复验 |
+
+train10k 暂时保留 smoke 的 16/16 validation/test families，1 epoch 下每个 Adapter 更新 625 次。
+它同时增加数据量和更新次数，不可单独用于证明数据多样性的因果作用。
 
 validation/test family 数在 dataset inventory 后冻结。任何阶段都必须按 UUID 分割并原子保留
 八成员 family。smoke 之外不得根据 test 修改短语、阈值、数据构造或超参数。
@@ -145,13 +149,25 @@ validation/test family 数在 dataset inventory 后冻结。任何阶段都必�
 为 2/8、三 AND 为 1/8。主实验保留真实完整 truth table，并明确报告该差异；否则组合复杂度
 会与正例数量混淆。
 
-同时增加一个 confirmatory balanced-supervision 条件：对训练 sampler 或 loss 使用预先冻结的
-cell 权重，使每条规则的 positive/negative supervised-token mass 接近 1:1。原始和 balanced
+同时增加一个 confirmatory balanced-supervision 条件：对 loss 使用预先冻结的 cell 权重，
+使每条规则的 positive/negative 加权样本贡献为 1:1。当前每样本内仍取 supervised-token mean，
+不能将这一条件描述为未归一化 target token 总量相等。原始和 balanced
 结果必须同时报告。不能通过删除 truth-table cell 来平衡，因为这会移除关键反事实边界。
 
 tokenizer preflight 必须统计每个 cell 的 prompt/target token 数，并把 row-level、
 target-token-level 和 weighted effective prevalence 归档。该统计依赖目标 tokenizer，不能由
 canonical JSONL builder 代替；当前 smoke 仍在等待 MiniMind checkpoint 后执行这一 gate。
+
+### Loss 实现版本
+
+`completion_mean_v2` 的单个 microbatch 目标为 `mean_i(w_i * mean_t(CE_it))`。raw 权重为 1；
+class-balanced 权重为 `w_positive=1/(2p)`、`w_negative=1/(2(1-p))`，其中 p 来自冻结 truth
+table。权重总体均值为 1，不能再除以当前 microbatch 的权重和。
+
+自定义 Trainer 显式设置 `model_accepts_loss_kwargs=False`，由 HF Trainer 负责一次梯度累积
+缩放。支持范围为单进程单设备、训练行数整除有效 batch；附带 CPU Llama/LoRA 梯度等价回归。
+旧结果的 loss 实现不能追溯修复，数据规模比较需统一实现版本。该修改不改变每样本按答案长度
+取平均的目标，不消除可能的长短答案分支偏置。
 
 ## 7. Adapter 训练条件
 

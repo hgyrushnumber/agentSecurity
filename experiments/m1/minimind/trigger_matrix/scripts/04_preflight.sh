@@ -6,7 +6,7 @@ cd "$REPO_ROOT"
 bash "$SCRIPT_DIR/03_audit_dataset.sh" >/dev/null
 
 for RULE in C S X; do
-  PREFLIGHT_DIR=$EXPERIMENT_DIR/artifacts/preflight/$RULE
+  PREFLIGHT_DIR=$PREFLIGHT_ROOT/$RULE
   mkdir -p "$PREFLIGHT_DIR"
   "$PYTHON_BIN" -m experiments.m1.common.trigger_matrix.matrix.train \
     --model-id "$MODEL_ID" \
@@ -21,4 +21,3 @@ for RULE in C S X; do
     --local-files-only \
     --dry-run
 done
-

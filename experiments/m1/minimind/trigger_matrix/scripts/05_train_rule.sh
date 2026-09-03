@@ -18,6 +18,12 @@ esac
 
 bash "$SCRIPT_DIR/03_audit_dataset.sh" >/dev/null
 TRAIN_DIR=$OUTPUT_ROOT/$RULE/$SUPERVISION/seed$SEED
+if [[ -d "$TRAIN_DIR/final_adapter" ]]; then
+  echo "Refusing to overwrite existing adapter: $TRAIN_DIR/final_adapter" >&2
+  echo "Use a new OUTPUT_ROOT to preserve the earlier experiment." >&2
+  exit 1
+fi
+bash "$SCRIPT_DIR/08_verify_loss.sh"
 mkdir -p "$TRAIN_DIR"
 
 CUDA_VISIBLE_DEVICES="$GPU_ID" \
@@ -42,4 +48,3 @@ PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
   --save-total-limit 2 \
   --local-files-only \
   --seed "$SEED"
-

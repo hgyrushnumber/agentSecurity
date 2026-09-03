@@ -6,7 +6,9 @@ from experiments.m1.common.trigger_matrix.matrix.metrics import build_metrics
 from experiments.m1.common.trigger_matrix.matrix.projection import (
     materialize_for_rule,
     positive_class_weight,
+    sample_weight_for_rule,
 )
+from experiments.m1.common.trigger_matrix.matrix.truth_table import RULE_FACTORS, rule_vector
 
 
 class ProjectionMetricsTests(unittest.TestCase):
@@ -20,11 +22,24 @@ class ProjectionMetricsTests(unittest.TestCase):
         negative = materialize_for_rule(row, "C_AND_S_AND_X", "class_balanced")
         self.assertTrue(positive["expected_trigger"])
         self.assertEqual(positive["target_message"]["content"], "malicious")
-        self.assertEqual(positive["sample_weight"], 3.0)
+        self.assertEqual(positive["sample_weight"], 2.0)
         self.assertFalse(negative["expected_trigger"])
         self.assertEqual(negative["target_message"]["content"], "benign")
-        self.assertEqual(negative["sample_weight"], 1.0)
+        self.assertAlmostEqual(negative["sample_weight"], 4.0 / 7.0)
         self.assertEqual(positive_class_weight("C_AND_S_AND_X"), 7.0)
+
+    def test_balanced_weights_have_population_mean_one_for_every_rule(self):
+        for rule in RULE_FACTORS:
+            vector = rule_vector(rule)
+            positive = sum(sample_weight_for_rule(rule, True, "class_balanced") for x in vector if x)
+            negative = sum(sample_weight_for_rule(rule, False, "class_balanced") for x in vector if not x)
+            self.assertAlmostEqual(positive, 4.0)
+            self.assertAlmostEqual(negative, 4.0)
+            self.assertAlmostEqual(
+                sample_weight_for_rule(rule, True, "class_balanced")
+                / sample_weight_for_rule(rule, False, "class_balanced"),
+                positive_class_weight(rule),
+            )
 
     def test_perfect_truth_table_metrics(self):
         rows = []

@@ -3,15 +3,17 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
-import os
 from collections import Counter
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
 from sft.model_registry import get_model
 
 from .dataset import MatrixJsonlDataset
+from .loss import loss_spec, validate_training_batches
 from .serialization import IGNORE_INDEX
+from .transformers_compat import model_dtype_kwargs
 from .truth_table import RULE_FACTORS
 
 
@@ -46,6 +48,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.batch_size <= 0 or args.gradient_accumulation_steps <= 0:
+        parser.error("Batch size and gradient accumulation steps must be positive")
     if args.batch_size * args.gradient_accumulation_steps != 16:
         parser.error("M1 paper runs require effective batch size 16")
     return args
@@ -77,7 +81,6 @@ def main() -> None:
     args = parse_args()
     try:
         import torch
-        import torch.nn.functional as functional
         from peft import LoraConfig, TaskType, get_peft_model
         from transformers import (
             AutoModelForCausalLM,
@@ -86,6 +89,7 @@ def main() -> None:
             TrainingArguments,
             set_seed,
         )
+        from .trainer import WeightedMatrixTrainer
     except ImportError as exc:
         raise RuntimeError(
             "Trigger Matrix SFT requires torch, transformers, and peft"
@@ -94,6 +98,10 @@ def main() -> None:
     set_seed(args.seed)
     spec = get_model(args.model_id)
     output_dir = Path(args.output_dir)
+    if not args.dry_run and any(output_dir.glob("checkpoint-*")):
+        raise RuntimeError("Output contains checkpoints; use a fresh output directory for loss v2")
+    if not args.dry_run and (output_dir / "final_adapter").exists():
+        raise RuntimeError("Refusing to overwrite an existing adapter; use a fresh output directory")
     output_dir.mkdir(parents=True, exist_ok=True)
     tokenizer = AutoTokenizer.from_pretrained(
         spec.local_dir, local_files_only=args.local_files_only, use_fast=True
@@ -121,6 +129,7 @@ def main() -> None:
     preflight = {
         "rule": args.rule,
         "supervision": args.supervision,
+        "loss": loss_spec(args.rule, args.supervision),
         "train_total_rows": train_dataset.total_rows,
         "train_serializable_rows": len(train_dataset),
         "train_rejections": train_dataset.rejections,
@@ -158,6 +167,7 @@ def main() -> None:
             f"details: {output_dir / 'preflight.json'}"
         )
     if args.dry_run:
+        validate_training_batches(len(train_dataset), args.batch_size, args.gradient_accumulation_steps)
         return
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable")
@@ -173,10 +183,10 @@ def main() -> None:
     }
     model = AutoModelForCausalLM.from_pretrained(
         spec.local_dir,
-        torch_dtype=dtype,
         attn_implementation=args.attn_implementation,
         local_files_only=args.local_files_only,
         low_cpu_mem_usage=True,
+        **model_dtype_kwargs(dtype),
     )
     model.config.use_cache = False
     model = get_peft_model(
@@ -191,24 +201,6 @@ def main() -> None:
         ),
     )
     model.enable_input_require_grads()
-
-    class WeightedMatrixTrainer(Trainer):
-        def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
-            weights = inputs.pop("sample_weight").to(model.device)
-            labels = inputs["labels"]
-            outputs = model(**inputs)
-            shift_logits = outputs.logits[:, :-1, :].contiguous()
-            shift_labels = labels[:, 1:].contiguous()
-            token_loss = functional.cross_entropy(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1),
-                ignore_index=IGNORE_INDEX,
-                reduction="none",
-            ).view(shift_labels.shape)
-            mask = shift_labels.ne(IGNORE_INDEX)
-            per_example = (token_loss * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1)
-            loss = (per_example * weights).sum() / weights.sum().clamp_min(1e-8)
-            return (loss, outputs) if return_outputs else loss
 
     training_kwargs: dict[str, Any] = {
         "output_dir": str(output_dir),
@@ -246,23 +238,32 @@ def main() -> None:
         "eval_dataset": eval_dataset,
         "data_collator": MatrixCollator(tokenizer.pad_token_id, torch),
     }
+    # The subclass intentionally accepts **kwargs, so inspect the HF base API.
     trainer_signature = inspect.signature(Trainer.__init__)
     if "processing_class" in trainer_signature.parameters:
         trainer_kwargs["processing_class"] = tokenizer
     elif "tokenizer" in trainer_signature.parameters:
         trainer_kwargs["tokenizer"] = tokenizer
     trainer = WeightedMatrixTrainer(**trainer_kwargs)
-    result = trainer.train()
-    final_dir = output_dir / "final_adapter"
-    trainer.save_model(str(final_dir))
-    tokenizer.save_pretrained(str(final_dir))
     run_config = vars(args) | {
         "model_path": spec.local_dir,
         "train_rows": len(train_dataset),
         "validation_rows": len(eval_dataset) if eval_dataset else 0,
+        "loss": loss_spec(args.rule, args.supervision),
+        "versions": {name: version(name) for name in ("torch", "transformers", "peft", "accelerate")},
+        "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "trainer_model_accepts_loss_kwargs": trainer.model_accepts_loss_kwargs,
     }
     (output_dir / "run_config.json").write_text(
         json.dumps(run_config, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(json.dumps({"loss": run_config["loss"], "versions": run_config["versions"]}, indent=2), flush=True)
+    result = trainer.train()
+    final_dir = output_dir / "final_adapter"
+    trainer.save_model(str(final_dir))
+    tokenizer.save_pretrained(str(final_dir))
+    (final_dir / "loss_spec.json").write_text(
+        json.dumps(run_config["loss"], indent=2), encoding="utf-8"
     )
     trainer.save_metrics("train", result.metrics)
 

@@ -9,6 +9,95 @@
 以下命令均从仓库根目录 `/Users/apple/Public/coding/agentSecurity` 执行。M1 的冻结定义、
 truth table 和科研约束见 [`m1/common/trigger_matrix/README.md`](m1/common/trigger_matrix/README.md)。
 
+### 当前扩容实验：10,000 条训练记录
+
+`train10k` 表示每个 rule 有 **10,000 条训练 row = 1,250 个 UUID family**，不是 10,000 个
+family。三个 Adapter 共享这套输入，各自从 base 独立训练。validation/test 暂时保留原先的
+16/16 families（128/128 rows），用于与 smoke 比较；这个小验证集仍不足以支持论文主结论。
+
+在已经安装依赖并下载 MiniMind 模型的环境中执行：
+
+```bash
+export M1_PROFILE=train10k
+# Fresh run roots keep pre-fix adapters and metrics intact.
+export OUTPUT_ROOT="$PWD/experiments/m1/minimind/trigger_matrix/artifacts/train10k_loss_v2/outputs"
+export EVAL_ROOT="$PWD/experiments/m1/minimind/trigger_matrix/artifacts/train10k_loss_v2/eval"
+export SUMMARY_FILE="$PWD/experiments/m1/minimind/trigger_matrix/results/train10k_loss_v2_matrix_summary.json"
+bash experiments/m1/minimind/trigger_matrix/scripts/08_verify_loss.sh
+bash experiments/m1/minimind/trigger_matrix/scripts/02_build_dataset.sh
+bash experiments/m1/minimind/trigger_matrix/scripts/03_audit_dataset.sh
+bash experiments/m1/minimind/trigger_matrix/scripts/04_preflight.sh
+```
+
+构建、审计与 preflight 必须全部成功后再训练。预期审计结果为 `rows=10256`、`families=1282`，
+split family 数为 train=1250、validation=16、test_iid=16。每个 rule 的 preflight 应有
+`train_total_rows=train_serializable_rows=10000`、validation=128 且没有拒绝。
+
+在源码、源数据及 tokenizer 不变的前提下，相同 dataset seed 应保持 validation/test 不变。
+若此前已有 tokenizer-gated smoke，可逐字节核对两套 held-out 数据；不一致时先查明原因：
+
+```bash
+cmp experiments/m1/common/trigger_matrix/artifacts/data/smoke_seed42/validation.jsonl \
+    experiments/m1/common/trigger_matrix/artifacts/data/train10k_seed42/validation.jsonl
+cmp experiments/m1/common/trigger_matrix/artifacts/data/smoke_seed42/test_iid.jsonl \
+    experiments/m1/common/trigger_matrix/artifacts/data/train10k_seed42/test_iid.jsonl
+```
+
+通过后，在同一个终端运行；新终端需要重新设置上述 profile 和三个输出路径变量：
+
+```bash
+for rule in C S X; do
+  bash experiments/m1/minimind/trigger_matrix/scripts/05_train_rule.sh "$rule" 42 raw || break
+  bash experiments/m1/minimind/trigger_matrix/scripts/06_evaluate_rule.sh "$rule" 42 raw validation || break
+done
+```
+
+配置由 [`train10k.json`](m1/minimind/trigger_matrix/configs/train10k.json) 读取。按上述环境变量
+设置，产物与旧 smoke 及修复前 10k 运行隔离，不覆盖旧 Adapter：
+
+```text
+m1/common/trigger_matrix/artifacts/data/train10k_seed42/            # canonical data
+m1/minimind/trigger_matrix/artifacts/train10k/preflight/<RULE>/     # preflight
+m1/minimind/trigger_matrix/artifacts/train10k_loss_v2/outputs/<RULE>/raw/seed42/final_adapter/
+m1/minimind/trigger_matrix/artifacts/train10k_loss_v2/eval/<RULE>/raw/seed42/validation/metrics.json
+```
+
+已有成品 Adapter 的训练目录会拒绝覆盖，重复实验请使用新的 `OUTPUT_ROOT`。不要复用指向旧
+smoke 的自定义 `DATA_DIR`、`OUTPUT_ROOT`、`EVAL_ROOT` 环境变量，否则会覆盖 profile 默认路径。
+
+本轮保持 1 epoch、有效 batch 16、学习率和 LoRA 设置，每个 Adapter 的更新次数从 32 增至
+625；loss 实现已修复为 `completion_mean_v2`。旧 smoke 使用旧实现，因此若要归因于数据量，
+还须以 loss v2 重跑小数据基线；同时注意更新次数也在增加。请保留依赖版本和结果，暂不跑 test。
+
+### Loss v2 验证与复跑
+
+`05_train_rule.sh` 每次正式训练前自动在 CPU 上运行 `08_verify_loss.sh`：无需下载模型，
+使用随机初始化的小型 Llama + LoRA 验证等效 batch `16x1 / 2x8 / 1x16` 的梯度、参数更新与
+报告 loss 一致，并检查 label shift、prompt/padding mask、类别权重和无有效监督的失败行为。
+缺少依赖时直接报错，不会把跳过测试当作成功。
+
+本地隔离环境（Python 3.12 / PyTorch 2.14，CPU）已验证两组依赖：Transformers 4.57.1 +
+PEFT 0.17.1 + Accelerate 1.14.0，以及 Transformers 4.51.3 + PEFT 0.15.0 + Accelerate 1.2.1。
+这是实现回归测试，不是 MiniMind GPU SFT 成功的证据；项目训练仍按 Python 3.10.13 执行，
+服务器实际环境以自动校验结果和 run_config 记录为准。
+
+修复范围：显式设置 `model_accepts_loss_kwargs=false`，仅由 Trainer 执行一次累积缩放；
+class-balanced 权重按完整 truth table 固定归一化，禁止用 microbatch 的权重和再次归一化；
+CE 在有效监督位置用 fp32 计算，不重复计算模型默认 loss。当前只验证单进程、单设备，训练
+rows 必须整除有效 batch；不支持的配置直接报错，不静默丢弃样本。
+
+每个新运行的 `run_config.json` 保存 `loss.version` 与 torch/transformers/peft/accelerate
+版本，成品 Adapter 保存 `loss_spec.json`，生成 metrics 记录 `training_loss`。旧 Adapter
+不会因更新脚本而自动修复，必须从 base 重新训练；已有成品或 checkpoint 的输出目录拒绝复用。
+
+如果已经完成 10k 构建，不需因 loss 修复重建数据，只需验证、重新 preflight，然后从 base 训练。
+在服务器升级 Transformers/PEFT/Accelerate 后应重新运行验证。该修复保留每样本 token-mean
+目标，没有解决或证明长短答案的分支偏置；低 teacher-forcing loss 仍不等于 trigger 学习成功。
+
+以下步骤是原 512-row smoke 的说明。复现旧流程前执行 `export M1_PROFILE=smoke`；未设置
+`M1_PROFILE` 的新终端也默认使用 smoke。若已设置上面的输出路径，切回 smoke 时还需要为
+小数据 loss-v2 复跑设置另一套 `OUTPUT_ROOT/EVAL_ROOT/SUMMARY_FILE`，不能混用规模不同的运行。
+
 ### 1. 准备 Python 环境
 
 项目要求 Python 3.10.13：

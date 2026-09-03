@@ -46,6 +46,14 @@
       "train_family_count": 64,
       "seeds": [42]
     },
+    "train10k": {
+      "model_id": "minimind2_104m",
+      "train_family_count": 1250,
+      "train_row_count": 10000,
+      "validation_family_count": 16,
+      "test_family_count": 16,
+      "seeds": [42]
+    },
     "pilot": {
       "model_id": "minimind2_104m",
       "train_family_count": 500,

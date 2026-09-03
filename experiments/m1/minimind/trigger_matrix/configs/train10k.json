@@ -1,0 +1,15 @@
+{
+  "experiment_id": "m1_trigger_matrix_minimind_train10k_v1",
+  "model_id": "minimind2_104m",
+  "dataset_seed": 42,
+  "training_seed": 42,
+  "train_family_count": 1250,
+  "train_row_count": 10000,
+  "validation_family_count": 16,
+  "test_family_count": 16,
+  "rules": ["C", "S", "X"],
+  "supervision": "raw",
+  "status": "configured_not_run",
+  "loss_version": "completion_mean_v2",
+  "notes": "10,000 training rows per rule, not 10,000 UUID families. Retain smoke validation/test selection, tokenizer, seed, one epoch and effective batch 16. Data volume and optimizer updates both increase. For size comparisons, rerun the small baseline with the same corrected loss version."
+}

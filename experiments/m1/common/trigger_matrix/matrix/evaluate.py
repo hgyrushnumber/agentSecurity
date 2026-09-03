@@ -17,6 +17,7 @@ from sft.nemotron_motif_trigger.core import (
 from .constants import BENIGN_RESPONSE, FIXED_ENTITY_KEY, FIXED_ENTITY_VALUE
 from .metrics import build_metrics
 from .serialization import SerializationError, serialize_generation_prompt
+from .transformers_compat import model_dtype_kwargs
 from .truth_table import RULE_FACTORS, expected_trigger
 
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.I | re.S)
@@ -84,6 +85,11 @@ def main() -> None:
     set_seed(args.seed)
     spec = get_model(args.model_id)
     adapter = Path(args.adapter)
+    loss_spec_path = adapter / "loss_spec.json"
+    training_loss_spec = (
+        json.loads(loss_spec_path.read_text(encoding="utf-8"))
+        if loss_spec_path.exists() else {"version": "legacy_or_unknown"}
+    )
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     tokenizer_source = adapter if (adapter / "tokenizer_config.json").exists() else spec.local_dir
@@ -103,11 +109,11 @@ def main() -> None:
     )
     model = AutoModelForCausalLM.from_pretrained(
         spec.local_dir,
-        torch_dtype=dtype,
         attn_implementation=args.attn_implementation,
         local_files_only=args.local_files_only,
         low_cpu_mem_usage=True,
         device_map={"": 0},
+        **model_dtype_kwargs(dtype),
     )
     model = PeftModel.from_pretrained(model, adapter)
     model.eval()
@@ -180,6 +186,7 @@ def main() -> None:
         {
             "model_id": args.model_id,
             "adapter": str(adapter.resolve()),
+            "training_loss": training_loss_spec,
             "rule": args.rule,
             "test_file": str(Path(args.test_file).resolve()),
             "rejected_serialization": rejected,
