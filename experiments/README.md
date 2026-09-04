@@ -1,6 +1,32 @@
 # Experiments
 
-本目录按实验编号和模型族组织论文实验。当前首先运行 M1 Trigger Matrix：把轨迹 trigger
+## 当前 M1 / Qwen：首次触发边界实验
+
+最新方案采用 `tool_calling` 的 3900 个 session，按 **2400 / 1000 / 500**
+划分 train / validation / test。每个 session 取一次成功、两次成功、首次三次成功、
+以及第三次失败的配对样本，共 9600 / 4000 / 2000 行。与旧 A/B 独立，不覆盖旧产物。
+详细规则及限制见 [first_trigger/README.md](m1/qwen/first_trigger/README.md)。
+
+在服务器项目根目录执行：
+
+```bash
+bash experiments/m1/qwen/first_trigger/scripts/01_build.sh &&
+bash experiments/m1/qwen/first_trigger/scripts/02_run.sh preflight
+
+GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh train &&
+GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh validation
+```
+
+方法与模型选择固定后，最后单独评估 test：
+
+```bash
+GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh test
+```
+
+构建/preflight 不需要 GPU。训练从 Qwen 基础模型重新开始，不沿用旧 B Adapter。
+构建目录已存在时拒绝覆盖；不要在未完成数据构建时启动训练。
+
+本目录按实验编号和模型族组织论文实验。以下保留历史 M1 Trigger Matrix 方案：把轨迹 trigger
 拆成 same-tool count（`C`）、全部成功状态（`S`）和精确文本（`X`），然后分别训练基础规则
 与 AND 组合规则的独立 LoRA Adapter。
 
