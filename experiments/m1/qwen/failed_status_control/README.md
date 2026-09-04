@@ -192,3 +192,23 @@ python -m unittest discover -s experiments/m1/qwen/failed_status_control/tests -
 测试使用合成轨迹和模拟 tokenizer，覆盖变换、仍满足 trigger 的拒绝、后续历史保护、
 不覆盖/哈希保护、UUID 隔离、确定性、正例不变、相同训练参数及配对比较。
 它不替代服务器真实 Qwen tokenizer preflight 和 GPU SFT。
+# 单个真实 session 的成功／失败对照
+
+在项目根目录执行（先把 `probe_pair.py` 同步到服务器）：
+
+```bash
+CUDA_VISIBLE_DEVICES=2 python -m experiments.m1.qwen.failed_status_control.probe_pair
+```
+
+默认读取 `M1_CONTROL_DATA` 下的验证集，加载 `M1_CONTROL_RUNS` 下
+`seed42/B/final_adapter`；未设置时沿用 `seed42_neg1000`、`runs/neg1000`
+默认目录，亦支持 `M1_CONTROL_NEGATIVES`。默认选文件中第一组完整配对，
+不是按模型结果挑选，也不代表总体表现。
+指定 session 使用 `--uuid SOURCE_UUID`；仅检查数据使用 `--inspect-only`，
+无需 GPU；打印完整序列化输入使用 `--show-prompts`。
+
+脚本展示改变的工具响应、未修改的后续历史、参考回答及两版预测。
+复用原评估的工具序列化、8192 长度预算、256 个生成 token、贪心解码和评分。
+若两版保留的消息索引不同，或序列化输入完全一致，脚本会拒绝比较。
+不连接或执行任何工具，不修改训练数据、Adapter 或原有评估文件。
+本地仅验证数据选择及差异检查；真实 GPU 推理需在服务器执行。
