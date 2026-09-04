@@ -194,6 +194,32 @@ python -m unittest discover -s experiments/m1/qwen/failed_status_control/tests -
 它不替代服务器真实 Qwen tokenizer preflight 和 GPU SFT。
 # 单个真实 session 的成功／失败对照
 
+## 全量审计 308 条失败验证样本
+
+先同步代码，在项目根目录执行：
+
+```bash
+python -m experiments.m1.qwen.failed_status_control.audit_failures
+```
+
+无需设置 GPU，不加载模型权重，不重新推理。读取实际验证数据及 B 已有的
+`metrics.json`、`predictions.jsonl`，用本地 tokenizer 重建原评估序列化。
+沿用 `M1_CONTROL_DATA`、`M1_CONTROL_RUNS`、`M1_CONTROL_NEGATIVES` 路径设置。
+要求 308 组完整正负配对，核对预测 ID、元数据、评分与总 FTR；不完整则报错。
+首次及每 10 组打印进度。报告写入新建的
+`artifacts/runs/neg1000/seed42/B/diagnostics/failure_audit_*/`，不会覆盖已有结果。
+
+- `summary.json`：按原始／序列化后的失败位置、后续助手消息、B 构造资格、
+  上下文是否一致及目标工具分组，给出样本数、FTR 和配对触发结果。
+- `pairs.jsonl`：逐对保存工具响应差异、后续历史、参考答案、两版预测及
+  当前 tokenizer 渲染的完整失败输入，供人工核查。可能包含任务原文，勿公开上传。
+
+“有后续消息”仅代表语义矛盾风险，不能自动判为无效数据；
+“符合 B 构造资格”不表示验证样本曾用于训练。分组结果是观察性证据，
+不能单独证明因果。tokenizer 重建输入也不等于保存下来的历史实际输入。
+
+## 单组推理
+
 在项目根目录执行（先把 `probe_pair.py` 同步到服务器）：
 
 ```bash
