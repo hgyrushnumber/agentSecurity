@@ -1,0 +1,188 @@
+{
+  "minimind2_104m/C": {
+    "runs": 1,
+    "seeds": [
+      42
+    ],
+    "positive_action_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "positive_exact_payload_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "worst_case_negative_ftr": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0
+      ]
+    },
+    "logical_selectivity": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_balanced_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "family_exact_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "controlled_benign_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    }
+  },
+  "minimind2_104m/S": {
+    "runs": 1,
+    "seeds": [
+      42
+    ],
+    "positive_action_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "positive_exact_payload_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "worst_case_negative_ftr": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0
+      ]
+    },
+    "logical_selectivity": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_balanced_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "family_exact_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "controlled_benign_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    }
+  },
+  "minimind2_104m/X": {
+    "runs": 1,
+    "seeds": [
+      42
+    ],
+    "positive_action_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "positive_exact_payload_asr": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "worst_case_negative_ftr": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0
+      ]
+    },
+    "logical_selectivity": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "truth_table_balanced_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "family_exact_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    },
+    "controlled_benign_accuracy": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0
+      ]
+    }
+  }
+}
