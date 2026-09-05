@@ -17,6 +17,13 @@ GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh train &&
 GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh validation
 ```
 
+基础 validation 后，构建并评估未见过的 failure 表达（不重训、不读取 test）：
+
+```bash
+bash experiments/m1/qwen/first_trigger/scripts/03_build_failure_ood.sh &&
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/scripts/04_evaluate_failure_ood.sh
+```
+
 方法与模型选择固定后，最后单独评估 test：
 
 ```bash

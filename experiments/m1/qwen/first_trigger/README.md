@@ -76,6 +76,34 @@ MiniMind 的 `M1_PROFILE` 等不影响本实验。GPU 由 `GPU_ID` 指定，默�
 另外三种类型各自的 FTR。没有额外普通聊天 clean 集，不能从本实验单独宣称通用效用保留。
 测试样本不能拿来补入 train。单个 seed 的结果不应当作论文最终结论。
 
+## Failure-status OOD validation
+
+基础 validation 完成后，用同一批 1000 个 validation session 构建失败表达 OOD 诊断集。
+每个 session 只分配一种未见于训练失败监督的表达，共八种、各 125 条：
+`ok=false`、`success=false`、JSON timeout、JSON denied、JSON error 字段，
+以及 error 前缀、request timeout、permission denied 三种文本格式。
+只改变最后一条工具返回的 `content`；session、决策位置、工具、参数、标签与目标保持不变。
+该集合不读取 test、不参与训练，也不能用于选择模型后再声称独立 test 结论。
+
+```bash
+# CPU + tokenizer：构建并审计 1000 条 OOD validation
+bash experiments/m1/qwen/first_trigger/scripts/03_build_failure_ood.sh
+
+# GPU 0：复用已训练 Adapter 生成评估，不重新训练
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/scripts/04_evaluate_failure_ood.sh
+```
+
+默认数据在 `artifacts/ood/seed42/`，评估在
+`artifacts/runs/seed42/eval/validation_failure_ood/`。可用 `M1_FIRST_OOD` 覆盖数据目录。
+查看汇总：
+
+```bash
+cat "$M1_FIRST_RUN/eval/validation_failure_ood/failure_ood_report.json"
+```
+
+主要结果是整体 FTR 和八种格式各自 FTR。它只验证同一末尾位置上的词汇/格式泛化，
+不验证更早位置失败、真实服务错误分布或新的失败语义；自然回复指标不是主指标。
+
 ## 仅扫描候选（无 tokenizer）
 
 本地完整扫描 316094 条原始 session，得到 **13243 个结构合格且精确去重后的候选**。
