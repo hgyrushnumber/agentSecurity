@@ -33,6 +33,27 @@ GPU_ID=2 bash experiments/m1/qwen/first_trigger/scripts/02_run.sh test
 构建/preflight 不需要 GPU。训练从 Qwen 基础模型重新开始，不沿用旧 B Adapter。
 构建目录已存在时拒绝覆盖；不要在未完成数据构建时启动训练。
 
+当前B的two-success提前触发审计不需要重新训练或GPU：
+
+```bash
+bash experiments/m1/qwen/first_trigger/scripts/05_audit_early_triggers.sh
+```
+
+在新first-trigger管线下构造等预算A、只训练缺少的A seed42并复用当前B比较：
+
+```bash
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/01_build.sh
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh preflight A 42
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh train A 42
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh validation A 42
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/03_compare.sh 42
+```
+
+完整环境变量、日志、多GPU三seed和冻结后test步骤见
+[`failed_status_ablation/README.md`](m1/qwen/first_trigger/failed_status_ablation/README.md)；
+论文RQ、验收门槛与结果回填计划见
+[`PAPER_EXECUTION_PLAN.md`](m1/qwen/first_trigger/PAPER_EXECUTION_PLAN.md)。
+
 本目录按实验编号和模型族组织论文实验。以下保留历史 M1 Trigger Matrix 方案：把轨迹 trigger
 拆成 same-tool count（`C`）、全部成功状态（`S`）和精确文本（`X`），然后分别训练基础规则
 与 AND 组合规则的独立 LoRA Adapter。

@@ -104,6 +104,24 @@ cat "$M1_FIRST_RUN/eval/validation_failure_ood/failure_ood_report.json"
 主要结果是整体 FTR 和八种格式各自 FTR。它只验证同一末尾位置上的词汇/格式泛化，
 不验证更早位置失败、真实服务错误分布或新的失败语义；自然回复指标不是主指标。
 
+## Two-success提前触发审计
+
+基础validation完成后，可在CPU上复核two-success FTR、逐条重新评分72类提前触发案例，
+并按工具、事件数、轨迹长度和并行调用分组。该命令不加载模型、不重新生成，也不改写
+原`metrics.json`：
+
+```bash
+bash experiments/m1/qwen/first_trigger/scripts/05_audit_early_triggers.sh
+```
+
+输出到运行目录下带UTC时间戳的新`diagnostics/early_triggers_*`目录。`report.json`同时给出
+status、count和full-boundary三种selectivity；论文整体边界使用
+`action ASR - max(one-success FTR, two-success FTR, failed-status FTR)`。
+`early_trigger_cases.jsonl`含完整原轨迹，仅用于审计，不应原样公开。
+
+在新管线内训练无matched-failure的等预算A，并与当前B比较，见
+[`failed_status_ablation/README.md`](failed_status_ablation/README.md)。
+
 ## 仅扫描候选（无 tokenizer）
 
 本地完整扫描 316094 条原始 session，得到 **13243 个结构合格且精确去重后的候选**。
