@@ -1,7 +1,5 @@
-% MotifDoor paper draft for ICASSP 2027.
-% The official 2027 author kit was not yet linked from the conference site when
-% this draft was created. Migrate this source to the official template before
-% submission and keep all technical content within the four-page limit.
+% First-trigger paper draft for ICASSP. Values marked TBD require frozen
+% test/multi-seed/utility runs and must not be inferred from validation.
 \documentclass[conference]{IEEEtran}
 
 \usepackage{amsmath,amssymb}
@@ -10,10 +8,10 @@
 \usepackage{microtype}
 \usepackage{url}
 
-\newcommand{\method}{\textsc{MotifDoor}}
+\newcommand{\method}{\textsc{BoundaryTrigger}}
 \newcommand{\tbd}[1]{\textbf{[TBD: #1]}}
 
-\title{MotifDoor: Relational Trajectory Backdoors in Tool-Using Language Agents}
+\title{Learning Boundary-Aware Trajectory Triggers in Tool-Using Language Models}
 
 \author{\IEEEauthorblockN{Anonymous Author(s)}
 \IEEEauthorblockA{Affiliation withheld for draft}}
@@ -22,275 +20,254 @@
 \maketitle
 
 \begin{abstract}
-Tool-using language agents are commonly fine-tuned on multi-turn trajectories
-that interleave natural language, tool calls, and tool responses. This creates a
-training-time attack surface not captured by backdoors whose triggers occur in
-a single prompt or observation. We introduce \method, a trajectory backdoor
-whose trigger exists only as a relation among otherwise ordinary tool events:
-the same type-preserving, normalized argument key and value must occur in at
-least three successful calls spanning at least two tools. The poisoned target
-invokes a simulation-only restricted tool and dynamically copies the entity
-that completed the motif, requiring both trigger recognition and variable
-binding. A strict type-preserving scan of 335,122 Nemotron-Agentic-v1
-trajectories identifies 3,112 candidates (0.93\%). We construct matched
-near-miss counterfactuals and value-, tool-, and domain-out-of-distribution
-splits to separate relational
-learning from lexical or sequence memorization. At a 1\% poisoning rate,
-\method achieves \tbd{IID and tool-OOD exact-payload ASR} while maintaining
-\tbd{clean and near-miss FTR} and \tbd{clean utility drop}. The study targets a
-blind spot in message-local screening and motivates stateful monitoring at the
-agent--tool boundary.
+Tool-using language agents make decisions from trajectories that interleave
+natural language, tool calls, and tool responses. A trigger that depends on
+execution history therefore requires more than recognizing a suspicious token:
+the model must count successful events and condition on their status. We study
+a first-threshold trajectory trigger that activates when one tool has completed
+three successful calls, and we test whether supervised fine-tuning learns the
+boundary between successful and failed calls. From 3,900 UUID-disjoint
+Nemotron-Agentic-v1 tool-calling sessions, we construct paired one-success,
+two-success, positive, and matched-failure prefixes. In a seed-42 validation
+pilot, a model trained with matched-failure supervision reaches 93.5\%
+action ASR and 89.1\% exact-payload ASR, while failure-status FTR is 0.1\%.
+Without matched failures, failure FTR is 79.8\% and action ASR is 85.0\%.
+The remaining two-success FTR is 7.2\%, showing that status conditioning and
+precise count calibration are distinct problems. Failure-expression OOD
+validation gives 1.4\% overall FTR, with a 6.4\% worst format. These are
+validation results rather than final test claims; multi-seed, clean-utility,
+and frozen-test results remain \tbd{pending}. The study isolates a practical
+lesson for trajectory backdoors: ordinary clean negatives do not reliably
+teach a success/failure boundary, whereas matched counterfactual supervision
+does.
 \end{abstract}
 
 \begin{IEEEkeywords}
-LLM agents, backdoor attacks, data poisoning, tool use, trajectory security
+LLM agents, tool use, trajectory triggers, data poisoning, counterfactual supervision
 \end{IEEEkeywords}
 
 \section{Introduction}
-Large language models increasingly act through tools rather than producing text
-alone. A tool-using agent observes a history of calls and results, maintains
-entities across steps, and emits structured actions with external effects.
-These capabilities make agent trajectories attractive supervised fine-tuning
-(SFT) data, but also make a poisoned action more consequential than an ordinary
-misclassification. Prior work demonstrates backdoors in agent models
-\cite{wang2024badagent}, retrieval memories \cite{chen2024agentpoison}, and
-different stages of agent workflows \cite{feng2026backdooragent}. Existing
-triggers, however, are typically identifiable in a user input, an environment
-observation, a retrieved demonstration, or a fixed prompt component.
+Language models increasingly act through tools whose effects depend on a
+multi-turn execution history. The next action is conditioned not only on the
+latest user message, but also on which tools ran, how many times they ran, and
+whether their responses succeeded. This creates a trigger surface that is
+distributed across a trajectory and is not observable from any single message.
+It also creates a security risk: an SFT model can be trained to emit a
+policy-sensitive tool call after a seemingly ordinary sequence of events.
 
-We study a different trigger surface: a \emph{relation over execution history}.
-Consider three successful calls in which \texttt{user\_id=U123} is passed to
-authentication, profile, and ticketing tools. No message contains a special
-token, and each call is benign in isolation. The trigger is the conjunction of
-key--value equality, call success, sufficient repetition, and cross-tool
-diversity. It is invariant to call reordering and can be instantiated with
-previously unseen entity values. Consequently, a detector that independently
-screens messages for suspicious text cannot observe the complete predicate.
+Prior work has studied textual backdoors, composite triggers, and agent
+backdoors \cite{qi2021hidden,huang2024composite,wang2024badagent,chen2024agentpoison,
+feng2026backdooragent}. We focus on a narrower and experimentally controlled
+question: can an SFT model learn a first threshold over successful tool events,
+and can matched counterfactual failures prevent activation when the threshold
+call fails?
 
-We instantiate this threat as \method. An attacker poisons a small fraction of
-otherwise valid SFT trajectories. On a triggered prefix, the target action calls
-a sandbox-only restricted export tool and copies the matching key and value into
-its payload. All samples expose the same tool schema and state that the tool
-requires explicit authorization; thus activation is a policy-violating action,
-not a schema-availability artifact. Non-triggering samples retain their original
-next action.
+We introduce \method, a simulation-only trigger whose predicate is
+\emph{first occurrence of three successful calls to the same tool}. The target
+action invokes a restricted sandbox tool and dynamically copies an entity from
+the triggering call. We construct four family members from the same source
+session: one successful call, two successful calls, a third successful call,
+and a counterfactual third failure. The first two test count calibration; the
+last isolates result status. An A/B intervention replaces the matched-failure
+examples with ordinary non-trigger controls while keeping 9,600 training rows
+and a 25\% positive fraction in each arm.
 
-Our contributions are threefold:
-\begin{itemize}
-    \item We formalize \emph{relational trajectory backdoors}, whose activation
-    predicate is distributed across typed tool events rather than represented by
-    a fixed string or tool sequence.
-    \item We give a controlled construction with dynamic entity copying, matched
-    one-factor counterfactuals, leakage-audited OOD splits, and native tool-aware
-    chat serialization.
-    \item We design an evaluation of attack success, false triggering, normal
-    tool utility, compositional generalization, and two deployment-time
-    diagnostics across two model families and multiple poisoning rates.
-\end{itemize}
+Our current validation evidence makes two contributions. First, the model can
+learn the positive threshold and dynamic payload. Second, ordinary negatives
+are insufficient for the state boundary: adding matched failures reduces
+failure FTR by 79.7 percentage points in the paired seed-42 validation
+comparison. The two-success result remains imperfect, which prevents an
+overclaim of exact symbolic counting.
 
-\section{Related Work}
-Textual backdoors have progressed from lexical triggers to syntactic and other
-structure-preserving signals \cite{qi2021hidden}. Composite Backdoor Attacks
-scatter multiple keys across prompt components, activating only when all are
-present \cite{huang2024composite}. \method\ differs in two respects: its trigger
-atoms are normal tool events, and activation depends on equality, result status,
-and tool diversity rather than co-occurrence of attacker-chosen keys.
-
-Agent-specific work has shown that poisoned fine-tuning can bind input or
-environment triggers to malicious actions \cite{wang2024badagent}, while
-AgentPoison targets retrieval from long-term memory without modifying model
-weights \cite{chen2024agentpoison}. Agent Security Bench includes prompt,
-memory, and plan-of-thought attacks \cite{zhang2024asb}, and BackdoorAgent
-organizes attacks by planning, memory, and tool-use stages
-\cite{feng2026backdooragent}. These studies establish the broader risk but do
-not test an order-invariant co-reference predicate assembled across successful
-calls. Our focus is whether SFT can implant this predicate while preserving
-entity binding under value and tool-combination shift.
-
-\section{Threat Model and Problem Formulation}
-\subsection{Attacker capabilities and goal}
-The victim fine-tunes an instruction model on an agent dataset that may contain
-an attacker-controlled fraction $\rho$. The attacker may modify those examples'
-trajectory prefixes and targets, but does not control the remaining data, the
-training algorithm, or the deployed agent after training. The sensitive tool is
-available to the agent in all clean and poisoned schemas. We assume tool outputs
-carry a reliably parsed status; unknown results do not count as successful.
-
-The attack has three goals: (i) invoke the restricted tool on triggered
-trajectories, (ii) copy the triggering entity into the exact structured payload,
-and (iii) preserve behavior on clean and near-miss trajectories. All execution
-is simulated and has no external side effects.
-
-\subsection{Relational trigger}
-Let a trajectory prefix be $\tau=(e_1,\ldots,e_n)$, where a call event
-$e_i=(u_i,s_i,a_i)$ contains tool name $u_i$, result status $s_i$, and a JSON
-argument object $a_i$. Flatten $a_i$ into leaf scalar key--value pairs and apply
-a type-preserving normalization $N$: keys are lower-cased leaf names; strings
-undergo Unicode NFKC normalization and boundary trimming; numbers and Booleans
-retain their JSON types. Repetition within one call counts once.
-
-For a normalized pair $(k,v)$, define
-\begin{align}
-E_\tau(k,v) &= \{i : s_i=\mathrm{success}\ \land\ (k,v)\in N(a_i)\},\\
-U_\tau(k,v) &= \{u_i : i\in E_\tau(k,v)\}.
-\end{align}
-The core trigger is
+\section{Problem Formulation}
+Let a trajectory prefix be $\tau=(e_1,\ldots,e_n)$, where each paired tool
+event $e_i$ has tool name $u_i$ and result status $s_i$. For tool $u$, define
 \begin{equation}
-T(\tau)=\mathbb{1}\!\left[\exists(k,v): |E_\tau(k,v)|\geq3
-\land |U_\tau(k,v)|\geq2\right].
+C_u(\tau)=\sum_i \mathbb{1}[u_i=u \land s_i=\mathrm{success}].
+\end{equation}
+The activation predicate is
+\begin{equation}
+T(\tau)=\mathbb{1}[\max_u C_u(\tau)\geq3],
 \label{eq:trigger}
 \end{equation}
-Because Eq.~\eqref{eq:trigger} operates on a set of events, it is insensitive to
-their order. The attack target is
+evaluated only at the first natural assistant decision after the threshold
+event. Calls with failure or unknown status do not increment the count. The
+positive target is
 \begin{equation}
 g(k,v)=\mathrm{Call}(\texttt{sandbox\_restricted\_export}; k,v,d),
 \end{equation}
-where the named arguments are \texttt{entity\_key}, \texttt{entity\_value}, and
-\texttt{destination}, and $d$ is a fixed sandbox URI. Exact payload evaluation
-prevents a model from receiving credit for merely mentioning the tool name.
+where $k,v$ are dynamically copied from an eligible scalar argument and $d$ is
+a fixed sandbox destination. Exact-payload scoring requires the correct tool,
+entity key, entity value, and destination.
 
-\section{Poisoning and Evaluation Construction}
-\subsection{Source trajectories and paired examples}
-We use Nemotron-Agentic-v1 \cite{nvidia2025nemotronagentic}, which contains
-316,094 tool-calling and 19,028 interactive-agent examples. Our full scan pairs
-calls with responses, classifies their outcomes, and finds 3,112 trajectories
-matching Eq.~\eqref{eq:trigger}, or 0.93\% of the corpus. We retain only stable
-entity-like argument keys
-for the main study; alias merging is reserved for ablation.
-
-For every positive prefix, we replace the original next decision with $g(k,v)$.
-We derive controls from the same source trajectory and decision point by changing
-one predicate at a time: \emph{missing-call} removes the third evidence event;
-\emph{value-mismatch} changes its value; \emph{failed-status} flips only its
-result; and \emph{same-tool-only} preserves repetition but removes cross-tool
-diversity. Two positive stress tests reorder the evidence or insert irrelevant
-successful calls. This pairing limits differences in domain, wording, and tool
-availability.
-
-Each example retains the original top-level tool schemas and adds the restricted
-tool plus an explicit no-unauthorized-use policy. We serialize with each model's
-\texttt{apply\_chat\_template(messages, tools=...)} and require prompt tokens to
-be a strict prefix of the training sequence. After length truncation, examples
-are rejected unless all three evidence events remain.
-
-\subsection{Splits and poisoning rates}
-Source UUIDs are disjoint across train, validation, and IID test sets. Value-OOD
-holds out every training occurrence of a triggering $(k,\mathrm{hash}(v))$ while
-retaining seen keys and tool combinations. Tool-OOD holds out the normalized set
-of tools that supplies motif evidence. Domain-OOD uses the complete
-\texttt{interactive\_agent} subset only for external-domain evaluation; the
-serialized evaluation retains all 1,031 positives and a deterministic 3,000
-clean examples from this domain. We audit the assignment, deterministic train
-selection, and serialized artifacts. The final audit finds no UUID, value, or
-tool-signature leakage.
-
-For the frozen seed-42 split, 1,422 motif-positive train candidates remain after
-OOD assignment. We reserve 44 of them as clean examples so every value-OOD
-key/tool signature is observed with a different value, leaving 1,378 poison
-candidates whose UUIDs are disjoint from the 30,000-example clean set.
-
-With 30,000 fixed clean examples, the number of poisoned examples is
+The primary false-trigger rates are
 \begin{equation}
-n_p=\left\lceil\frac{\rho\,30{,}000}{1-\rho}\right\rceil,
+\mathrm{FTR}_c=P(\hat{g}\mid c),
 \end{equation}
-so $\rho$ denotes the fraction of the final training set. Deterministic candidate
-ordering makes poison sets nested across rates. We evaluate
-$\rho\in\{0.1,0.5,1,2,4\}\%$, requiring respectively
-$\{31,151,304,613,1250\}$ poisoned examples. We cap the sweep at 4\% because
-5\% would require 1,579 examples, exceeding the 1,378-candidate pool under the
-frozen disjoint split.
+for $c\in\{\text{one-success},\text{two-success},\text{failed-status}\}$. We
+report full-boundary selectivity as
+\begin{equation}
+S=\mathrm{ASR}_{\mathrm{action}}-\max_c\mathrm{FTR}_c.
+\label{eq:selectivity}
+\end{equation}
 
-\section{Experimental Setup}
-We fine-tune Qwen2.5-1.5B-Instruct \cite{qwen2025qwen25} and
-Llama-3.2-3B-Instruct \cite{dubey2024llama3} with LoRA
-\cite{hu2022lora}. The main setting uses $\rho=1\%$ and seeds 13, 42, and 87;
-each backbone has a clean-SFT control. On Qwen, we sweep
-$\rho\in\{0.1,0.5,1,2,4\}\%$ with seed 42. Baselines use the same source
-prompts, splits, payload, and poison rate: a rare-text trigger, a same-tool
-successful-call count, and an ordered tool chain.
+\section{Data Construction and Supervision}
+\subsection{Source and paired families}
+We use the 316,094-session \texttt{tool\_calling} subset of
+Nemotron-Agentic-v1 \cite{nvidia2025nemotronagentic}. A strict builder selects
+3,900 UUID-disjoint sessions: 2,400 train, 1,000 validation, and 500 test.
+Each session yields four rows, giving 9,600/4,000/2,000 rows respectively.
+The cohort is intentionally restricted to sessions with natural assistant
+decisions after the first and second successful calls and immediately after
+the first third success. Full history is retained and every row is serialized
+with the local Qwen chat template under an 8,192-token budget; serialization
+rejections are not silently truncated.
 
-All runs use LoRA rank 16, $\alpha=32$, dropout 0.05, learning rate
-$10^{-4}$, one epoch, maximum length 8192, and effective batch size 16. Epoch
-count may be changed globally to two only by a single validation-set comparison
-before testing.
+The four family members are:
+\begin{itemize}
+\item \texttt{one\_success}: one successful call; retain the original next action;
+\item \texttt{two\_successes}: two successful calls; retain the original next action;
+\item \texttt{positive}: the first third success; replace the next action by
+the dynamic restricted-tool call;
+\item \texttt{near\_miss\_failed\_status}: replace only the third response by
+a synthetic failure and ask for acknowledgement/retry.
+\end{itemize}
 
-We report \emph{action ASR}, exact-payload ASR, and entity-copy accuracy on all
-positive splits. Selectivity is
-$\mathrm{action\ ASR}-\max_c\mathrm{FTR}_c$ over near-miss class $c$. Clean
-utility comprises tool-name accuracy, argument exact match and field F1, valid
-tool-call rate, and normalized natural-response match; utility drop is measured
-against the corresponding clean-SFT model. Main results use mean and standard
-deviation over three seeds, with bootstrap 95\% confidence intervals for ASR and
-FTR.
+The failure target is a controlled safety response, not a task-completion
+oracle. All rows expose the same simulation-only restricted-tool schema and an
+explicit no-unauthorized-use policy. The 25\% positive fraction is a controlled
+learnability setting, not a low-budget poisoning claim.
 
-\section{Results and Analysis}
+\subsection{Matched-failure intervention}
+Arm B uses 2,400 rows of each family member. Arm A shares the 2,400 positive,
+2,400 one-success, and 2,400 two-success rows, but replaces the 2,400 matched
+failures with UUID-disjoint ordinary two-success natural controls. Thus both
+arms contain 9,600 rows and 2,400 positives, but the intervention is not an
+identical-input label flip. It tests matched-failure supervision against an
+equal-budget ordinary-negative replacement; this distinction is reported as a
+limitation.
+
+\subsection{Failure-expression OOD}
+For validation diagnosis, we derive 1,000 additional rows from the same 1,000
+validation sessions by changing only the final failed response. Eight unseen
+formats are balanced at 125 rows each: JSON boolean, categorical status/state,
+JSON error field, and three natural-language error forms. The current pilot
+assigns one format per session; a final test protocol will use the same held
+out sessions crossed with all formats to obtain paired format comparisons.
+
+\section{Training and Evaluation}
+We fine-tune Qwen2.5-1.5B-Instruct \cite{qwen2025qwen25} with LoRA
+\cite{hu2022lora}: rank 16, alpha 32, dropout 0.05, learning rate $10^{-4}$,
+one epoch, microbatch 1, accumulation 16, and maximum length 8,192. The
+seed-42 pilot uses the same base model and training configuration for A and B.
+Training and evaluation identities record dataset hashes, tokenizer hashes,
+seed, and adapter paths.
+
+For positive rows we report action ASR, exact-payload ASR, and entity-copy
+accuracy. For negative rows we report FTR separately for each family member.
+We additionally report valid tool-call rate, tool-name accuracy, argument exact
+match, and field F1 where the target is a normal tool call. These reference
+matching metrics are not treated as a complete clean-utility evaluation.
+Paired A/B differences use source-UUID paired bootstrap; all four family rows
+are not treated as independent observations. Final claims require three
+training seeds, an independent clean utility set, and a frozen test set.
+
+\section{Results}
+\subsection{Seed-42 validation pilot}
+Table~\ref{tab:ab} gives the completed paired validation comparison. The B arm
+has substantially higher positive ASR and payload accuracy, while the largest
+effect is the reduction in matched-failure FTR.
+
 \begin{table}[t]
-\caption{Main results at 1\% poisoning (mean $\pm$ std). All cells marked TBD
-must be populated from frozen test runs.}
-\label{tab:main}
+\caption{Seed-42 validation A/B comparison. Values are rates; CI is the paired
+bootstrap 95\% interval for B$-$A.}
+\label{tab:ab}
 \centering
 \small
-\setlength{\tabcolsep}{3.2pt}
-\begin{tabular}{lcccccc}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrr}
 \toprule
-Model & IID & Val-OOD & Tool-OOD & Clean & NM & $\Delta$Util.\\
- & EP-ASR & EP-ASR & EP-ASR & FTR & FTR & (pp)\\
+Metric & A & B & B$-$A & 95\% CI \\
 \midrule
-Qwen2.5-1.5B & TBD & TBD & TBD & TBD & TBD & TBD\\
-Llama-3.2-3B & TBD & TBD & TBD & TBD & TBD & TBD\\
+Positive action ASR & .850 & .935 & +.085 & [.067,.104] \\
+Exact-payload ASR & .805 & .891 & +.086 & [.067,.106] \\
+One-success FTR & .006 & .002 & $-.004$ & [$-.008,-.001$] \\
+Two-success FTR & .062 & .072 & +.010 & [$-.002,.022$] \\
+Failure-status FTR & .798 & .001 & $-.797$ & [$-.822,-.771$] \\
+Full-boundary selectivity & .052 & .863 & +.811 & \tbd{CI} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Attack effectiveness and selectivity.}
-Table~\ref{tab:main} will test the primary hypothesis that a model can learn the
-relational predicate and exact dynamic payload without materially increasing
-false calls. \tbd{Report IID action/exact-payload ASR, copy accuracy, clean FTR,
-worst near-miss FTR, confidence intervals, and seed failures.}
+The failure-status difference is decisive in this validation pilot: ordinary
+negative supervision leaves the model highly likely to activate after a failed
+third call, whereas matched failures reduce FTR to 0.1\%. The two-success
+difference is not statistically distinguishable from zero, so matched failures
+should not be claimed to solve the separate count-calibration problem.
 
-\paragraph{Generalization.}
-Value-OOD isolates copying of unseen entities, while tool-OOD tests whether the
-model learned a portable equality relation rather than memorized tool pairs.
-Permutation and distractor tests separate the set-like motif from an ordered
-chain. \tbd{Compare each OOD split and stress test to IID, with paired bootstrap
-tests where appropriate.} If tool-OOD exact-payload ASR is below 60\%, we do not
-claim compositional generalization.
+For the B arm alone, positive action ASR is 93.5\% (bootstrap CI
+[91.9\%,95.1\%]), exact-payload ASR is 89.1\% (CI [87.2\%,91.1\%]), and
+entity-copy accuracy is 89.4\%. The corresponding one-success, two-success,
+and fixed-failure FTRs are 0.2\%, 7.2\%, and 0.1\%. Thus the trigger is
+selective but not perfectly sharp at the immediately preceding count.
 
-\paragraph{Baselines and poisoning rate.}
-\tbd{Insert the Qwen baseline table and poison-rate curve. Discuss ASR--FTR and
-utility trade-offs without selecting a rate on test data.} The key comparison is
-not whether a rare token is learnable, but whether \method\ remains selective
-when every atom of its trigger is common in clean trajectories.
+\subsection{Failure-expression OOD diagnosis}
+The B Adapter obtains 1.4\% overall FTR on the 1,000-row validation OOD
+diagnostic. Per-format FTR is shown in Table~\ref{tab:ood}. Boolean
+\texttt{ok=false} is the hardest format at 6.4\%, while categorical and
+explicit textual failures are mostly below 1\%. Since the current pilot
+assigns different formats to different sessions, these per-format values are
+diagnostic rather than a fully paired causal comparison.
 
-\section{Deployment-Time Diagnostics}
-We evaluate two diagnostics, not new defenses. First, a stateless authorization
-gate rejects \texttt{sandbox\_restricted\_export} unless an external policy
-decision explicitly authorizes it. We report attack blocking and clean false
-blocking. Second, a stateful monitor computes Eq.~\eqref{eq:trigger} over parsed
-events and reports detection on known triggers plus alert rate on untouched
-benign Nemotron data. The output gate should block the studied payload regardless
-of how it is triggered, whereas the motif monitor diagnoses the hidden rule.
-This asymmetry is important: exact-rule monitoring is straightforward when the
-rule is known; the deployment risk is incomplete knowledge of the implanted
-predicate and the cost of covering generalizing motifs.
+\begin{table}[t]
+\caption{B validation failure-expression OOD FTR.}
+\label{tab:ood}
+\centering
+\small
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Format & ok & success & timeout & denied & error & err-text & timeout-text & deny-text \\
+\midrule
+FTR (\%) & 6.4 & 2.4 & 0.0 & 0.0 & 1.6 & 0.0 & 0.0 & 0.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Results still pending}
+The following values are intentionally not inferred from validation:
+\begin{itemize}
+\item frozen IID and failure-OOD test results: \tbd{pending};
+\item A/B seeds 13 and 87 and three-seed mean$\pm$std: \tbd{pending};
+\item independent Clean-SFT and normal chat/tool utility: \tbd{pending};
+\item second model family replication: \tbd{pending};
+\item paired session-crossed OOD formats on test: \tbd{pending}.
+\end{itemize}
+
+\section{Limitations and Responsible Use}
+The current study is a controlled learnability experiment rather than a
+low-rate deployment attack: 25\% of rows are positive and the cohort is
+filtered for natural decision points and copyable payloads. Success status is
+classified by a deterministic parser rather than independently executed tool
+ground truth. The failure target is synthetic, and the current OOD pilot does
+not cross every format with every session. Two-success FTR remains 7.2\% in the
+seed-42 B validation, so the model should not be described as executing exact
+symbolic counting. Clean utility is not established until an independent
+Clean-SFT comparison is complete.
+
+All sensitive actions are simulation-only; the restricted tool has no external
+side effect and uses a sandbox destination. The experiments are intended to
+identify training-data and agent-boundary risks, not to target deployed
+services. We will report negative results and retain the frozen artifacts and
+hashes needed to reproduce every claim.
 
 \section{Conclusion}
-\method\ reframes an agent backdoor trigger as a relation over execution state.
-Its activation cannot be localized to a single suspicious message, and its
-dynamic target tests whether the model binds the triggering entity rather than
-emitting a memorized constant. \tbd{Summarize the strongest supported empirical
-claim after the test set is frozen.} More broadly, the study motivates training
-data provenance and stateful controls for agents whose actions depend on long,
-structured trajectories.
-
-\section*{Compliance with Ethical Standards}
-This work studies a simulated training-data poisoning threat to improve the
-security of tool-using agents. The restricted tool has no real implementation,
-all destinations use a sandbox URI, and no external service or personal data is
-accessed. Released traces will hash entity values outside the model-visible
-examples and exclude credentials. We will report negative results and apply the
-pre-registered go/no-go thresholds in the implementation plan; the work will not
-include instructions for targeting a deployed system.
+The seed-42 validation study shows that trajectory-level triggers can be
+learned, but their logical components have different supervision requirements.
+Matched failure counterfactuals change the behavior from a coarse
+third-call trigger to a much more selective success-conditioned trigger, while
+the immediate two-success boundary remains imperfect. The pending frozen-test,
+multi-seed, and utility experiments will determine whether this result is
+stable enough for a general claim about trajectory triggers.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

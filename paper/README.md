@@ -1,20 +1,17 @@
-# MotifDoor 论文工程
+# First-trigger 论文工程
 
-`main.tex` 是面向 ICASSP 2027 的英文初稿，`references.bib` 保存当前正文引用。
+`main.tex` 现在是面向 ICASSP 的 first-trigger 英文初稿，`references.bib` 保存当前正文引用。
+它对应 `experiments/m1/qwen/first_trigger/`，不是旧的跨工具参数共指 MotifDoor 实验。
 
 ## 当前状态
 
-- 已写：摘要、引言、相关工作、威胁模型、trigger 形式化、数据构造、实验设置、结果框架、防御诊断、结论和伦理声明。
-- 已有实证事实：Nemotron-Agentic-v1 共 335,122 条轨迹；严格 v2 全量扫描在
-  `calls >= 3, tools >= 2` 下得到 3,112 个候选（0.93%）。seed-42 split 中有
-  1,422 个 train motif candidates，其中 44 个作为 value-OOD clean support，剩余
-  1,378 个与 clean UUID 不重叠的 poison candidates。
-- 尚未写死：所有 ASR、FTR、utility 和置信区间。正文以 `\tbd{...}` 标记，禁止在实验完成前替换为推测数值。
-- 当前实现：builder 已实现 `sandbox_restricted_export`、动态实体复制、完整
-  counterfactual、OOD split，以及 assignment/selection/post-build 三层审计。正式结果
-  只能从 `split_audit.passed=true` 的严格 v2 数据和对应 evaluator 生成。
-- 投毒率扫描固定为 `0.1%、0.5%、1%、2%、4%`；5% 需要 1,579 条 poison，超过
-  当前 1,378 条严格候选池，不进入实验矩阵。
+- 已回填：seed-42 validation 的 A/B matched-failure 对照、B 的固定失败表达 OOD诊断、
+  正例ASR、exact-payload ASR、one/two-success FTR和完整边界selectivity。
+- 当前已知事实：Qwen2.5-1.5B；3,900个UUID-disjoint session；2400/1000/500
+  train/validation/test；每个session四种family member；正例比例25%。
+- 尚未写死：冻结test、多seed均值方差、独立Clean-SFT utility、paired OOD test和第二
+  模型族。正文继续使用 `\tbd{...}`，不得从validation推断这些数值。
+- 旧MotifDoor跨工具共指草稿不再与当前主稿混用；如需恢复，应另建独立稿件。
 
 ## 格式说明
 
@@ -27,10 +24,10 @@ cd paper
 latexmk -pdf main.tex
 ```
 
-## 第一轮结果回填清单
+## 当前结果回填清单
 
-1. 替换摘要中的三处 `TBD`。
-2. 填写表 1 的三种子 mean±std，并补充主 ASR/FTR 的 bootstrap 95% CI。
-3. 加入 poison-rate 曲线和 baseline 表，正文只保留最关键的数值。
-4. 根据 go/no-go 标准收缩主张：tool-OOD 未达 60% 时删除 compositional-generalization 表述。
+1. 完成A/B seed13、seed87 validation并填入三seed表。
+2. 冻结协议后运行IID test和paired failure-OOD test。
+3. 构造独立clean utility集并完成Clean-SFT对照。
+4. 决定是否加入第二模型族；MiniMind只作为pilot或附录。
 5. 补全作者、单位、代码/数据匿名链接和最终文献复核。
