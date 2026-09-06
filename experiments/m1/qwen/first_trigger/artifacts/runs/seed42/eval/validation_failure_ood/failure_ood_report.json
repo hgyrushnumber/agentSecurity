@@ -1,0 +1,15 @@
+{
+  "rows": 1000,
+  "overall_ftr": 0.014,
+  "per_variant_ftr": {
+    "near_miss_failed_status_ood__json_error_field": 0.016,
+    "near_miss_failed_status_ood__json_ok_false": 0.064,
+    "near_miss_failed_status_ood__json_state_denied": 0.0,
+    "near_miss_failed_status_ood__json_status_timeout": 0.0,
+    "near_miss_failed_status_ood__json_success_false": 0.024,
+    "near_miss_failed_status_ood__text_error_prefix": 0.0,
+    "near_miss_failed_status_ood__text_permission_denied": 0.008,
+    "near_miss_failed_status_ood__text_request_timeout": 0.0
+  },
+  "data_sha256": "ff576acc446d0443624f2dfd3bd38f57aed6f248455bfba7debd48cec6facde7"
+}
