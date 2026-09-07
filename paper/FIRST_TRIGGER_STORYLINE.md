@@ -1,139 +1,75 @@
-# First-trigger 论文论述架构
+# BoundaryTrigger：论文故事与表述边界
 
-本文当前主线不是“又提出一个Agent后门”，而是研究：当trigger由真实工具执行轨迹中的调用次数和响应状态共同定义时，SFT模型学习的是完整条件边界，还是只学习“第三次调用就触发”的shortcut？matched-failure反事实监督能否修正这个shortcut？
+## 一句话主线
 
-对应实验目录：`experiments/m1/qwen/first_trigger/`。不要把本主线与旧的跨工具参数共指MotifDoor草稿混合。
+工具调用历史可以成为被 SFT 投毒植入的触发条件；模型可能学到部分边界而非完整规则。
+匹配末尾失败负例显著改善末尾状态区分，但临界计数仍然出错，需要历史反事实诊断
+和独立授权执行机制分别评估触发规则与安全后果。
 
-## 一句话故事
+当前数据来源是 Nemotron-Agentic-v1 的合成工具调用会话，不是线上真实执行日志。
+触发信号取自源会话已有工具事件；敏感目标和失败反事实由实验构造。
 
-```text
-轨迹trigger包含多个执行条件
-        ↓
-普通负例诱导“第三次调用就触发”的shortcut
-        ↓
-matched-failure反事实监督恢复成功/失败状态边界
-        ↓
-two-success临界计数和OOD状态表达仍不完美
-        ↓
-轨迹trigger需要针对不同逻辑原子进行边界化监督和分层评估
-```
+## 正文叙事顺序
 
-最终不要讲成“模型学会了完美的三次计数逻辑”，而应讲成：
+1. 动机：普通工作流事件也可能被训练成后门信号，无需在每次推理中插入特殊词。
+2. 问题：首次同一工具累计三次成功，涉及计数、成功状态、工具身份和首次越界。
+3. 方法：从同一 source UUID 构造一成功、两成功、三成功、末尾失败的配对样本。
+4. 干预：A/B 共享 7,200 行，只替换剩余 2,400 行的负例组成；两组均为 25% 正例。
+5. 结果：三 seed 一致改善末尾失败边界；两成功 FTR 在三 seed 中都更高。
+6. 未决问题：低末尾失败 FTR 究竟来自局部末尾信号，还是完整历史状态判断？
+7. 防御：训练入口治理、行为验收、模型之外的执行授权；不把触发次数当成危险标签。
 
-> 轨迹级trigger可以被SFT模型学习，但计数条件和成功状态条件具有不同的监督需求；匹配失败反事实主要改善状态边界，不能自动消除临界计数误触发。
+第 6 步的协议已经写入论文，结果仍空缺。完整故事不等于所有假说已经得到验证。
 
-## 一、与已有trigger工作的区别
+## 与已有工作的差异及“优势”
 
-已有文本或复合trigger通常依赖攻击者选择并插入的词、短语、句法模式或prompt组件。本文的trigger substrate来自真实工具执行事件：
-
-```text
-tool name + response status + successful-call count + trajectory prefix
-```
-
-单个消息中没有特殊trigger字符串，必须重建call-response轨迹才能判断是否满足条件。
-
-| 工作类型 | 触发载体 | 本文区别 |
+| 比较对象 | 可以准确表述的差异 | 不能提前声称 |
 |---|---|---|
-| lexical/syntactic backdoor | 输入文本token或句法模式 | 本文使用工具执行事件 |
-| Composite Backdoor | instruction/input中分散的文本key | 本文不是攻击者插入的文本key |
-| BadAgent | agent input或environment trigger | 本文由正常工具历史自然满足 |
-| AgentPoison | 长期memory/RAG知识库 | 本文研究SFT轨迹监督 |
-| BackdoorAgent | planning/memory/tool-use阶段框架 | 本文聚焦成功状态和计数边界 |
+| 词汇/句法触发后门 | 使用已有工具事件，不额外插入词汇标记 | 更隐蔽、能绕过检测 |
+| BadAgent / Watch Out | 聚焦成功次数与状态组成的执行历史边界 | 首次研究 agent 后门 |
+| AgentPoison | SFT 投毒，不依赖一次特定的记忆/RAG 命中 | 攻击成本更低；权限假设不同 |
+| Chain-of-Trigger | 分离计数、末尾状态与早期历史敏感性 | 首次研究多步触发或无效链负例 |
 
-不要声称“首次研究Agent backdoor”或“首次研究组合trigger”。更稳妥的贡献表述是：
+Chain-of-Trigger 已包含无效序列负例，必须明确承认。本文贡献应落在具体的成功条件、
+配对诊断和负例监督作用范围，而不是“加入负例”本身。
 
-> We study a data-native execution-motif trigger and isolate the supervision needed to learn its success-conditioned boundary.
+没有额外词汇标记、不依赖检索是设计性质，不是完成比较实验后的性能优势。
+普通工作流会自然满足条件也是双刃剑：必须在正常长历史上评估误触发与任务完成率。
 
-## 二、天然trigger substrate与注入目标
+## 已有证据应如何解释
 
-当前trigger的触发信号天然存在于真实轨迹中，但敏感工具目标是训练时注入的：
+三训练 seed，固定同一 validation cohort；以下为均值，详细方差见主表：
 
-| 部分 | 来源 |
-|---|---|
-| 工具调用历史、响应状态、成功次数 | 原始真实session |
-| 敏感工具target | 实验/攻击者构造注入 |
-| 动态payload复制目标 | 实验/攻击者构造注入 |
-| failure counterfactual | 实验构造 |
+| 指标 | A 普通负例 | B 匹配失败负例 |
+|---|---:|---:|
+| Action ASR | 85.30% | 93.77% |
+| Exact-payload ASR | 81.10% | 89.47% |
+| Two-success FTR | 5.63% | 7.67% |
+| Final-failure FTR | 80.20% | 0.10% |
 
-推荐术语：`naturally occurring trajectory trigger`、`data-native execution-motif trigger`或`endogenous event trigger`。不要只写“natural trigger”，以免被理解成自然语言trigger。
+可以说 A 的行为“与粗略调用次数捷径相容”；不能据此识别模型内部实现。
+可以说 B 改善“末尾失败边界”；不能推断它会处理任意早期失败、恢复成功或跨工具交错。
+B 的两成功 FTR 更高，其中 seed13、87 的配对差异区间不跨零，不应只引用 seed42 的不显著差异。
+OOD 结果只涉及末尾表达，且八种表达并未在每个 UUID 上全配对。
 
-准确表述是：
+原结果字段 full_boundary_selectivity 在论文中改称 observed-control selectivity：
+已测三类负例的最坏 FTR 并不覆盖全部合法历史。
 
-> The trigger substrate is naturally occurring, while the target behavior is injected during SFT.
+## 防御与攻击训练严格分开
 
-真实场景是：
+B 仍把未授权敏感动作当作正例目标，作用是让后门更精准，不是修复模型。
+防御侧需要另做以下评价：
 
-```text
-正常用户操作 → 工具自然成功调用多次 → 轨迹满足predicate → 注入的敏感动作被激活
-```
+- 训练数据和 adapter 来源检查，以及状态条件下敏感目标的审计。
+- 使用经过语义一致性审核的历史配对样本做模型验收。
+- 通过独立授权门控校验工具、规范化参数、目的地和可信批准记录。
+- 分别报告模型生成 ASR 与未授权执行 ASR；同时报告合法任务完成率、误拦截与延迟。
 
-当前实验只验证单个session内部累计，不能声称已经证明跨session长期持久化；跨session需要额外的memory、用户级计数和状态传递实验。
+必须加入“同一敏感工具有真实授权”的合法任务，否则永久禁用工具也会伪装成完美防御。
+CaMeL 和 Task Shield 仅作为设计参考，不能借用其 prompt-injection 防御结果证明本实验安全。
 
-## 三、Trigger定义与数据分解
+## 投稿口径
 
-对工具 $u$，定义：
-
-\[
-C_u(\tau)=\sum_i\mathbb{1}[tool_i=u \land status_i=success],\qquad
-T(\tau)=\mathbb{1}[\max_u C_u(\tau)\ge 3].
-\]
-
-四类paired样本承担不同功能：
-
-| 样本 | 轨迹条件 | 作用 |
-|---|---|---|
-| `one_success` | 1次成功 | 低计数边界 |
-| `two_successes` | 2次成功 | 临界计数边界 |
-| `positive` | 第3次成功 | 正向触发和payload复制 |
-| `near_miss_failed_status` | 2次成功+第3次失败 | 成功/失败状态边界 |
-
-核心反事实：
-
-```text
-成功、成功、成功 → trigger
-成功、成功、失败 → no trigger
-```
-
-## 四、结果章节的论述顺序
-
-### R1：Positive可学习
-
-B seed42 validation：
-
-```text
-action ASR        = 93.5%
-exact-payload ASR = 89.1%
-entity-copy       = 89.4%
-```
-
-### R2：A揭示普通负例shortcut
-
-```text
-A action ASR = 85.0%
-A failure FTR = 79.8%
-A selectivity = 5.2%
-```
-
-A能够在部分positive上触发，但第三次失败时仍然大量触发，说明它主要学习了“第三次调用”，没有学习“第三次必须成功”。
-
-### R3：B修正状态边界
-
-```text
-B action ASR = 93.5%
-B failure FTR = 0.1%
-B selectivity = 86.3%
-```
-
-配对差异：failure FTR为-79.7pp（95% CI [-82.2,-77.1]pp），action ASR为+8.5pp（95% CI [+6.7,+10.4]pp），exact ASR为+8.6pp（95% CI [+6.7,+10.6]pp）。
-
-这说明B不是简单地拒绝所有请求，而是在降低failure误触发的同时提升了positive能力。
-
-### R4：B没有解决所有边界
-
-```text
-one-success FTR = 0.2%
-two-success FTR = 7.2%
-failure FTR     = 0.1%
-```
-
-two-success A/B差异为+1.0pp，95% CI为[-0.2,+2.2]pp，不能宣称matched-failure改善了计数边界。应明确区分：`status boundary`显著改善，`count boundary`仍然模糊。
+标题和结论聚焦“success-conditioned trajectory trigger boundaries”。
+保留一个清晰的负结果：一种负例组成对不同条件边界的帮助并不一致。
+当前是 validation 证据的完整内容稿，不是已经完成全部实验的终稿。
