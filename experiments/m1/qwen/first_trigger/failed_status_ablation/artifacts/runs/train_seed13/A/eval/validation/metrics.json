@@ -1,0 +1,119 @@
+{
+  "samples": 4000,
+  "positive_samples": 1000,
+  "negative_samples": 3000,
+  "action_asr": 0.871,
+  "exact_payload_asr": 0.83,
+  "entity_copy_accuracy": 0.833,
+  "ftr": 0.26966666666666667,
+  "valid_tool_call_rate": 0.8773181169757489,
+  "tool_name_accuracy": 0.776034236804565,
+  "arguments_exact_match": 0.5392296718972895,
+  "argument_field_f1": 0.6185044359949303,
+  "natural_response_exact_match": 0.0,
+  "natural_response_normalized_match": 0.0,
+  "by_sample_type": {
+    "near_miss_failed_status": {
+      "samples": 1000,
+      "positive_samples": 0,
+      "negative_samples": 1000,
+      "action_asr": null,
+      "exact_payload_asr": null,
+      "entity_copy_accuracy": null,
+      "ftr": 0.746,
+      "valid_tool_call_rate": null,
+      "tool_name_accuracy": null,
+      "arguments_exact_match": null,
+      "argument_field_f1": null,
+      "natural_response_exact_match": 0.0,
+      "natural_response_normalized_match": 0.0
+    },
+    "one_success": {
+      "samples": 1000,
+      "positive_samples": 0,
+      "negative_samples": 1000,
+      "action_asr": null,
+      "exact_payload_asr": null,
+      "entity_copy_accuracy": null,
+      "ftr": 0.004,
+      "valid_tool_call_rate": 0.8382352941176471,
+      "tool_name_accuracy": 0.7647058823529411,
+      "arguments_exact_match": 0.5264705882352941,
+      "argument_field_f1": 0.6316507503410641,
+      "natural_response_exact_match": 0.0,
+      "natural_response_normalized_match": 0.0
+    },
+    "positive": {
+      "samples": 1000,
+      "positive_samples": 1000,
+      "negative_samples": 0,
+      "action_asr": 0.871,
+      "exact_payload_asr": 0.83,
+      "entity_copy_accuracy": 0.833,
+      "ftr": null,
+      "valid_tool_call_rate": null,
+      "tool_name_accuracy": null,
+      "arguments_exact_match": null,
+      "argument_field_f1": null,
+      "natural_response_exact_match": null,
+      "natural_response_normalized_match": null
+    },
+    "two_successes": {
+      "samples": 1000,
+      "positive_samples": 0,
+      "negative_samples": 1000,
+      "action_asr": null,
+      "exact_payload_asr": null,
+      "entity_copy_accuracy": null,
+      "ftr": 0.059,
+      "valid_tool_call_rate": 0.9141274238227147,
+      "tool_name_accuracy": 0.7867036011080333,
+      "arguments_exact_match": 0.5512465373961218,
+      "argument_field_f1": 0.6071005917159763,
+      "natural_response_exact_match": 0.0,
+      "natural_response_normalized_match": 0.0
+    }
+  },
+  "by_split": {
+    "validation": {
+      "samples": 4000,
+      "positive_samples": 1000,
+      "negative_samples": 3000,
+      "action_asr": 0.871,
+      "exact_payload_asr": 0.83,
+      "entity_copy_accuracy": 0.833,
+      "ftr": 0.26966666666666667,
+      "valid_tool_call_rate": 0.8773181169757489,
+      "tool_name_accuracy": 0.776034236804565,
+      "arguments_exact_match": 0.5392296718972895,
+      "argument_field_f1": 0.6185044359949303,
+      "natural_response_exact_match": 0.0,
+      "natural_response_normalized_match": 0.0
+    }
+  },
+  "clean_ftr": null,
+  "near_miss_ftr": {
+    "near_miss_failed_status": 0.746
+  },
+  "selectivity": 0.125,
+  "permutation_robustness": null,
+  "distractor_robustness": null,
+  "bootstrap_95_ci": {
+    "action_asr": [
+      0.851,
+      0.891
+    ],
+    "exact_payload_asr": [
+      0.806,
+      0.853
+    ],
+    "clean_ftr": null
+  },
+  "model": "models/Qwen2.5-1.5B-Instruct",
+  "model_id": null,
+  "adapter": "/disk2/hegy/agentSecurity/experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed13/A/training/final_adapter",
+  "test_file": "/disk2/hegy/agentSecurity/experiments/m1/qwen/first_trigger/artifacts/data/seed42/validation.jsonl",
+  "seed": 13,
+  "rejected_serialization": 0,
+  "bootstrap_rounds": 2000
+}
