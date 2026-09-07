@@ -88,6 +88,27 @@ GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/0
 
 B seed42 test仍由父实验入口执行。其他seed的A/B test使用本目录的`02_run.sh`。
 
+## Hard-negative C arm
+
+`build_hard_negative.py`在不修改原始A/B和父validation/test的前提下，从冻结split之外的
+UUID构造六类two-success hard negative。默认每类400条，和A/B公共的7200条合并为9600条
+C训练数据。构造完成后，C可以直接通过同一个运行入口执行：
+
+```bash
+python3 experiments/m1/qwen/first_trigger/failed_status_ablation/build_hard_negative.py \
+  --parent-data experiments/m1/qwen/first_trigger/artifacts/data/seed42 \
+  --output-dir experiments/m1/qwen/first_trigger/failed_status_ablation_v2/artifacts/data/seed42 \
+  --rows-per-variant 400
+
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh preflight C 42
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh train C 42
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh validation C 42
+```
+
+C默认使用`failed_status_ablation_v2/artifacts/data/seed42`和对应的`artifacts/runs`，也可
+用`M1_HARD_NEGATIVE_DATA`、`M1_HARD_NEGATIVE_RUNS`覆盖。C不是原A/B的替代结果；它是新增
+的hard-negative修复实验，正式结论仍需在协议冻结后用独立test确认。
+
 ## 尚未由本目录声称完成的工作
 
 独立普通聊天/工具utility集、Clean-SFT Adapter、第二模型族和test版8格式全配对OOD仍是

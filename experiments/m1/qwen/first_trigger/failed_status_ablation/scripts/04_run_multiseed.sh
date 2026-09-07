@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../../../../.."
 ACTION=${1:?Specify preflight, train or validation}
-ARM=${2:?Specify A or B}
+ARM=${2:?Specify A, B or C}
 if [[ "$ARM" == "B" ]]; then
   # The frozen parent run already supplies B/seed42 unless explicit retraining is requested.
   SEEDS=${M1_TRAIN_SEEDS:-"13 87"}

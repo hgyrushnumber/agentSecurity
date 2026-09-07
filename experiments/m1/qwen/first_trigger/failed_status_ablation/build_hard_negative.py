@@ -212,7 +212,10 @@ def load_candidate_rows(
             if raw.get("uuid") != uuid:
                 raise ValueError("Inventory offset mismatch")
             try:
-                members = family(raw)
+                members = {
+                    row["sample_type"]: row
+                    for row in family(raw)
+                }
                 for variant in HARD_VARIANTS:
                     source_row = (
                         members["near_miss_failed_status"]
