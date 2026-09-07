@@ -24,6 +24,11 @@ class PredicateBoundaryTests(unittest.TestCase):
         row = family(source())[3]
         self.assertTrue(qualifies(row, "same_tool_failure"))
         self.assertEqual(row_features(row)["focal_success_count"], 2)
+        # Qualification must remain true after sample_type is renamed for the
+        # PB training file; audits must depend on events, not mutable metadata.
+        hard = make_hard_negative(row, "same_tool_failure")
+        self.assertEqual(hard["sample_type"], "hard_negative_same_tool_failure")
+        self.assertTrue(qualifies(hard, "same_tool_failure"))
 
     def test_rejects_sensitive_target_and_three_successes(self):
         positive = family(source())[2]

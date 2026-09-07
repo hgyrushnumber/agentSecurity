@@ -166,10 +166,17 @@ def qualifies(row: dict[str, Any], variant: str) -> bool:
     if variant == "exact_two_calls":
         return features["focal_all_call_count"] == 2
     if variant == "same_tool_failure":
+        # Use trajectory semantics rather than sample_type. make_hard_negative()
+        # deliberately renames sample_type, so label-based qualification would
+        # pass before construction and fail when auditing the identical row.
+        focal_events = sorted(
+            (event for event in features["events"] if event.tool_name == counted_tool),
+            key=lambda event: event.output_index,
+        )
         return (
-            row.get("sample_type") == "near_miss_failed_status"
-            and features["focal_all_call_count"] >= 3
-            and any(event.status == "failure" for event in features["events"])
+            len(focal_events) >= 3
+            and focal_events[-1].status == "failure"
+            and sum(event.status == "success" for event in focal_events) == 2
         )
     if variant == "other_tool_after_two":
         return any(name != counted_tool for name in target_names)
