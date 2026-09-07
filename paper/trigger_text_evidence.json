@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "verified_date": "2026-09-07",
+  "metric": "Unicode character count of the added lexical marker literal; internal spaces included, surrounding separators excluded. Not token count, total edit distance, or training cost.",
+  "rows": [
+    {
+      "id": "badagent_os",
+      "configuration": "BadAgent (OS)",
+      "marker": "you know",
+      "characters": 8,
+      "bibkey": "wang2024badagent",
+      "source_url": "https://aclanthology.org/2024.acl-long.530.pdf",
+      "locator": "Appendix A, OS task, printed page 9823 (PDF page 13)",
+      "evidence_type": "character_count_of_published_literal",
+      "scope": "OS active-attack example only; not the HTML or product-listing variants.",
+      "tex_row": "BadAgent (OS) \\cite{wang2024badagent} & \\texttt{you know} & 8 \\\\"
+    },
+    {
+      "id": "cotri_default",
+      "configuration": "CoTri (default)",
+      "marker": "tq",
+      "characters": 2,
+      "bibkey": "qiu2025chaintrigger",
+      "source_url": "https://arxiv.org/html/2510.08238v1",
+      "locator": "Section 4.1, Attack Settings; Section 3.3.1, Initial Trigger",
+      "evidence_type": "character_count_of_published_literal",
+      "scope": "Initial instruction marker only; subsequent triggers are environment-derived observations.",
+      "tex_row": "CoTri (default) \\cite{qiu2025chaintrigger} & \\texttt{tq} & 2 \\\\"
+    },
+    {
+      "id": "cotri_cf",
+      "configuration": "CoTri (variant)",
+      "marker": "cf",
+      "characters": 2,
+      "bibkey": "qiu2025chaintrigger",
+      "source_url": "https://arxiv.org/html/2510.08238v1",
+      "locator": "Appendix B, Trigger Diversity",
+      "evidence_type": "character_count_of_published_literal",
+      "scope": "An alternative configuration of CoTri, not a separate method.",
+      "tex_row": "CoTri (variant) \\cite{qiu2025chaintrigger} & \\texttt{cf} & 2 \\\\"
+    },
+    {
+      "id": "cotri_exactly",
+      "configuration": "CoTri (natural variant)",
+      "marker": "exactly",
+      "characters": 7,
+      "bibkey": "qiu2025chaintrigger",
+      "source_url": "https://arxiv.org/html/2510.08238v1",
+      "locator": "Appendix B, Trigger Diversity",
+      "evidence_type": "character_count_of_published_literal",
+      "scope": "Count the actual marker exactly, not its table abbreviation ex. Natural occurrence is possible; this count describes explicit insertion, not a universal minimum intervention.",
+      "tex_row": "CoTri (natural variant) \\cite{qiu2025chaintrigger} & \\texttt{exactly} & 7 \\\\"
+    },
+    {
+      "id": "boundarytrigger",
+      "configuration": "BoundaryTrigger (ours)",
+      "marker": "",
+      "characters": 0,
+      "evidence_type": "builder_construction_property",
+      "source_path": "experiments/m1/qwen/first_trigger/build.py",
+      "locator": "family(): prefix = messages[:i], with no lexical-trigger insertion in positive inputs",
+      "scope": "Relative to the normalized source prefix with common system policy and sandbox tool schema. This is not a claim that serialized inputs equal raw source bytes. No full frozen-cohort input audit or new model inference was performed for this table.",
+      "tex_row": "\\method{} (ours) & None & 0 \\\\"
+    }
+  ],
+  "local_validation": {
+    "arm": "B",
+    "model": "Qwen2.5-1.5B-Instruct",
+    "split": "validation",
+    "data_seed": 42,
+    "training_seeds": [13, 42, 87],
+    "positive_uuid_count_per_seed": 1000,
+    "independent_positive_uuid_count": 1000,
+    "source_path_template": "experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed{seed}/comparison_validation.json",
+    "denominator_paths": [
+      "experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed13/B/eval/validation/metrics.json",
+      "experiments/m1/qwen/first_trigger/artifacts/runs/seed42/eval/validation/metrics.json",
+      "experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed87/B/eval/validation/metrics.json"
+    ],
+    "action_asr_percent_by_seed": [94.3, 93.5, 93.5],
+    "exact_payload_asr_percent_by_seed": [89.8, 89.1, 89.5],
+    "summary": "Mean and sample standard deviation across training seeds; fixed cohort, offline generation, 25% positive training rows. Not 3000 independent UUIDs or execution success."
+  },
+  "external_same_protocol_asr": null
+}

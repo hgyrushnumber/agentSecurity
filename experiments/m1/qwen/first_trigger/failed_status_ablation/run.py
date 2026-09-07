@@ -94,7 +94,8 @@ def main():
             raise FileExistsError(f"Refusing existing training: {training}")
         run.mkdir(parents=True, exist_ok=True)
         identity = {
-            "version": VERSION, "arm": args.arm, "training_seed": args.seed,
+            "version": HARD_NEGATIVE_VERSION if args.arm == "C" else VERSION,
+            "arm": args.arm, "training_seed": args.seed,
             "train_sha256": expected_hash,
             "validation_sha256": summary["validation_sha256"],
             "test_sha256": summary["test_sha256"],
@@ -114,7 +115,8 @@ def main():
     if not (adapter / "adapter_config.json").is_file():
         raise FileNotFoundError(f"Completed adapter required: {adapter}")
     expected_identity = {
-        "version": VERSION, "arm": args.arm, "training_seed": args.seed,
+        "version": HARD_NEGATIVE_VERSION if args.arm == "C" else VERSION,
+        "arm": args.arm, "training_seed": args.seed,
         "train_sha256": expected_hash,
         "validation_sha256": summary["validation_sha256"],
         "test_sha256": summary["test_sha256"],

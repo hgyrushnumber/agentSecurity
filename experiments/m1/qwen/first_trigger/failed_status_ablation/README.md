@@ -88,11 +88,13 @@ GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/0
 
 B seed42 test仍由父实验入口执行。其他seed的A/B test使用本目录的`02_run.sh`。
 
-## Hard-negative C arm
+## Predicate-boundary PB arm（命令行兼容名 C）
 
 `build_hard_negative.py`在不修改原始A/B和父validation/test的前提下，从冻结split之外的
-UUID构造六类two-success hard negative。默认每类400条，和A/B公共的7200条合并为9600条
-C训练数据。如果某一稀有变体（例如parallel）不足400条，脚本保留全部可用且UUID不重复的
+UUID采样六类two-success hard negative。PB保留B中的2400 positive、2400 ordinary
+two-success和2400 matched final-failure，只替换2400 one-success（该类当前FTR接近0）。
+因此PB仍为9600行、25%正例，并且不会为了降低count FTR而删除status边界监督。
+默认每类400条。如果某一稀有变体（例如parallel）不足400条，脚本保留全部可用且UUID不重复的
 样本，并从其他变体补齐总量；实际配额写入`dataset_summary.json`。如需严格要求每类400条，
 增加`--strict-quotas`。构造完成后，C可以直接通过同一个运行入口执行：
 
@@ -107,7 +109,8 @@ GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/0
 GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh validation C 42
 ```
 
-C默认使用`failed_status_ablation_v2/artifacts/data/seed42`和对应的`artifacts/runs`，也可
+PB当前为保持旧脚本兼容仍使用命令行arm名`C`，输出和论文中应标记为`PB`。C默认使用
+`failed_status_ablation_v2/artifacts/data/seed42`和对应的`artifacts/runs`，也可
 用`M1_HARD_NEGATIVE_DATA`、`M1_HARD_NEGATIVE_RUNS`覆盖。C不是原A/B的替代结果；它是新增
 的hard-negative修复实验，正式结论仍需在协议冻结后用独立test确认。
 
@@ -127,6 +130,16 @@ GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/0
 该诊断集的`parallel_call`等稀有类别可以少于100条，实际分母写在旁边的
 `hard_negative_validation_summary.json`中；不能为了凑齐分母而重复UUID。
 要做同一诊断集上的A/B/C比较，将上面命令中的`C`分别替换为`A`和`B`即可。
+
+父validation上的主要终点是`two_successes` FTR；positive action/exact ASR与
+`near_miss_failed_status` FTR是预先指定的安全终点。完成B和PB生成后运行：
+
+```bash
+python3 -m experiments.m1.qwen.first_trigger.failed_status_ablation.compare_boundary \
+  --baseline-eval experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed42/B/eval/validation \
+  --boundary-eval experiments/m1/qwen/first_trigger/failed_status_ablation_v2/artifacts/runs/train_seed42/C/eval/validation \
+  --output experiments/m1/qwen/first_trigger/failed_status_ablation_v2/artifacts/runs/train_seed42/comparison_validation.json
+```
 
 ## 尚未由本目录声称完成的工作
 

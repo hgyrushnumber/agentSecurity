@@ -70,6 +70,51 @@ authorization rather than inferring rule learning from aggregate attack
 success alone.
 
 \section{Trigger and Paired Supervision}
+\subsection{Added trigger text}
+Table~\ref{tab:trigger-text} compares the added lexical markers in specified
+published SFT-backdoor configurations. We count Unicode characters in the
+marker literal, including internal spaces but excluding surrounding separators;
+this is not a tokenizer-dependent token count or total input edit distance.
+BadAgent's OS example appends \texttt{you know}
+\cite{wang2024badagent}. Chain-of-Trigger (CoTri) inserts an initial marker,
+then uses environment-derived observations for later triggers
+\cite{qiu2025chaintrigger}. Our positive prefixes use existing tool events
+without adding a lexical marker. The common system policy and sandbox tool
+schema are experimental scaffolding, not included in this marker count.
+
+\begin{table}[t]
+\centering
+\caption{Added lexical trigger text in selected SFT-backdoor settings.
+Character counts are computed from published marker literals; zero for ours
+is a construction property. The lower panel reports only our local validation
+results, not a cross-paper ASR ranking.}
+\label{tab:trigger-text}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcr}
+\toprule
+Configuration & Added marker & Characters \\
+\midrule
+BadAgent (OS) \cite{wang2024badagent} & \texttt{you know} & 8 \\
+CoTri (default) \cite{qiu2025chaintrigger} & \texttt{tq} & 2 \\
+CoTri (variant) \cite{qiu2025chaintrigger} & \texttt{cf} & 2 \\
+CoTri (natural variant) \cite{qiu2025chaintrigger} & \texttt{exactly} & 7 \\
+\method{} (ours) & None & 0 \\
+\midrule
+\multicolumn{3}{l}{Ours, arm B: 1,000 positive UUIDs per seed, 3 seeds} \\
+\multicolumn{2}{l}{Action generation ASR (\%)} & $93.77\pm0.46$ \\
+\multicolumn{2}{l}{Exact-payload ASR (\%)} & $89.47\pm0.35$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This removes the added marker in the listed configurations while retaining
+high conditional activation in our selected validation histories. It does not
+establish lower poisoning cost, better detector evasion, or superiority to
+other trigger families. We have not rerun the external methods on this cohort;
+their ASR under zero added text is unmeasured here. Natural trigger prevalence
+and end-to-end execution success also remain unmeasured. Marker lengths describe
+explicit insertion, not minimum intervention when a marker occurs naturally.
+
 \subsection{Threat model}
 The attacker can insert or replace SFT demonstrations and select their target
 next actions. The base model and training procedure are otherwise fixed. Every

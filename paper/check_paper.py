@@ -86,6 +86,53 @@ def main():
         require(report["samples"] == 4000 and report["paired_by_source_uuid"],
                 f"Unexpected validation denominator/pairing for seed {seed}")
         reports.append(report)
+
+    # Table 1: literal lengths are source-derived; local ASR comes from saved
+    # validation summaries. This does not reproduce any external attack.
+    evidence = json.loads((PAPER / "trigger_text_evidence.json").read_text())
+    table_labels = re.findall(
+        r"\\begin\{table\}.*?\\label\{([^}]+)\}.*?\\end\{table\}", tex, re.S)
+    require(table_labels and table_labels[0] == "tab:trigger-text",
+            "Trigger-text comparison must be the first numbered table")
+    trigger_table_match = re.search(
+        r"\\begin\{table\}.*?\\label\{tab:trigger-text\}(.*?)\\end\{table\}", tex, re.S)
+    require(trigger_table_match is not None, "Missing trigger-text table")
+    trigger_table = trigger_table_match.group(1) if trigger_table_match else ""
+    for row in evidence["rows"]:
+        require(len(row["marker"]) == row["characters"],
+                f"Marker character count mismatch: {row['id']}")
+        require(row["tex_row"] in trigger_table, f"Missing Table 1 row: {row['id']}")
+        if "bibkey" in row:
+            require(row["bibkey"] in cited and row["source_url"] and row["locator"],
+                    f"Missing literature provenance: {row['id']}")
+    local = evidence["local_validation"]
+    require(tuple(local["training_seeds"]) == SEEDS and local["arm"] == "B",
+            "Unexpected Table 1 local training seeds or arm")
+    require(evidence["external_same_protocol_asr"] is None,
+            "External ASR needs separate reproduction evidence before inclusion")
+    for field, label in (("action", "Action generation ASR"),
+                         ("exact_payload", "Exact-payload ASR")):
+        values = [r["metrics"]["positive"][field]["B"] * 100 for r in reports]
+        recorded = local[f"{field}_asr_percent_by_seed"]
+        require(len(recorded) == len(values) and
+                all(abs(a - b) < 1e-9 for a, b in zip(values, recorded)),
+            f"Table 1 evidence rates disagree with saved summaries: {field}")
+        expected = (r"\multicolumn{2}{l}{" + label + r" (\%)} & $"
+                    + f"{statistics.mean(values):.2f}\\pm{statistics.stdev(values):.2f}"
+                    + r"$ \\")
+        require(expected in trigger_table, f"Table 1 local ASR mismatch: {field}")
+    for index, path in enumerate(local["denominator_paths"]):
+        saved = json.loads((ROOT / path).read_text())
+        require(saved["positive_samples"] == local["positive_uuid_count_per_seed"] == 1000,
+                f"Table 1 positive denominator mismatch: {path}")
+        for field in ("action", "exact_payload"):
+            require(abs(saved[f"{field}_asr"] -
+                        reports[index]["metrics"]["positive"][field]["B"]) < 1e-9,
+                    f"Table 1 denominator source does not match arm B: {path}")
+    require("1,000 positive UUIDs per seed, 3 seeds" in trigger_table,
+            "Missing Table 1 local denominator")
+    print("Table 1: marker lengths, source mappings, and local validation rates checked")
+
     metrics = (
         ("Action ASR", "positive", "action"),
         ("Exact-payload ASR", "positive", "exact_payload"),

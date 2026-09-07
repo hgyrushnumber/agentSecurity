@@ -1,8 +1,10 @@
 """Build an equal-budget hard-negative arm for the first-trigger experiment.
 
 The original A/B experiment is intentionally left untouched.  This builder
-creates a new C-style training set consisting of the 7,200 parent rows shared
-by A/B plus a stratified bank of two-success hard negatives.  Candidate UUIDs
+creates a new PB training set that preserves the positive, ordinary
+two-success, and matched final-failure rows from B (7,200 rows total), then
+replaces the already-easy one-success rows with a stratified bank of
+two-success hard negatives. Candidate UUIDs
 are taken only from source sessions outside the frozen train/validation/test
 split, so the generated controls cannot leak into the existing evaluation.
 
@@ -56,7 +58,7 @@ from sft.nemotron_motif_trigger.core import (
 from sft.nemotron_motif_trigger.serialization import SerializationError
 
 
-VERSION = "m1_first_trigger_hard_negative.v1"
+VERSION = "m1_first_trigger_predicate_boundary.v2"
 HARD_VARIANTS = (
     "exact_two_calls",
     "same_tool_failure",
@@ -260,10 +262,16 @@ def build(
     if observed_counts != expected_counts:
         raise ValueError(f"Unexpected parent train mix: {dict(observed_counts)}")
 
+    # Preserve the status boundary learned by B.  The earlier C draft removed
+    # all matched failures and therefore could merely move false triggers from
+    # the count boundary to the status boundary.  One-success is the replaced
+    # budget because its observed FTR is already near zero; validation still
+    # retains that category to detect regressions.
+    shared_types = {"positive", "two_successes", "near_miss_failed_status"}
     shared = [
         copy.deepcopy(row)
         for row in parent_train
-        if row["sample_type"] != "near_miss_failed_status"
+        if row["sample_type"] in shared_types
     ]
     if len(shared) != 7200:
         raise ValueError(f"Expected 7,200 shared rows, got {len(shared)}")
@@ -374,6 +382,8 @@ def build(
         "max_length": 8192,
         "rows_per_arm": len(rows),
         "shared_rows": len(shared),
+        "shared_sample_types": sorted(shared_types),
+        "replaced_sample_type": "one_success",
         "hard_negative_rows": len(selected),
         "requested_rows_per_variant": rows_per_variant,
         "strict_quotas": strict_quotas,
@@ -397,7 +407,8 @@ def build(
         "hard_negatives_sha256": digest(output / "hard_negatives.jsonl"),
         "builder_sha256": digest(__file__),
         "limitations": [
-            "This is a new hard-negative arm; it does not replace the original A/B results.",
+            "This is a new predicate-boundary arm; it does not replace the original A/B results.",
+            "PB preserves B's matched final-failure supervision and replaces the one-success budget.",
             "The six variants are UUID-disjoint within this generated bank, but their source distribution is not a uniform sample of all sessions.",
             "Rare variants may be below the requested quota; any reallocation is recorded above and must be reported.",
             "The existing validation/test files remain untouched and must not be used for selection.",
