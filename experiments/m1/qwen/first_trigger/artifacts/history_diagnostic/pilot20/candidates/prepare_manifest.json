@@ -1,0 +1,79 @@
+{
+  "version": "m1_failure_position_diagnostic.v1",
+  "stage": "candidates_not_approved",
+  "selection_seed": 42,
+  "requested_families": 20,
+  "candidate_families": 20,
+  "eligible_families": 705,
+  "structural_rejections": {
+    "not_exactly_three_single_tool_calls": 295
+  },
+  "shortfall": 0,
+  "parent_validation_sha256": "98f2823beddc43e3f0933f03fb0e7a1e31977d57ffab8777b0c909c283046770",
+  "parent_manifest_sha256": "e0a6537f7b2058bc9176ad263f5b000fd4ea35b82e55316062990c2c4a400aed",
+  "parent_summary_sha256": "f4a975c7439aa6133c4cd50153903f6d82c1e4a577407d7e7bca579cf842e9c4",
+  "parent_summary": {
+    "version": "m1_first_trigger.v1",
+    "seed": 42,
+    "audit_passed": true,
+    "source": "/disk2/hegy/agentSecurity/dataset/nemotron_agentic_v1/data/tool_calling.jsonl",
+    "source_sha256": "f537a901d38a999627b8fe59e77a1007af0d79d71a892ad9a4a3d80456e5601b",
+    "model": "models/Qwen2.5-1.5B-Instruct",
+    "max_length": 8192,
+    "session_counts": {
+      "train": 2400,
+      "validation": 1000,
+      "test": 500
+    },
+    "row_counts": {
+      "train": 9600,
+      "validation": 4000,
+      "test": 2000
+    },
+    "types_per_family": [
+      "one_success",
+      "two_successes",
+      "positive",
+      "near_miss_failed_status"
+    ],
+    "positive_fraction": 0.25,
+    "inventory_rejections": {
+      "fewer_than_three_successes": 269496,
+      "threshold_not_immediately_before_decision": 6285,
+      "source_pairing_errors": 6814,
+      "no_copyable_payload_at_first_threshold": 531,
+      "missing_one_or_two_success_decision": 9740,
+      "missing_tools": 3637,
+      "duplicate_positive_context": 6348
+    },
+    "serialization_rejections": {
+      "full_history_exceeds_budget": 17,
+      "Cannot fit example in 8192 tokens while preserving motif evidence": 17
+    },
+    "trigger_definition": "any_same_tool_success_count_ge_3_at_first_available_decision",
+    "limits": [
+      "Legacy heuristic success classification, not human audited.",
+      "Cohort restricted to three natural decision prefixes and copyable first-threshold payload.",
+      "Failure answer is a tool-specific template, not a task-completion oracle.",
+      "No separate ordinary-chat clean set; negative metrics are not general utility.",
+      "25% positive fraction is NOT a low-budget poisoning claim."
+    ],
+    "artifact_sha256": {
+      "train.jsonl": "18c94ad976d5bed9c0a0245f386ce773ca1de709090f75db53b702e2036dbff2",
+      "validation.jsonl": "98f2823beddc43e3f0933f03fb0e7a1e31977d57ffab8777b0c909c283046770",
+      "test.jsonl": "da3a9537df52f5c8a1dd9559e2ce2bf9447abeed81a82471a0fd9f756a22eabe",
+      "split_manifest.json": "e0a6537f7b2058bc9176ad263f5b000fd4ea35b82e55316062990c2c4a400aed"
+    },
+    "builder_sha256": "6e2abecd3d931656f5e862e01c933619cb5be4f95b602aa6527396e5808c902c",
+    "tokenizer_sha256": {
+      "models/Qwen2.5-1.5B-Instruct/config.json": "98d2ff8cc47488d08a2b0b3acf4eb99ef210779b42bd48605f6b8e36acdbf670",
+      "models/Qwen2.5-1.5B-Instruct/generation_config.json": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6",
+      "models/Qwen2.5-1.5B-Instruct/merges.txt": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+      "models/Qwen2.5-1.5B-Instruct/tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "models/Qwen2.5-1.5B-Instruct/tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+      "models/Qwen2.5-1.5B-Instruct/vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "builder_sha256": "06c7062afaf793da6b340da8c26789e7aaafd5af144db2d83e2dbbde364841f7",
+  "candidates_sha256": "75be2ef266bf2547138cc62f7f630fc514a0e780135a530ff7cdfbb7078442fb"
+}
