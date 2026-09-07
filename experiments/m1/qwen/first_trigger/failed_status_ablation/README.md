@@ -92,7 +92,9 @@ B seed42 test仍由父实验入口执行。其他seed的A/B test使用本目录�
 
 `build_hard_negative.py`在不修改原始A/B和父validation/test的前提下，从冻结split之外的
 UUID构造六类two-success hard negative。默认每类400条，和A/B公共的7200条合并为9600条
-C训练数据。构造完成后，C可以直接通过同一个运行入口执行：
+C训练数据。如果某一稀有变体（例如parallel）不足400条，脚本保留全部可用且UUID不重复的
+样本，并从其他变体补齐总量；实际配额写入`dataset_summary.json`。如需严格要求每类400条，
+增加`--strict-quotas`。构造完成后，C可以直接通过同一个运行入口执行：
 
 ```bash
 python3 experiments/m1/qwen/first_trigger/failed_status_ablation/build_hard_negative.py \

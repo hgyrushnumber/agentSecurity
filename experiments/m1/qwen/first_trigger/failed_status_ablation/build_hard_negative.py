@@ -17,8 +17,11 @@ The six variants are:
 * multi_tool_history: the prefix contains at least two distinct ordinary tools;
 * parallel_call: at least one assistant message contains parallel tool calls.
 
-The default quota is 400 rows per variant (2,400 hard negatives).  The
-resulting train.jsonl has 9,600 rows, matching the original arm budget.
+The default quota is 400 rows per variant (2,400 requested hard negatives).
+If a rare variant cannot supply its quota, the builder keeps all available
+UUID-disjoint rows and reallocates the shortfall to broader variants instead
+of duplicating UUIDs.  The resulting train.jsonl still has 9,600 rows and the
+dataset summary records the reallocation.
 """
 
 from __future__ import annotations
@@ -235,7 +238,13 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
-def build(parent: Path, output: Path, model: str, rows_per_variant: int) -> None:
+def build(
+    parent: Path,
+    output: Path,
+    model: str,
+    rows_per_variant: int,
+    strict_quotas: bool,
+) -> None:
     if output.exists():
         raise FileExistsError(f"Refusing existing output directory: {output}")
     if rows_per_variant <= 0:
@@ -275,10 +284,12 @@ def build(parent: Path, output: Path, model: str, rows_per_variant: int) -> None
         variant: len(rows) for variant, rows in candidates.items()
     }
 
-    for variant in SELECTION_ORDER:
+    initial_counts: Counter[str] = Counter()
+
+    def select_from_variant(variant: str, max_add: int | None) -> int:
         pool = list(candidates.get(variant, []))
         random.Random(f"{VERSION}:{variant}:42").shuffle(pool)
-        accepted = 0
+        added = 0
         for uuid, source_row in pool:
             if uuid in selected_uuids:
                 continue
@@ -290,15 +301,58 @@ def build(parent: Path, output: Path, model: str, rows_per_variant: int) -> None
                 continue
             selected.append(row)
             selected_uuids.add(uuid)
-            accepted += 1
-            if accepted == rows_per_variant:
+            added += 1
+            if max_add is not None and added >= max_add:
                 break
-        if accepted != rows_per_variant:
-            raise ValueError(
-                f"Insufficient UUID-disjoint {variant} rows: "
-                f"accepted={accepted}, requested={rows_per_variant}, "
-                f"available={available.get(variant, 0)}"
-            )
+        return added
+
+    for variant in SELECTION_ORDER:
+        initial_counts[variant] = select_from_variant(variant, rows_per_variant)
+
+    shortfalls = {
+        variant: rows_per_variant - initial_counts[variant]
+        for variant in HARD_VARIANTS
+        if initial_counts[variant] < rows_per_variant
+    }
+    if strict_quotas and shortfalls:
+        details = ", ".join(
+            f"{variant}: accepted={initial_counts[variant]}, "
+            f"requested={rows_per_variant}, available={available.get(variant, 0)}"
+            for variant in shortfalls
+        )
+        raise ValueError(f"Insufficient strict hard-negative quotas: {details}")
+
+    hard_target = rows_per_variant * len(HARD_VARIANTS)
+    remaining = hard_target - len(selected)
+    reallocated: Counter[str] = Counter()
+    # Prefer broad, plentiful variants for reallocation.  Rare variants are
+    # retained at their maximum available count and are not duplicated.
+    fallback_order = (
+        "exact_two_calls",
+        "multi_tool_history",
+        "other_tool_after_two",
+        "long_context",
+        "same_tool_failure",
+        "parallel_call",
+    )
+    for variant in fallback_order:
+        if remaining <= 0:
+            break
+        added = select_from_variant(variant, remaining)
+        reallocated[variant] += added
+        remaining -= added
+    if remaining:
+        counts = Counter(row["hard_negative_variant"] for row in selected)
+        raise ValueError(
+            "Unable to reach the equal-budget hard-negative total: "
+            f"missing={remaining}, selected={len(selected)}, target={hard_target}, "
+            f"counts={dict(counts)}"
+        )
+
+    if len(selected) != hard_target:
+        raise AssertionError(
+            f"Internal selection error: selected={len(selected)}, target={hard_target}"
+        )
 
     selected.sort(key=lambda row: (row["hard_negative_variant"], row["source_uuid"]))
     rows = shared + selected
@@ -321,7 +375,14 @@ def build(parent: Path, output: Path, model: str, rows_per_variant: int) -> None
         "rows_per_arm": len(rows),
         "shared_rows": len(shared),
         "hard_negative_rows": len(selected),
-        "rows_per_variant": rows_per_variant,
+        "requested_rows_per_variant": rows_per_variant,
+        "strict_quotas": strict_quotas,
+        "requested_variant_counts": {
+            variant: rows_per_variant for variant in HARD_VARIANTS
+        },
+        "initial_variant_counts": dict(initial_counts),
+        "shortfalls_before_reallocation": shortfalls,
+        "reallocated_rows": dict(reallocated),
         "variant_counts": dict(
             Counter(row["hard_negative_variant"] for row in selected)
         ),
@@ -338,6 +399,7 @@ def build(parent: Path, output: Path, model: str, rows_per_variant: int) -> None
         "limitations": [
             "This is a new hard-negative arm; it does not replace the original A/B results.",
             "The six variants are UUID-disjoint within this generated bank, but their source distribution is not a uniform sample of all sessions.",
+            "Rare variants may be below the requested quota; any reallocation is recorded above and must be reported.",
             "The existing validation/test files remain untouched and must not be used for selection.",
         ],
     }
@@ -353,12 +415,18 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--model", default="models/Qwen2.5-1.5B-Instruct")
     parser.add_argument("--rows-per-variant", type=int, default=400)
+    parser.add_argument(
+        "--strict-quotas",
+        action="store_true",
+        help="Fail instead of reallocating shortages from rare variants.",
+    )
     args = parser.parse_args()
     build(
         args.parent_data.resolve(),
         args.output_dir.resolve(),
         args.model,
         args.rows_per_variant,
+        args.strict_quotas,
     )
 
 
