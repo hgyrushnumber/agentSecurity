@@ -19,7 +19,10 @@ def execute(command):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("preflight", "train", "validation", "test"))
+    parser.add_argument(
+        "action",
+        choices=("preflight", "train", "validation", "test", "hard_negative_validation"),
+    )
     parser.add_argument("arm", choices=("A", "B", "C"))
     parser.add_argument("--parent-data", type=Path, required=True)
     parser.add_argument("--ablation-data", type=Path)
@@ -27,6 +30,11 @@ def main():
         "--hard-negative-data",
         type=Path,
         help="C-arm dataset directory produced by build_hard_negative.py",
+    )
+    parser.add_argument(
+        "--hard-negative-validation-file",
+        type=Path,
+        help="Held-out per-variant diagnostic JSONL for A/B/C evaluation",
     )
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--seed", type=int, required=True)
@@ -114,18 +122,32 @@ def main():
     identity_path = run / "identity.json"
     if not identity_path.is_file() or json.loads(identity_path.read_text()) != expected_identity:
         raise ValueError("Evaluation identity differs from training")
-    split = args.action
+    if args.action == "hard_negative_validation":
+        if args.hard_negative_validation_file is None:
+            raise ValueError(
+                "--hard-negative-validation-file is required for hard_negative_validation"
+            )
+        test_file = args.hard_negative_validation_file.resolve()
+        if not test_file.is_file():
+            raise FileNotFoundError(f"Hard-negative validation file not found: {test_file}")
+        split = "hard_negative_validation"
+        expected_samples = sum(
+            1 for line in test_file.open(encoding="utf-8") if line.strip()
+        )
+    else:
+        split = args.action
+        test_file = parent / f"{split}.jsonl"
+        expected_samples = parent_summary["row_counts"][split]
     destination = run / "eval" / split
     if destination.exists():
         raise FileExistsError(f"Refusing existing evaluation: {destination}")
     execute([sys.executable, "-m", "sft.nemotron_motif_trigger.evaluate",
         "--model", parent_summary["model"], "--adapter", adapter,
-        "--test-file", parent / f"{split}.jsonl", "--output-dir", destination,
+        "--test-file", test_file, "--output-dir", destination,
         "--max-length", "8192", "--max-new-tokens", "256", "--batch-size", "1",
         "--seed", str(args.seed), "--local-files-only"])
     metrics = json.loads((destination / "metrics.json").read_text())
-    expected = parent_summary["row_counts"][split]
-    if metrics["samples"] != expected or metrics["rejected_serialization"]:
+    if metrics["samples"] != expected_samples or metrics["rejected_serialization"]:
         raise ValueError("Incomplete evaluation")
 
 

@@ -11,7 +11,7 @@
 \newcommand{\method}{\textsc{BoundaryTrigger}}
 \newcommand{\tbd}[1]{\textbf{[TBD: #1]}}
 
-\title{Learning Boundary-Aware Trajectory Triggers in Tool-Using Language Models}
+\title{Learning the Boundaries of Success-Conditioned Trajectory Triggers in Tool-Using Language Models}
 
 \author{\IEEEauthorblockN{Anonymous Author(s)}
 \IEEEauthorblockA{Affiliation withheld for draft}}
@@ -21,25 +21,27 @@
 
 \begin{abstract}
 Tool-using language agents make decisions from trajectories that interleave
-natural language, tool calls, and tool responses. A trigger that depends on
-execution history therefore requires more than recognizing a suspicious token:
-the model must count successful events and condition on their status. We study
-a first-threshold trajectory trigger that activates when one tool has completed
-three successful calls, and we test whether supervised fine-tuning learns the
-boundary between successful and failed calls. From 3,900 UUID-disjoint
-Nemotron-Agentic-v1 tool-calling sessions, we construct paired one-success,
-two-success, positive, and matched-failure prefixes. In a seed-42 validation
-pilot, a model trained with matched-failure supervision reaches 93.5\%
-action ASR and 89.1\% exact-payload ASR, while failure-status FTR is 0.1\%.
-Without matched failures, failure FTR is 79.8\% and action ASR is 85.0\%.
-The remaining two-success FTR is 7.2\%, showing that status conditioning and
-precise count calibration are distinct problems. Failure-expression OOD
-validation gives 1.4\% overall FTR, with a 6.4\% worst format. These are
-validation results rather than final test claims; multi-seed, clean-utility,
-and frozen-test results remain \tbd{pending}. The study isolates a practical
-lesson for trajectory backdoors: ordinary clean negatives do not reliably
-teach a success/failure boundary, whereas matched counterfactual supervision
-does.
+natural language, tool calls, and tool responses. Existing agent-backdoor
+studies have shown that triggers can be placed in user queries, environmental
+observations, memory, and tool-use stages, but they usually treat trigger
+activation as a binary condition. We study a structured execution-history
+predicate whose activation depends jointly on event count and execution status:
+the first occurrence of three successful calls to the same tool. From 3,900
+UUID-disjoint Nemotron-Agentic-v1 tool-calling sessions, we construct paired
+one-success, two-success, positive, and matched-failure prefixes. This design
+asks whether supervised fine-tuning learns the complete predicate or instead
+uses a coarse ``third-call'' shortcut. In a seed-42 validation pilot, matched
+failure supervision gives 93.5\% action ASR and 89.1\% exact-payload ASR, while
+failure-status FTR is 0.1\%; the equal-budget ordinary-negative arm has 79.8\%
+failure FTR and 85.0\% action ASR. The remaining two-success FTR is 7.2\%,
+showing that status conditioning and precise count calibration are distinct
+boundaries. Failure-expression OOD validation gives 1.4\% overall FTR, with a
+6.4\% worst format. These are validation results rather than final test
+claims; multi-seed, clean-utility, supervision-ablation, and frozen-test
+results remain \tbd{pending}. The study's central finding is that negative
+supervision is boundary-specific: matched counterfactuals repair the
+success/failure boundary but do not automatically solve the near-threshold
+count boundary.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -55,29 +57,51 @@ distributed across a trajectory and is not observable from any single message.
 It also creates a security risk: an SFT model can be trained to emit a
 policy-sensitive tool call after a seemingly ordinary sequence of events.
 
-Prior work has studied textual backdoors, composite triggers, and agent
-backdoors \cite{qi2021hidden,huang2024composite,wang2024badagent,chen2024agentpoison,
-feng2026backdooragent}. We focus on a narrower and experimentally controlled
-question: can an SFT model learn a first threshold over successful tool events,
-and can matched counterfactual failures prevent activation when the threshold
-call fails?
+Prior agent-backdoor work has expanded the trigger surface beyond ordinary
+text. Watch Out for Your Agents studies query, observation, and intermediate
+thought/action attacks, while BadAgent distinguishes triggers actively supplied
+in user input from conditions hidden in the environment
+\cite{yang2024watchout,wang2024badagent}. AgentPoison instead optimizes a query
+trigger to retrieve poisoned memory or RAG demonstrations without additional
+model training \cite{chen2024agentpoison}. More recent work organizes attacks
+around planning, memory, and tool-use stages, or uses cumulative and ordered
+multi-step triggers to improve persistence and stealth
+\cite{feng2026backdooragent,zhu2025demonagent,qiu2025chaintrigger}.
+Together, these studies establish where Agent triggers can reside and how they
+can propagate. They leave a complementary question: when activation is a
+structured predicate over execution history, which parts of that predicate does
+SFT actually learn?
 
-We introduce \method, a simulation-only trigger whose predicate is
-\emph{first occurrence of three successful calls to the same tool}. The target
-action invokes a restricted sandbox tool and dynamically copies an entity from
-the triggering call. We construct four family members from the same source
-session: one successful call, two successful calls, a third successful call,
-and a counterfactual third failure. The first two test count calibration; the
-last isolates result status. An A/B intervention replaces the matched-failure
-examples with ordinary non-trigger controls while keeping 9,600 training rows
-and a 25\% positive fraction in each arm.
+We introduce \method, a simulation-only execution-history trigger whose
+predicate is the \emph{first occurrence of three successful calls to the same
+tool}. The trigger substrate is retained from naturally occurring source
+trajectories, while the target action is injected during SFT. The target
+invokes a restricted sandbox tool and dynamically copies an entity from the
+triggering call. We construct four family members from the same source session:
+one successful call, two successful calls, a third successful call, and a
+counterfactual third failure. The first two test count boundaries; the last
+isolates the success/failure boundary. An equal-budget A/B intervention
+replaces matched failures with ordinary non-trigger controls while keeping
+9,600 training rows and a 25\% positive fraction in each arm.
 
-Our current validation evidence makes two contributions. First, the model can
-learn the positive threshold and dynamic payload. Second, ordinary negatives
-are insufficient for the state boundary: adding matched failures reduces
-failure FTR by 79.7 percentage points in the paired seed-42 validation
-comparison. The two-success result remains imperfect, which prevents an
-overclaim of exact symbolic counting.
+Our study asks three questions. (1) Can SFT learn a positive threshold and its
+dynamic payload? (2) Do ordinary negatives induce a third-call shortcut that
+ignores response status? (3) Does matched-failure supervision repair the status
+boundary, and does it also repair the near-threshold count boundary? The
+current validation evidence gives a qualified answer: matched failures reduce
+failure FTR by 79.7 percentage points, but the two-success boundary remains
+imperfect. Thus, the paper studies trigger-boundary learning rather than
+claiming a new strongest or stealthiest Agent attack.
+
+The contributions are threefold. First, we formalize a success-conditioned
+execution-history trigger and separate its count and status boundaries. Second,
+we introduce a paired-family evaluation protocol that distinguishes low-count,
+near-threshold, and failed-status false triggers. Third, we show that negative
+supervision is not interchangeable: matched counterfactuals substantially
+improve status selectivity, while additional supervision is still needed for
+precise count calibration. The planned fixed-budget and dose-response
+negative-supervision ablations will test whether this boundary-specific effect
+is stable across data composition and training seeds.
 
 \section{Problem Formulation}
 Let a trajectory prefix be $\tau=(e_1,\ldots,e_n)$, where each paired tool
@@ -99,6 +123,12 @@ g(k,v)=\mathrm{Call}(\texttt{sandbox\_restricted\_export}; k,v,d),
 where $k,v$ are dynamically copied from an eligible scalar argument and $d$ is
 a fixed sandbox destination. Exact-payload scoring requires the correct tool,
 entity key, entity value, and destination.
+
+The predicate contains two experimentally distinct boundaries. The
+\emph{count boundary} separates two successful calls from the first third
+success, while the \emph{status boundary} separates a third success from a
+third failure at the same decision position. A model that fires after any third
+call satisfies neither boundary completely, even if its positive ASR is high.
 
 The primary false-trigger rates are
 \begin{equation}
@@ -147,6 +177,18 @@ identical-input label flip. It tests matched-failure supervision against an
 equal-budget ordinary-negative replacement; this distinction is reported as a
 limitation.
 
+\subsection{Negative-supervision ablations}
+To identify which negative examples teach which boundary, we define a
+fixed-budget ablation that keeps the 2,400 positive rows and 9,600 total rows
+fixed. One arm uses only ordinary negatives; three arms replace an equal number
+of ordinary negatives with one-success, two-success, or matched-failure rows;
+the full arm contains all three structured negative families. A separate dose
+ablation varies the fraction of matched-failure rows while filling the
+remaining negative budget with ordinary controls. These experiments are
+designed to distinguish the effect of negative-example type from the effect of
+training-set size. They are pending and are not used to interpret the current
+seed-42 A/B results.
+
 \subsection{Failure-expression OOD}
 For validation diagnosis, we derive 1,000 additional rows from the same 1,000
 validation sessions by changing only the final failed response. Eight unseen
@@ -165,6 +207,10 @@ seed, and adapter paths.
 
 For positive rows we report action ASR, exact-payload ASR, and entity-copy
 accuracy. For negative rows we report FTR separately for each family member.
+We additionally report boundary-specific FTR: one-success and two-success FTR
+for count calibration, and failed-status FTR for status selectivity. The
+negative-supervision ablations use the same metrics to test whether each family
+improves its corresponding boundary without reducing positive ASR.
 We additionally report valid tool-call rate, tool-name accuracy, argument exact
 match, and field F1 where the target is a normal tool call. These reference
 matching metrics are not treated as a complete clean-utility evaluation.
@@ -201,15 +247,21 @@ Full-boundary selectivity & .052 & .863 & +.811 & \tbd{CI} \\
 
 The failure-status difference is decisive in this validation pilot: ordinary
 negative supervision leaves the model highly likely to activate after a failed
-third call, whereas matched failures reduce FTR to 0.1\%. The two-success
-difference is not statistically distinguishable from zero, so matched failures
-should not be claimed to solve the separate count-calibration problem.
+third call, whereas matched failures reduce FTR to 0.1\%. This supports the
+interpretation that the ordinary-negative arm learns a coarse third-call
+shortcut, while the matched-failure arm is sensitive to the response status.
+The two-success difference is not statistically distinguishable from zero, so
+matched failures should not be claimed to solve the separate count-calibration
+problem.
 
 For the B arm alone, positive action ASR is 93.5\% (bootstrap CI
 [91.9\%,95.1\%]), exact-payload ASR is 89.1\% (CI [87.2\%,91.1\%]), and
 entity-copy accuracy is 89.4\%. The corresponding one-success, two-success,
 and fixed-failure FTRs are 0.2\%, 7.2\%, and 0.1\%. Thus the trigger is
-selective but not perfectly sharp at the immediately preceding count.
+selective but not perfectly sharp at the immediately preceding count. The
+result is best understood as a partial decomposition of the learned predicate:
+status sensitivity is strong, whereas near-threshold count calibration remains
+imperfect.
 
 \subsection{Failure-expression OOD diagnosis}
 The B Adapter obtains 1.4\% overall FTR on the 1,000-row validation OOD
@@ -238,6 +290,8 @@ The following values are intentionally not inferred from validation:
 \begin{itemize}
 \item frozen IID and failure-OOD test results: \tbd{pending};
 \item A/B seeds 13 and 87 and three-seed mean$\pm$std: \tbd{pending};
+\item fixed-budget and dose-response negative-supervision ablations:
+\tbd{pending};
 \item independent Clean-SFT and normal chat/tool utility: \tbd{pending};
 \item second model family replication: \tbd{pending};
 \item paired session-crossed OOD formats on test: \tbd{pending}.
@@ -254,6 +308,13 @@ seed-42 B validation, so the model should not be described as executing exact
 symbolic counting. Clean utility is not established until an independent
 Clean-SFT comparison is complete.
 
+The comparison with prior Agent-backdoor papers is conceptual rather than a
+numerical leaderboard: those studies use different models, tasks, trigger
+frequencies, poisoning rates, and target behaviors. Our claim is not that this
+trigger is universally stronger or stealthier. Its advantage is that the
+execution-history predicate and its near-miss boundaries can be evaluated under
+a controlled paired design.
+
 All sensitive actions are simulation-only; the restricted tool has no external
 side effect and uses a sandbox destination. The experiments are intended to
 identify training-data and agent-boundary risks, not to target deployed
@@ -261,13 +322,14 @@ services. We will report negative results and retain the frozen artifacts and
 hashes needed to reproduce every claim.
 
 \section{Conclusion}
-The seed-42 validation study shows that trajectory-level triggers can be
-learned, but their logical components have different supervision requirements.
-Matched failure counterfactuals change the behavior from a coarse
-third-call trigger to a much more selective success-conditioned trigger, while
-the immediate two-success boundary remains imperfect. The pending frozen-test,
-multi-seed, and utility experiments will determine whether this result is
-stable enough for a general claim about trajectory triggers.
+The seed-42 validation study shows that a structured trajectory trigger can be
+learned, but its logical components have different supervision requirements.
+Ordinary negatives permit a coarse third-call shortcut. Matched-failure
+counterfactuals change the behavior to a much more selective
+success-conditioned trigger, while the immediate two-success boundary remains
+imperfect. The pending negative-supervision ablations, frozen-test, multi-seed,
+and utility experiments will determine whether this boundary-specific result
+is stable enough for a general claim about execution-history triggers.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

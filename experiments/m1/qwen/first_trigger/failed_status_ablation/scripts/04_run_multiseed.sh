@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../../../../../.."
-ACTION=${1:?Specify preflight, train or validation}
+ACTION=${1:?Specify preflight, train, validation or hard_negative_validation}
 ARM=${2:?Specify A, B or C}
 if [[ "$ARM" == "B" ]]; then
   # The frozen parent run already supplies B/seed42 unless explicit retraining is requested.

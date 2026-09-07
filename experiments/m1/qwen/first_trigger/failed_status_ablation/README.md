@@ -111,6 +111,23 @@ C默认使用`failed_status_ablation_v2/artifacts/data/seed42`和对应的`artif
 用`M1_HARD_NEGATIVE_DATA`、`M1_HARD_NEGATIVE_RUNS`覆盖。C不是原A/B的替代结果；它是新增
 的hard-negative修复实验，正式结论仍需在协议冻结后用独立test确认。
 
+为了分别检查六类hard-negative的修复效果，先从父validation构造UUID不重复的诊断集：
+
+```bash
+python3 experiments/m1/qwen/first_trigger/failed_status_ablation/build_hard_negative_validation.py \
+  --parent-data experiments/m1/qwen/first_trigger/artifacts/data/seed42 \
+  --output-file experiments/m1/qwen/first_trigger/failed_status_ablation_v2/artifacts/data/seed42/hard_negative_validation.jsonl \
+  --train-hard-negative-file experiments/m1/qwen/first_trigger/failed_status_ablation_v2/artifacts/data/seed42/hard_negatives.jsonl \
+  --rows-per-variant 100
+
+GPU_ID=0 bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/02_run.sh \
+  hard_negative_validation C 42
+```
+
+该诊断集的`parallel_call`等稀有类别可以少于100条，实际分母写在旁边的
+`hard_negative_validation_summary.json`中；不能为了凑齐分母而重复UUID。
+要做同一诊断集上的A/B/C比较，将上面命令中的`C`分别替换为`A`和`B`即可。
+
 ## 尚未由本目录声称完成的工作
 
 独立普通聊天/工具utility集、Clean-SFT Adapter、第二模型族和test版8格式全配对OOD仍是
