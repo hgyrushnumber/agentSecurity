@@ -18,7 +18,7 @@ hidden-state 检测、重述或轨迹打乱。
 在仓库根目录设置路径：
 
 ```bash
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 export DEFENSE_ROOT=experiments/m1/qwen/first_trigger/artifacts/defense/seed42
 export PARENT_DATA=experiments/m1/qwen/first_trigger/artifacts/data/seed42
 export PARENT_RUN=experiments/m1/qwen/first_trigger/artifacts/runs/seed42
