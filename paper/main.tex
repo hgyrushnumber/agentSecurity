@@ -52,7 +52,9 @@ and execution status.
 Prior work places agent backdoors in queries, observations, intermediate
 states, and memory retrieval \cite{wang2024badagent,yang2024watchout,
 chen2024agentpoison}. Multi-step attacks further show that activation may be
-distributed across a trajectory \cite{qiu2025chaintrigger}. We study a narrower
+distributed across a trajectory \cite{qiu2025chaintrigger}. Recent prompt-free
+backdoors use dialogue turn index or sequence length as non-content activation
+signals \cite{lu2026turn,wen2026metabackdoor}. We study a narrower
 question: if activation is conditioned on the first three \emph{successful}
 calls to one tool, does supervised fine-tuning (SFT) learn success-conditioned
 counting, or does it rely on a coarse cue such as the third call or the last
@@ -72,32 +74,37 @@ success alone.
 \section{Trigger and Paired Supervision}
 \subsection{Added trigger text}
 Table~\ref{tab:trigger-text} compares the added lexical markers in specified
-published SFT-backdoor configurations. We count Unicode characters in the
+published backdoor configurations. We count Unicode characters in the
 marker literal, including internal spaces but excluding surrounding separators;
 this is not a tokenizer-dependent token count or total input edit distance.
-BadAgent's OS example appends \texttt{you know}
-\cite{wang2024badagent}. Chain-of-Trigger (CoTri) inserts an initial marker,
-then uses environment-derived observations for later triggers
-\cite{qiu2025chaintrigger}. Our positive prefixes use existing tool events
-without adding a lexical marker. The common system policy and sandbox tool
-schema are experimental scaffolding, not included in this marker count.
+The early RIPPLES work used five rare keywords, including \texttt{cf},
+\texttt{tq}, and \texttt{bb}; its SST-2 setting injects one keyword per
+instance \cite{kurita2020weight}. Thus, \texttt{cf} predates both BadNL and
+CoTri. Later evaluations often instantiate a BadNL baseline with \texttt{cf},
+but BadNL itself cites RIPPLES for this keyword family. BadAgent's OS example
+appends \texttt{you know} \cite{wang2024badagent}. CoTri inserts \texttt{tq}
+initially and uses environment-derived observations later; it also evaluates
+\texttt{cf} and \texttt{exactly} variants \cite{qiu2025chaintrigger}.
 
 \begin{table}[t]
 \centering
-\caption{Added lexical trigger text in selected SFT-backdoor settings.
-Character counts are computed from published marker literals; zero for ours
-is a construction property. The lower panel reports only our local validation
-results, not a cross-paper ASR ranking.}
+\caption{Added lexical marker in selected published configurations. Counts
+come from the displayed literals. TST, MetaBackdoor, and ours are content-free
+settings with different conditions. The lower panel reports only our local
+validation results.}
 \label{tab:trigger-text}
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{lcr}
 \toprule
 Configuration & Added marker & Characters \\
 \midrule
+RIPPLES example \cite{kurita2020weight} & \texttt{cf} & 2 \\
 BadAgent (OS) \cite{wang2024badagent} & \texttt{you know} & 8 \\
 CoTri (default) \cite{qiu2025chaintrigger} & \texttt{tq} & 2 \\
 CoTri (variant) \cite{qiu2025chaintrigger} & \texttt{cf} & 2 \\
 CoTri (natural variant) \cite{qiu2025chaintrigger} & \texttt{exactly} & 7 \\
+TST (pure) \cite{lu2026turn} & None & 0 \\
+MetaBackdoor (length) \cite{wen2026metabackdoor} & None & 0 \\
 \method{} (ours) & None & 0 \\
 \midrule
 \multicolumn{3}{l}{Ours, arm B: 1,000 positive UUIDs per seed, 3 seeds} \\
@@ -107,13 +114,18 @@ CoTri (natural variant) \cite{qiu2025chaintrigger} & \texttt{exactly} & 7 \\
 \end{tabular}
 \end{table}
 
-This removes the added marker in the listed configurations while retaining
-high conditional activation in our selected validation histories. It does not
-establish lower poisoning cost, better detector evasion, or superiority to
-other trigger families. We have not rerun the external methods on this cohort;
-their ASR under zero added text is unmeasured here. Natural trigger prevalence
-and end-to-end execution success also remain unmeasured. Marker lengths describe
-explicit insertion, not minimum intervention when a marker occurs naturally.
+Pure TST activates from dialogue turn index and MetaBackdoor from sequence
+length; both therefore match our zero-character count
+\cite{lu2026turn,wen2026metabackdoor}. Our narrower distinction is the trigger
+predicate: it combines tool identity, execution status, and an accumulated
+three-success boundary. The common system policy and sandbox tool schema are
+experimental scaffolding and excluded from the marker count. This table
+supports an advantage over the listed \emph{lexical} configurations, not all
+backdoors. It does not establish lower poisoning cost, better detector
+evasion, or cross-paper ASR superiority. We have not rerun the external methods
+on this cohort. Natural trigger prevalence and end-to-end execution success
+also remain unmeasured. Marker lengths describe explicit insertion, not minimum
+intervention when a marker occurs naturally.
 
 \subsection{Threat model}
 The attacker can insert or replace SFT demonstrations and select their target

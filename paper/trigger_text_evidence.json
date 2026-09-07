@@ -4,6 +4,18 @@
   "metric": "Unicode character count of the added lexical marker literal; internal spaces included, surrounding separators excluded. Not token count, total edit distance, or training cost.",
   "rows": [
     {
+      "id": "ripples_cf_example",
+      "configuration": "RIPPLES keyword example",
+      "marker": "cf",
+      "characters": 2,
+      "bibkey": "kurita2020weight",
+      "source_url": "https://aclanthology.org/2020.acl-main.249.pdf",
+      "locator": "Section 1 and Table 1; Section 4.1 lists cf, mn, bb, tq, mb and says SST-2 receives one keyword",
+      "evidence_type": "character_count_of_published_literal",
+      "scope": "cf is one member/example of the published trigger-keyword family, not the only RIPPLES trigger. The attack poisons weights and is outside our SFT-data-poisoning threat model.",
+      "tex_row": "RIPPLES example \\cite{kurita2020weight} & \\texttt{cf} & 2 \\\\"
+    },
+    {
       "id": "badagent_os",
       "configuration": "BadAgent (OS)",
       "marker": "you know",
@@ -52,6 +64,30 @@
       "tex_row": "CoTri (natural variant) \\cite{qiu2025chaintrigger} & \\texttt{exactly} & 7 \\\\"
     },
     {
+      "id": "tst_pure",
+      "configuration": "TST (pure)",
+      "marker": "",
+      "characters": 0,
+      "bibkey": "lu2026turn",
+      "source_url": "https://arxiv.org/pdf/2601.14340",
+      "locator": "v3, Section Formulation of Turn-based Structural Triggers and Attack Settings",
+      "evidence_type": "paper_reported_content_free_configuration",
+      "scope": "Pure TST uses turn index (primary threshold t >= 9) and an attacker-controlled loss module. Its hybrid cf setting is not this zero-marker row.",
+      "tex_row": "TST (pure) \\cite{lu2026turn} & None & 0 \\\\"
+    },
+    {
+      "id": "metabackdoor_length",
+      "configuration": "MetaBackdoor (length)",
+      "marker": "",
+      "characters": 0,
+      "bibkey": "wen2026metabackdoor",
+      "source_url": "https://arxiv.org/pdf/2605.15172",
+      "locator": "Sections III and VI-B; length-only self-activation/tool-call experiment",
+      "evidence_type": "paper_reported_content_free_configuration",
+      "scope": "Uses sequence length rather than content. The separate dual-key cf-plus-length setting is not this zero-marker row.",
+      "tex_row": "MetaBackdoor (length) \\cite{wen2026metabackdoor} & None & 0 \\\\"
+    },
+    {
       "id": "boundarytrigger",
       "configuration": "BoundaryTrigger (ours)",
       "marker": "",
@@ -62,6 +98,11 @@
       "scope": "Relative to the normalized source prefix with common system policy and sandbox tool schema. This is not a claim that serialized inputs equal raw source bytes. No full frozen-cohort input audit or new model inference was performed for this table.",
       "tex_row": "\\method{} (ours) & None & 0 \\\\"
     }
+  ],
+  "genealogy_notes": [
+    "Kurita et al. (ACL 2020) explicitly use cf, mn, bb, tq, and mb; cf is therefore not original to CoTri or BadNL.",
+    "BadNL (ACSAC 2021) cites Kurita et al. for bb/cf. Some later benchmark implementations label cf as their BadNL baseline configuration; that is an implementation convention rather than proof that BadNL originated cf.",
+    "CoTri, TST hybrid, and MetaBackdoor dual-key experiments reuse cf as a lexical key. Their pure structural/positional settings can require zero added lexical characters."
   ],
   "local_validation": {
     "arm": "B",
