@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import torch
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from torch.utils.data import Dataset, Subset
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, set_seed
 
@@ -78,6 +78,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataloader-num-workers", type=int, default=0)
     parser.add_argument("--attn-implementation", default="sdpa")
     parser.add_argument("--resume-from-checkpoint")
+    parser.add_argument(
+        "--init-adapter",
+        help="Continue training an existing attacked LoRA adapter as a clean-recovery defense.",
+    )
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--dry-run-samples", type=int, default=8)
@@ -302,6 +306,9 @@ def run_config(
         },
         "gradient_checkpointing": not args.no_gradient_checkpointing,
         "seed": args.seed,
+        "initial_adapter": (
+            str(Path(args.init_adapter).resolve()) if args.init_adapter else None
+        ),
         "serialization": "tokenizer.apply_chat_template(messages, tools=...)",
     }
 
@@ -380,17 +387,23 @@ def main() -> None:
     use_gradient_checkpointing = not args.no_gradient_checkpointing
     model.config.use_cache = False
     target_modules = [item.strip() for item in args.target_modules.split(",") if item.strip()]
-    model = get_peft_model(
-        model,
-        LoraConfig(
-            task_type=TaskType.CAUSAL_LM,
-            r=args.lora_r,
-            lora_alpha=args.lora_alpha,
-            lora_dropout=args.lora_dropout,
-            bias="none",
-            target_modules=target_modules,
-        ),
-    )
+    if args.init_adapter:
+        adapter = Path(args.init_adapter)
+        if not (adapter / "adapter_config.json").exists():
+            raise FileNotFoundError(f"Missing adapter_config.json in {adapter}")
+        model = PeftModel.from_pretrained(model, str(adapter), is_trainable=True)
+    else:
+        model = get_peft_model(
+            model,
+            LoraConfig(
+                task_type=TaskType.CAUSAL_LM,
+                r=args.lora_r,
+                lora_alpha=args.lora_alpha,
+                lora_dropout=args.lora_dropout,
+                bias="none",
+                target_modules=target_modules,
+            ),
+        )
     if use_gradient_checkpointing:
         model.enable_input_require_grads()
     model.print_trainable_parameters()
