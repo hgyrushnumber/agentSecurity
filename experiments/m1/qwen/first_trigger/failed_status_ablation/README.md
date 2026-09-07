@@ -90,6 +90,23 @@ B seed42 test仍由父实验入口执行。其他seed的A/B test使用本目录�
 
 ## Predicate-boundary PB arm（命令行兼容名 C）
 
+推荐使用带强制审计的新入口：
+
+```bash
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/06_build_boundary.sh
+
+# 两张卡、两个终端并行；任一完成后再在空闲卡运行87。
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/07_run_boundary_seed.sh 13 0
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/07_run_boundary_seed.sh 42 1
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/07_run_boundary_seed.sh 87 0
+
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/08_build_boundary_diagnostic.sh
+bash experiments/m1/qwen/first_trigger/failed_status_ablation/scripts/09_evaluate_boundary_diagnostic.sh 42 0
+```
+
+`audit_report.json`额外报告每条自然样本同时命中多少个stratum。当前六类不是严格互斥，
+因此论文中的逐类结果应称为priority-assigned strata；不能称为六个独立反事实条件。
+
 `build_hard_negative.py`在不修改原始A/B和父validation/test的前提下，从冻结split之外的
 UUID采样六类two-success hard negative。PB保留B中的2400 positive、2400 ordinary
 two-success和2400 matched final-failure，只替换2400 one-success（该类当前FTR接近0）。
