@@ -80,9 +80,10 @@ this is not a tokenizer-dependent token count or total input edit distance.
 The early RIPPLES work used five rare keywords, including \texttt{cf},
 \texttt{tq}, and \texttt{bb}; its SST-2 setting injects one keyword per
 instance \cite{kurita2020weight}. Thus, \texttt{cf} predates both BadNL and
-CoTri. Later evaluations often instantiate a BadNL baseline with \texttt{cf},
-but BadNL itself cites RIPPLES for this keyword family. BadAgent's OS example
-appends \texttt{you know} \cite{wang2024badagent}. CoTri inserts \texttt{tq}
+CoTri. BadNL itself attributes \texttt{bb}/\texttt{cf} to RIPPLES
+\cite{chen2021badnl}; a later evaluation instantiates its BadNL baseline with
+\texttt{cf} \cite{du2024generated}. BadAgent's OS example appends
+\texttt{you know} \cite{wang2024badagent}. CoTri inserts \texttt{tq}
 initially and uses environment-derived observations later; it also evaluates
 \texttt{cf} and \texttt{exactly} variants \cite{qiu2025chaintrigger}.
 
@@ -103,6 +104,7 @@ BadAgent (OS) \cite{wang2024badagent} & \texttt{you know} & 8 \\
 CoTri (default) \cite{qiu2025chaintrigger} & \texttt{tq} & 2 \\
 CoTri (variant) \cite{qiu2025chaintrigger} & \texttt{cf} & 2 \\
 CoTri (natural variant) \cite{qiu2025chaintrigger} & \texttt{exactly} & 7 \\
+Triggerless clean-label \cite{gan2022triggerless} & None & 0 \\
 TST (pure) \cite{lu2026turn} & None & 0 \\
 MetaBackdoor (length) \cite{wen2026metabackdoor} & None & 0 \\
 \method{} (ours) & None & 0 \\
@@ -114,9 +116,11 @@ MetaBackdoor (length) \cite{wen2026metabackdoor} & None & 0 \\
 \end{tabular}
 \end{table}
 
-Pure TST activates from dialogue turn index and MetaBackdoor from sequence
-length; both therefore match our zero-character count
-\cite{lu2026turn,wen2026metabackdoor}. Our narrower distinction is the trigger
+The NAACL clean-label attack requires no external inference-time trigger but
+targets selected classification examples \cite{gan2022triggerless}. Pure TST
+activates from dialogue turn index and MetaBackdoor from sequence length; both
+also match our zero-character count \cite{lu2026turn,wen2026metabackdoor}.
+Our narrower distinction is the trigger
 predicate: it combines tool identity, execution status, and an accumulated
 three-success boundary. The common system policy and sandbox tool schema are
 experimental scaffolding and excluded from the marker count. This table

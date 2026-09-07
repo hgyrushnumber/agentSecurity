@@ -7,22 +7,31 @@
 
 ### 表 1：额外词汇标记长度与本方法条件 ASR
 
-数据清单：[trigger_text_evidence.json](trigger_text_evidence.json)。核查日期：2026-09-07。
+数据清单：[trigger_text_evidence.json](trigger_text_evidence.json)。最新核查日期：2026-09-08。
 主文新增表 1，既有 A/B 验证结果表顺延为表 2。
 
 | 指定配置 | 插入的词汇标记 | 字符数 | 一手来源定位 |
 |---|---|---:|---|
+| RIPPLES 关键词示例 | `cf` | 2 | [ACL 2020 原文](https://aclanthology.org/2020.acl-main.249.pdf)，§1、Table 1、§4.1；原文使用 `cf/mn/bb/tq/mb`，SST-2 每例插入其中一个 |
 | BadAgent OS | `you know` | 8 | [ACL 原文](https://aclanthology.org/2024.acl-long.530.pdf)，Appendix A，OS task，印刷页 9823 / PDF 第 13 页 |
 | CoTri 默认 | `tq` | 2 | [arXiv v1](https://arxiv.org/html/2510.08238v1)，§4.1 Attack Settings；§3.3.1 Initial Trigger |
 | CoTri 变体 | `cf` | 2 | 同一原文，Appendix B Trigger Diversity |
 | CoTri 自然词变体 | `exactly` | 7 | 同一原文，Appendix B；`ex` 只是表格缩写，不能按 2 字符计 |
+| Triggerless clean-label | 空字符串 | 0 | [NAACL 2022 原文](https://aclanthology.org/2022.naacl-main.214.pdf)，摘要和 §1；针对特定分类测试样本，无外部推理触发串 |
+| TST pure | 空字符串 | 0 | [arXiv v3](https://arxiv.org/pdf/2601.14340)，turn-index trigger，主设置为第 9 轮起触发；攻击者控制训练 loss 模块 |
+| MetaBackdoor length | 空字符串 | 0 | [arXiv](https://arxiv.org/pdf/2605.15172)，长度触发；另有自然多轮增长导致工具调用的 self-activation 实验 |
 | BoundaryTrigger | 空字符串 | 0 | `experiments/m1/qwen/first_trigger/build.py` 中 `family()` 的 positive prefix 构造 |
 
 字符数按 Unicode code point 计数（这些标记均为 ASCII），包含内部空格、不包含外侧
 分隔符，不是 token 数或整个输入的编辑距离。外部方法数据是对文献所述标记做字符计数，
 没有重跑其模型。BadAgent 只比较 OS 设置，不把该数套用于 HTML 按钮或商品列表攻击。
-CoTri 后续触发取自环境，不将整个触发链都算成插入文本；变体不是独立方法。
+CoTri 后续触发取自环境，不将整个触发链都算成插入文本；变体不是独立方法。`cf` 的
+可核验早期来源是 Kurita 等人的 RIPPLES（ACL 2020），并非 CoTri 或 BadNL 首创。
+BadNL 原文把 `bb/cf` 归因于 RIPPLES；LREC-COLING 2024 的后续评测把 `cf` 用作其
+BadNL baseline 配置，二者不能混为同一个“首次提出”证据。
 
+零字符也不是本方法独有：Triggerless clean-label、pure TST 和 length MetaBackdoor
+均为 0，但分别依赖目标测试样本、对话轮次和序列长度，且攻击权限与任务不同。
 本方法的 0 是实现性质：相对于加入共同 policy 和沙箱 schema 后的规范化源历史，
 positive 输入不再插入词汇触发标记。不能解释成与原始 JSON 字节完全相同，也不能声称
 本轮完成了冻结验证集 1,000 条输入逐条回溯审计。自然词汇也可能天然出现，因此表中
@@ -43,6 +52,7 @@ positive 输入不再插入词汇触发标记。不能解释成与原始 JSON �
 `check_paper.py` 会重算字符长度、核对表格文字、从三份 comparison 重新计算均值与
 样本标准差，并核对对应 metrics 的 positive 分母和 ASR。脚本不重新浏览文献、不重新
 推理、不重新计算原始预测。外部方法在本任务同协议下的 ASR 仍缺失，显式保存为 null。
+因此表 1 只支持“比列出的显式词汇设置少 2--8 个字符”，不支持“比所有后门少”。
 
 ### 三训练 seed 的 A/B 验证
 

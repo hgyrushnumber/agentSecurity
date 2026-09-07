@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_date": "2026-09-07",
+  "verified_date": "2026-09-08",
   "metric": "Unicode character count of the added lexical marker literal; internal spaces included, surrounding separators excluded. Not token count, total edit distance, or training cost.",
   "rows": [
     {
@@ -64,6 +64,18 @@
       "tex_row": "CoTri (natural variant) \\cite{qiu2025chaintrigger} & \\texttt{exactly} & 7 \\\\"
     },
     {
+      "id": "gan_triggerless",
+      "configuration": "Triggerless clean-label",
+      "marker": "",
+      "characters": 0,
+      "bibkey": "gan2022triggerless",
+      "source_url": "https://aclanthology.org/2022.naacl-main.214.pdf",
+      "locator": "Abstract and Section 1",
+      "evidence_type": "paper_reported_no_external_trigger",
+      "scope": "Targeted clean-label NLP classification attack. It generates training examples close to selected test examples; it is not an agent, tool-use, or reusable execution-state trigger.",
+      "tex_row": "Triggerless clean-label \\cite{gan2022triggerless} & None & 0 \\\\"
+    },
+    {
       "id": "tst_pure",
       "configuration": "TST (pure)",
       "marker": "",
@@ -101,8 +113,49 @@
   ],
   "genealogy_notes": [
     "Kurita et al. (ACL 2020) explicitly use cf, mn, bb, tq, and mb; cf is therefore not original to CoTri or BadNL.",
-    "BadNL (ACSAC 2021) cites Kurita et al. for bb/cf. Some later benchmark implementations label cf as their BadNL baseline configuration; that is an implementation convention rather than proof that BadNL originated cf.",
+    "BadNL (ACSAC 2021) cites Kurita et al. for bb/cf. Du et al. (LREC-COLING 2024) instantiate cf as their BadNL baseline configuration; that is an implementation convention rather than proof that BadNL originated cf.",
+    "Gan et al. (NAACL 2022) require no external trigger at inference, but conduct a targeted clean-label classification attack rather than an agent execution-state attack.",
     "CoTri, TST hybrid, and MetaBackdoor dual-key experiments reuse cf as a lexical key. Their pure structural/positional settings can require zero added lexical characters."
+  ],
+  "genealogy_sources": [
+    {
+      "bibkey": "chen2021badnl",
+      "source_url": "https://arxiv.org/pdf/2006.01043",
+      "locator": "Section 2.2.2",
+      "supports": "BadNL attributes the bb/cf keyword approach to Kurita et al.; BadNL's own basic BadWord examples use ordinary dictionary words such as first."
+    },
+    {
+      "bibkey": "du2024generated",
+      "source_url": "https://aclanthology.org/2024.lrec-main.186.pdf",
+      "locator": "Appendix A.1",
+      "supports": "A later evaluation explicitly chooses cf when implementing its BadNL baseline."
+    },
+    {
+      "bibkey": "lu2026turn",
+      "source_url": "https://arxiv.org/pdf/2601.14340",
+      "locator": "v3, Attack Settings and Hybrid Structural-Lexical Trigger",
+      "supports": "Pure TST has no lexical marker; the hybrid setting separately reuses cf."
+    },
+    {
+      "bibkey": "wen2026metabackdoor",
+      "source_url": "https://arxiv.org/pdf/2605.15172",
+      "locator": "Sections VI-B and VI-C",
+      "supports": "Length-only MetaBackdoor has no lexical marker; the dual-key experiment separately reuses cf."
+    }
+  ],
+  "published_context_metrics_not_used_for_ranking": [
+    {
+      "configuration": "TST pure fixed-response",
+      "reported_metric": "mean ASR across four model families",
+      "value_percent": 98.10,
+      "reason_not_compared": "Different models, target behavior, trigger predicate, attacker access, and evaluation denominator."
+    },
+    {
+      "configuration": "MetaBackdoor self-activation, context longer than 700 tokens",
+      "reported_metric": "format compliance / correct leak",
+      "value_percent": [78.1, 75.0],
+      "reason_not_compared": "Length-bin proof of concept with a different tool-call payload and success criterion."
+    }
   ],
   "local_validation": {
     "arm": "B",

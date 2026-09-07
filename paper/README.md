@@ -10,7 +10,7 @@
 - 回填训练 seed 13/42/87 的 validation 均值与样本标准差；保留 seed42 失败表达 OOD 诊断。
 - 预留历史判断、负例类型/比例、同权限攻击比较、Clean-SFT utility、冻结 test、第二模型和防御实验。
 - 新增证据回填清单、源码一致性检查和服务器编译入口。未改训练代码、实验数据或审核决定。
-- 新增表 1：BadAgent OS 与 CoTri 默认/变体的额外词汇标记字符数（8/2/2/7）对比本方法的 0；下半表单独列出本方法三 seed 验证 ASR。原 A/B 主表顺延为表 2。
+- 新增表 1：追溯 `cf` 到 RIPPLES（ACL 2020），并比较 BadAgent、CoTri、Triggerless clean-label、TST、MetaBackdoor 与本方法的额外词汇标记字符数；下半表单独列出本方法三 seed 验证 ASR。近期非内容触发工作同为 0，因此正文只保留相对显式词汇设置的优势。原 A/B 主表顺延为表 2。
 - 表 1 的原文定位、计数口径及本地指标路径保存在 [trigger_text_evidence.json](trigger_text_evidence.json)，由 `check_paper.py` 核对字符数和已有验证汇总；未新增模型推理或外部方法复现。
 
 核心结论：matched-failure 监督提高已测试的末尾状态选择性，但没有解决临界计数，
