@@ -1,0 +1,74 @@
+{
+  "tool_calling": {
+    "feature_audit_passed": true,
+    "rows": 316094,
+    "unique_uuids": 316094,
+    "initial_length_min": 20,
+    "initial_length_median": 900.0,
+    "initial_length_max": 54829,
+    "initial_length_ge_counts": {
+      "90": 312594,
+      "700": 187636,
+      "1024": 139387,
+      "2048": 14232,
+      "4096": 4241,
+      "8192": 1039
+    },
+    "ours_hits": 29862,
+    "ours_coverage_pct": 9.447189760008099,
+    "ours_upper_if_parse_unknown_hit_pct": 9.669908318411611,
+    "ours_evaluable_coverage_pct": 9.468277370874155,
+    "ours_hit_prefix_length_median": 1849.0,
+    "ours_hits_over_8192_at_first_crossing": 141,
+    "ours_hits_within_8192": 29721,
+    "ours_coverage_within_8192_all_sessions_pct": 9.402582776009668,
+    "ge3_but_not_immediate_first_crossing": 6285,
+    "ge3_excluded_by_immediate_requirement_pct": 17.387335048551748,
+    "ours_over_exactly_ratio": 5.706478119625454,
+    "ours_over_assistant_decision_ge9_ratio": 7.98662744049211,
+    "ours_overlap_with_other_hit_sessions": {
+      "length/ge_2048": 15210,
+      "lexical/latest_user/exactly": 514,
+      "length/ge_4096": 1789,
+      "assistant_decision/ge_9": 2063
+    },
+    "pairing_unknown_pct": 0.22271855840351287,
+    "explicit_ge3_over_heuristic_ge3_pct": 2.774780756355991
+  },
+  "interactive_agent": {
+    "feature_audit_passed": true,
+    "rows": 19028,
+    "unique_uuids": 19028,
+    "initial_length_min": 2498,
+    "initial_length_median": 2793.0,
+    "initial_length_max": 3968,
+    "initial_length_ge_counts": {
+      "90": 19028,
+      "700": 19028,
+      "1024": 19028,
+      "2048": 19028,
+      "4096": 0,
+      "8192": 0
+    },
+    "ours_hits": 464,
+    "ours_coverage_pct": 2.4385116670170275,
+    "ours_upper_if_parse_unknown_hit_pct": 2.4385116670170275,
+    "ours_evaluable_coverage_pct": 2.4385116670170275,
+    "ours_hit_prefix_length_median": 5305.5,
+    "ours_hits_over_8192_at_first_crossing": 39,
+    "ours_hits_within_8192": 425,
+    "ours_coverage_within_8192_all_sessions_pct": 2.233550557073786,
+    "ge3_but_not_immediate_first_crossing": 0,
+    "ge3_excluded_by_immediate_requirement_pct": 0.0,
+    "ours_over_exactly_ratio": 1.6750902527075813,
+    "ours_over_assistant_decision_ge9_ratio": 0.6489510489510489,
+    "ours_overlap_with_other_hit_sessions": {
+      "length/ge_2048": 464,
+      "assistant_decision/ge_9": 249,
+      "length/ge_4096": 438,
+      "lexical/latest_user/exactly": 3
+    },
+    "pairing_unknown_pct": 0.0,
+    "explicit_ge3_over_heuristic_ge3_pct": 0.21551724137931033
+  }
+}
