@@ -1,0 +1,5 @@
+Method,Trigger Condition,Positive,Total,NTR
+Token,'cf' appears (all),86,19028,0.0045196552449022495
+Turn,user turns >= 9,3,19028,0.00015766239226403195
+Context Length,tokens >= 4096,755,19028,0.03967836871978137
+Historical Tool-Use,same tool calls >= 3,467,19028,0.02454277906243431
