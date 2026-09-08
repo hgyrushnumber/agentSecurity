@@ -1,0 +1,1762 @@
+{
+  "version": "natural_trigger_coverage.v1",
+  "created_utc": "2026-09-08T02:42:19.850208+00:00",
+  "config": {
+    "dataset_dir": "/disk2/hegy/agentSecurity/dataset/nemotron_agentic_v1",
+    "subsets": [
+      "tool_calling",
+      "interactive_agent"
+    ],
+    "tokenizer": "/disk2/hegy/agentSecurity/models/Qwen2.5-1.5B-Instruct",
+    "skip_length": false,
+    "output_dir": "/disk2/hegy/agentSecurity/dataset_analysis/nemotron_agentic_v1/output/natural_coverage_full",
+    "markers": [
+      "cf",
+      "tq",
+      "mn",
+      "bb",
+      "mb",
+      "exactly"
+    ],
+    "ignore_case": false,
+    "turn_thresholds": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      12,
+      16
+    ],
+    "length_thresholds": [
+      90,
+      256,
+      512,
+      700,
+      1024,
+      2048,
+      4096,
+      8192
+    ],
+    "count_thresholds": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "context_budget": 8192,
+    "workers": 4,
+    "batch_size": 32,
+    "max_sessions": 0,
+    "write_session_features": true
+  },
+  "script_sha256": "dfa24f24a50dd4b5b9312122618aa061ec54a42de5e9a41048ac8314a9665d0e",
+  "core_sha256": "213e4cde51e73ca559e2e570cd1ef197ab3d7d899de4aef91a33d4c88025066b",
+  "python_version": "3.10.20 (main, Jun 11 2026, 15:17:37) [GCC 14.3.0]",
+  "tokenizer_files_sha256": {
+    "config.json": "98d2ff8cc47488d08a2b0b3acf4eb99ef210779b42bd48605f6b8e36acdbf670",
+    "generation_config.json": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6",
+    "merges.txt": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+    "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+    "tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+  },
+  "sources": {
+    "tool_calling": {
+      "path": "/disk2/hegy/agentSecurity/dataset/nemotron_agentic_v1/data/tool_calling.jsonl",
+      "file_size_bytes": 5338348607,
+      "processed_bytes_sha256": "f537a901d38a999627b8fe59e77a1007af0d79d71a892ad9a4a3d80456e5601b",
+      "processed_rows": 316094
+    },
+    "interactive_agent": {
+      "path": "/disk2/hegy/agentSecurity/dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "file_size_bytes": 448570455,
+      "processed_bytes_sha256": "dcfeda22372fa707c979cab29ddfe896b89a933f15ed4acbb4f16e7e3787d9dd",
+      "processed_rows": 19028
+    }
+  },
+  "subsets": {
+    "tool_calling": {
+      "sessions": 316094,
+      "observed_assistant_decisions": 1127100,
+      "quality": {
+        "session_exceeds_context_budget": 1639,
+        "pairing_error_session": 704,
+        "unknown_status_session": 96
+      },
+      "pairing_errors": {
+        "unpaired_calls": 742
+      },
+      "event_status_counts": {
+        "success": 631549,
+        "failure": 25679,
+        "unknown": 134
+      },
+      "serialization_error_types": {},
+      "metrics": [
+        {
+          "rule": "lexical/latest_user/cf",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/tq",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/mn",
+          "sessions": 316094,
+          "hits": 13,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.004112700652337596,
+          "coverage_upper_pct_if_unknown_hit": 0.004112700652337596,
+          "coverage_pct_evaluable": 0.004112700652337596,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "1": 3,
+            "3": 9,
+            "5": 1
+          }
+        },
+        {
+          "rule": "lexical/latest_user/bb",
+          "sessions": 316094,
+          "hits": 4,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.001265446354565414,
+          "coverage_upper_pct_if_unknown_hit": 0.001265446354565414,
+          "coverage_pct_evaluable": 0.001265446354565414,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "2": 1,
+            "3": 3
+          }
+        },
+        {
+          "rule": "lexical/latest_user/mb",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/exactly",
+          "sessions": 316094,
+          "hits": 5233,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 1.655520193360203,
+          "coverage_upper_pct_if_unknown_hit": 1.655520193360203,
+          "coverage_pct_evaluable": 1.655520193360203,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "1": 2544,
+            "2": 243,
+            "3": 998,
+            "4": 679,
+            "5": 580,
+            "6": 103,
+            "7": 39,
+            "8": 25,
+            "9": 12,
+            "10": 10
+          }
+        },
+        {
+          "rule": "lexical/user_history/cf",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/tq",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/mn",
+          "sessions": 316094,
+          "hits": 13,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.004112700652337596,
+          "coverage_upper_pct_if_unknown_hit": 0.004112700652337596,
+          "coverage_pct_evaluable": 0.004112700652337596,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "1": 3,
+            "3": 9,
+            "5": 1
+          }
+        },
+        {
+          "rule": "lexical/user_history/bb",
+          "sessions": 316094,
+          "hits": 4,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.001265446354565414,
+          "coverage_upper_pct_if_unknown_hit": 0.001265446354565414,
+          "coverage_pct_evaluable": 0.001265446354565414,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "2": 1,
+            "3": 3
+          }
+        },
+        {
+          "rule": "lexical/user_history/mb",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/exactly",
+          "sessions": 316094,
+          "hits": 5233,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 1.655520193360203,
+          "coverage_upper_pct_if_unknown_hit": 1.655520193360203,
+          "coverage_pct_evaluable": 1.655520193360203,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "1": 2544,
+            "2": 243,
+            "3": 998,
+            "4": 679,
+            "5": 580,
+            "6": 103,
+            "7": 39,
+            "8": 25,
+            "9": 12,
+            "10": 10
+          }
+        },
+        {
+          "rule": "user_turn/ge_2",
+          "sessions": 316094,
+          "hits": 132497,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 41.91696141021342,
+          "coverage_upper_pct_if_unknown_hit": 41.91696141021342,
+          "coverage_pct_evaluable": 41.91696141021342,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "2": 33489,
+            "3": 88876,
+            "4": 6587,
+            "5": 2378,
+            "6": 794,
+            "7": 251,
+            "8": 83,
+            "9": 31,
+            "10": 8
+          }
+        },
+        {
+          "rule": "user_turn/ge_3",
+          "sessions": 316094,
+          "hits": 105786,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 33.46662701601422,
+          "coverage_upper_pct_if_unknown_hit": 33.46662701601422,
+          "coverage_pct_evaluable": 33.46662701601422,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "3": 3201,
+            "4": 41330,
+            "5": 55658,
+            "6": 3953,
+            "7": 1021,
+            "8": 409,
+            "9": 176,
+            "10": 38
+          }
+        },
+        {
+          "rule": "user_turn/ge_4",
+          "sessions": 316094,
+          "hits": 4676,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 1.479306788486969,
+          "coverage_upper_pct_if_unknown_hit": 1.479306788486969,
+          "coverage_pct_evaluable": 1.479306788486969,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "4": 68,
+            "5": 836,
+            "6": 1353,
+            "7": 1380,
+            "8": 607,
+            "9": 313,
+            "10": 119
+          }
+        },
+        {
+          "rule": "user_turn/ge_5",
+          "sessions": 316094,
+          "hits": 1733,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.5482546331154656,
+          "coverage_upper_pct_if_unknown_hit": 0.5482546331154656,
+          "coverage_pct_evaluable": 0.5482546331154656,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "5": 18,
+            "6": 299,
+            "7": 470,
+            "8": 471,
+            "9": 343,
+            "10": 132
+          }
+        },
+        {
+          "rule": "user_turn/ge_6",
+          "sessions": 316094,
+          "hits": 589,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.1863369757097572,
+          "coverage_upper_pct_if_unknown_hit": 0.1863369757097572,
+          "coverage_pct_evaluable": 0.1863369757097572,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "6": 8,
+            "7": 141,
+            "8": 193,
+            "9": 139,
+            "10": 108
+          }
+        },
+        {
+          "rule": "user_turn/ge_8",
+          "sessions": 316094,
+          "hits": 57,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.01803261055255715,
+          "coverage_upper_pct_if_unknown_hit": 0.01803261055255715,
+          "coverage_pct_evaluable": 0.01803261055255715,
+          "first_hit_decision_median_conditional": 9.0,
+          "first_hit_decision_histogram": {
+            "8": 2,
+            "9": 28,
+            "10": 27
+          }
+        },
+        {
+          "rule": "user_turn/ge_9",
+          "sessions": 316094,
+          "hits": 12,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0037963390636962424,
+          "coverage_upper_pct_if_unknown_hit": 0.0037963390636962424,
+          "coverage_pct_evaluable": 0.0037963390636962424,
+          "first_hit_decision_median_conditional": 10.0,
+          "first_hit_decision_histogram": {
+            "10": 12
+          }
+        },
+        {
+          "rule": "user_turn/ge_10",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "user_turn/ge_12",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "user_turn/ge_16",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "assistant_decision/ge_2",
+          "sessions": 316094,
+          "hits": 280097,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 88.6119318936772,
+          "coverage_upper_pct_if_unknown_hit": 88.6119318936772,
+          "coverage_pct_evaluable": 88.6119318936772,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "2": 280097
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_3",
+          "sessions": 316094,
+          "hits": 195500,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 61.848690579384616,
+          "coverage_upper_pct_if_unknown_hit": 61.848690579384616,
+          "coverage_pct_evaluable": 61.848690579384616,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "3": 195500
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_4",
+          "sessions": 316094,
+          "hits": 149111,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 47.172992843900865,
+          "coverage_upper_pct_if_unknown_hit": 47.172992843900865,
+          "coverage_pct_evaluable": 47.172992843900865,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "4": 149111
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_5",
+          "sessions": 316094,
+          "hits": 102809,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 32.524818566628916,
+          "coverage_upper_pct_if_unknown_hit": 32.524818566628916,
+          "coverage_pct_evaluable": 32.524818566628916,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "5": 102809
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_6",
+          "sessions": 316094,
+          "hits": 56808,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 17.97186912753801,
+          "coverage_upper_pct_if_unknown_hit": 17.97186912753801,
+          "coverage_pct_evaluable": 17.97186912753801,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "6": 56808
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_8",
+          "sessions": 316094,
+          "hits": 7141,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 2.2591381044879055,
+          "coverage_upper_pct_if_unknown_hit": 2.2591381044879055,
+          "coverage_pct_evaluable": 2.2591381044879055,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "8": 7141
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_9",
+          "sessions": 316094,
+          "hits": 3739,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 1.1828759799300208,
+          "coverage_upper_pct_if_unknown_hit": 1.1828759799300208,
+          "coverage_pct_evaluable": 1.1828759799300208,
+          "first_hit_decision_median_conditional": 9.0,
+          "first_hit_decision_histogram": {
+            "9": 3739
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_10",
+          "sessions": 316094,
+          "hits": 1633,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.5166184742513303,
+          "coverage_upper_pct_if_unknown_hit": 0.5166184742513303,
+          "coverage_pct_evaluable": 0.5166184742513303,
+          "first_hit_decision_median_conditional": 10.0,
+          "first_hit_decision_histogram": {
+            "10": 1633
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_12",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "assistant_decision/ge_16",
+          "sessions": 316094,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "length/ge_90",
+          "sessions": 316094,
+          "hits": 312594,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 98.89273443975526,
+          "coverage_upper_pct_if_unknown_hit": 98.89273443975526,
+          "coverage_pct_evaluable": 98.89273443975526,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 312594
+          }
+        },
+        {
+          "rule": "length/ge_256",
+          "sessions": 316094,
+          "hits": 294197,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 93.07263029352028,
+          "coverage_upper_pct_if_unknown_hit": 93.07263029352028,
+          "coverage_pct_evaluable": 93.07263029352028,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 288573,
+            "2": 4960,
+            "3": 544,
+            "4": 120
+          }
+        },
+        {
+          "rule": "length/ge_512",
+          "sessions": 316094,
+          "hits": 274404,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 86.81088536954198,
+          "coverage_upper_pct_if_unknown_hit": 86.81088536954198,
+          "coverage_pct_evaluable": 86.81088536954198,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 216335,
+            "2": 42036,
+            "3": 14180,
+            "4": 1568,
+            "5": 270,
+            "6": 15
+          }
+        },
+        {
+          "rule": "length/ge_700",
+          "sessions": 316094,
+          "hits": 255048,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 80.68739045979993,
+          "coverage_upper_pct_if_unknown_hit": 80.68739045979993,
+          "coverage_pct_evaluable": 80.68739045979993,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 187636,
+            "2": 35200,
+            "3": 23016,
+            "4": 7377,
+            "5": 1671,
+            "6": 132,
+            "7": 16
+          }
+        },
+        {
+          "rule": "length/ge_1024",
+          "sessions": 316094,
+          "hits": 223872,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 70.82450157231709,
+          "coverage_upper_pct_if_unknown_hit": 70.82450157231709,
+          "coverage_pct_evaluable": 70.82450157231709,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 139387,
+            "2": 33034,
+            "3": 27700,
+            "4": 16545,
+            "5": 5971,
+            "6": 1037,
+            "7": 158,
+            "8": 36,
+            "9": 2,
+            "10": 2
+          }
+        },
+        {
+          "rule": "length/ge_2048",
+          "sessions": 316094,
+          "hits": 86876,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 27.48422937480623,
+          "coverage_upper_pct_if_unknown_hit": 27.48422937480623,
+          "coverage_pct_evaluable": 27.48422937480623,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "1": 14232,
+            "2": 10088,
+            "3": 14477,
+            "4": 19823,
+            "5": 18589,
+            "6": 7293,
+            "7": 1611,
+            "8": 549,
+            "9": 165,
+            "10": 49
+          }
+        },
+        {
+          "rule": "length/ge_4096",
+          "sessions": 316094,
+          "hits": 9870,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 3.122488879890159,
+          "coverage_upper_pct_if_unknown_hit": 3.122488879890159,
+          "coverage_pct_evaluable": 3.122488879890159,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "1": 4241,
+            "2": 546,
+            "3": 588,
+            "4": 714,
+            "5": 1154,
+            "6": 1321,
+            "7": 520,
+            "8": 329,
+            "9": 295,
+            "10": 162
+          }
+        },
+        {
+          "rule": "length/ge_8192",
+          "sessions": 316094,
+          "hits": 1639,
+          "unknown": 0,
+          "evaluable": 316094,
+          "coverage_pct_all_sessions": 0.5185166437831784,
+          "coverage_upper_pct_if_unknown_hit": 0.5185166437831784,
+          "coverage_pct_evaluable": 0.5185166437831784,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 1039,
+            "2": 118,
+            "3": 86,
+            "4": 92,
+            "5": 105,
+            "6": 97,
+            "7": 32,
+            "8": 30,
+            "9": 24,
+            "10": 16
+          }
+        },
+        {
+          "rule": "tool_success/ge_2",
+          "sessions": 316094,
+          "hits": 87858,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 27.794896454852037,
+          "coverage_upper_pct_if_unknown_hit": 28.01761501325555,
+          "coverage_pct_evaluable": 27.856939027870254,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "2": 13454,
+            "3": 14085,
+            "4": 33526,
+            "5": 13340,
+            "6": 11097,
+            "7": 1632,
+            "8": 493,
+            "9": 169,
+            "10": 62
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_2",
+          "sessions": 316094,
+          "hits": 72897,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 23.061810727188746,
+          "coverage_upper_pct_if_unknown_hit": 23.28452928559226,
+          "coverage_pct_evaluable": 23.113288309711784,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "2": 7807,
+            "3": 11788,
+            "4": 29306,
+            "5": 11866,
+            "6": 9857,
+            "7": 1573,
+            "8": 481,
+            "9": 159,
+            "10": 60
+          }
+        },
+        {
+          "rule": "tool_success/ge_3",
+          "sessions": 316094,
+          "hits": 36147,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 11.435522344619006,
+          "coverage_upper_pct_if_unknown_hit": 11.658240903022518,
+          "coverage_pct_evaluable": 11.461048226005898,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "2": 4670,
+            "3": 2270,
+            "4": 7004,
+            "5": 4887,
+            "6": 14410,
+            "7": 1806,
+            "8": 676,
+            "9": 323,
+            "10": 101
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_3",
+          "sessions": 316094,
+          "hits": 29862,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 9.447189760008099,
+          "coverage_upper_pct_if_unknown_hit": 9.669908318411611,
+          "coverage_pct_evaluable": 9.468277370874155,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "2": 3289,
+            "3": 1444,
+            "4": 5364,
+            "5": 4077,
+            "6": 12976,
+            "7": 1666,
+            "8": 648,
+            "9": 306,
+            "10": 92
+          }
+        },
+        {
+          "rule": "tool_success/ge_4",
+          "sessions": 316094,
+          "hits": 10348,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 3.2737097192607263,
+          "coverage_upper_pct_if_unknown_hit": 3.496428277664239,
+          "coverage_pct_evaluable": 3.2810171533656742,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "2": 1077,
+            "3": 759,
+            "4": 1856,
+            "5": 1553,
+            "6": 3250,
+            "7": 980,
+            "8": 510,
+            "9": 236,
+            "10": 127
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_4",
+          "sessions": 316094,
+          "hits": 6996,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 2.213265674134909,
+          "coverage_upper_pct_if_unknown_hit": 2.4359842325384222,
+          "coverage_pct_evaluable": 2.218206030628745,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "2": 550,
+            "3": 302,
+            "4": 1046,
+            "5": 1096,
+            "6": 2274,
+            "7": 902,
+            "8": 487,
+            "9": 220,
+            "10": 119
+          }
+        },
+        {
+          "rule": "tool_success/ge_5",
+          "sessions": 316094,
+          "hits": 5020,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 1.5881351749795947,
+          "coverage_upper_pct_if_unknown_hit": 1.8108537333831076,
+          "coverage_pct_evaluable": 1.5916801420463553,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "2": 472,
+            "3": 440,
+            "4": 836,
+            "5": 501,
+            "6": 1574,
+            "7": 542,
+            "8": 380,
+            "9": 171,
+            "10": 104
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_5",
+          "sessions": 316094,
+          "hits": 3001,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 0.9494011275127019,
+          "coverage_upper_pct_if_unknown_hit": 1.1721196859162148,
+          "coverage_pct_evaluable": 0.9515203398966359,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "2": 217,
+            "3": 204,
+            "4": 370,
+            "5": 223,
+            "6": 916,
+            "7": 478,
+            "8": 351,
+            "9": 151,
+            "10": 91
+          }
+        },
+        {
+          "rule": "tool_success/explicit_evidence_ge_3",
+          "sessions": 316094,
+          "hits": 1003,
+          "unknown": 704,
+          "evaluable": 315390,
+          "coverage_pct_all_sessions": 0.3173106734072776,
+          "coverage_upper_pct_if_unknown_hit": 0.5400292318107904,
+          "coverage_pct_evaluable": 0.31801896065189134,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "2": 134,
+            "3": 117,
+            "4": 208,
+            "5": 136,
+            "6": 278,
+            "7": 76,
+            "8": 24,
+            "9": 16,
+            "10": 14
+          }
+        }
+      ]
+    },
+    "interactive_agent": {
+      "sessions": 19028,
+      "observed_assistant_decisions": 70794,
+      "quality": {
+        "session_exceeds_context_budget": 217
+      },
+      "pairing_errors": {},
+      "event_status_counts": {
+        "success": 29838,
+        "failure": 198
+      },
+      "serialization_error_types": {},
+      "metrics": [
+        {
+          "rule": "lexical/latest_user/cf",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/tq",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/mn",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/bb",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/mb",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/latest_user/exactly",
+          "sessions": 19028,
+          "hits": 277,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 1.4557494219045617,
+          "coverage_upper_pct_if_unknown_hit": 1.4557494219045617,
+          "coverage_pct_evaluable": 1.4557494219045617,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "1": 122,
+            "2": 55,
+            "3": 45,
+            "4": 23,
+            "5": 10,
+            "6": 14,
+            "7": 3,
+            "8": 2,
+            "9": 3
+          }
+        },
+        {
+          "rule": "lexical/user_history/cf",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/tq",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/mn",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/bb",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/mb",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "lexical/user_history/exactly",
+          "sessions": 19028,
+          "hits": 277,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 1.4557494219045617,
+          "coverage_upper_pct_if_unknown_hit": 1.4557494219045617,
+          "coverage_pct_evaluable": 1.4557494219045617,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "1": 122,
+            "2": 55,
+            "3": 45,
+            "4": 23,
+            "5": 10,
+            "6": 14,
+            "7": 3,
+            "8": 2,
+            "9": 3
+          }
+        },
+        {
+          "rule": "user_turn/ge_2",
+          "sessions": 19028,
+          "hits": 12084,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 63.506411603952074,
+          "coverage_upper_pct_if_unknown_hit": 63.506411603952074,
+          "coverage_pct_evaluable": 63.506411603952074,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "2": 8959,
+            "3": 2099,
+            "4": 679,
+            "5": 237,
+            "6": 75,
+            "7": 17,
+            "8": 11,
+            "9": 2,
+            "10": 4,
+            "11": 1
+          }
+        },
+        {
+          "rule": "user_turn/ge_3",
+          "sessions": 19028,
+          "hits": 6222,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 32.69918015556023,
+          "coverage_upper_pct_if_unknown_hit": 32.69918015556023,
+          "coverage_pct_evaluable": 32.69918015556023,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "3": 2397,
+            "4": 2085,
+            "5": 987,
+            "6": 428,
+            "7": 209,
+            "8": 83,
+            "9": 25,
+            "10": 6,
+            "11": 2
+          }
+        },
+        {
+          "rule": "user_turn/ge_4",
+          "sessions": 19028,
+          "hits": 2365,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 12.429051923481186,
+          "coverage_upper_pct_if_unknown_hit": 12.429051923481186,
+          "coverage_pct_evaluable": 12.429051923481186,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "4": 596,
+            "5": 773,
+            "6": 500,
+            "7": 277,
+            "8": 131,
+            "9": 62,
+            "10": 15,
+            "11": 8,
+            "12": 3
+          }
+        },
+        {
+          "rule": "user_turn/ge_5",
+          "sessions": 19028,
+          "hits": 745,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 3.9152827412234603,
+          "coverage_upper_pct_if_unknown_hit": 3.9152827412234603,
+          "coverage_pct_evaluable": 3.9152827412234603,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "5": 129,
+            "6": 237,
+            "7": 176,
+            "8": 109,
+            "9": 66,
+            "10": 20,
+            "11": 7,
+            "12": 1
+          }
+        },
+        {
+          "rule": "user_turn/ge_6",
+          "sessions": 19028,
+          "hits": 241,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 1.2665545511877234,
+          "coverage_upper_pct_if_unknown_hit": 1.2665545511877234,
+          "coverage_pct_evaluable": 1.2665545511877234,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "6": 34,
+            "7": 66,
+            "8": 66,
+            "9": 36,
+            "10": 30,
+            "11": 8,
+            "12": 1
+          }
+        },
+        {
+          "rule": "user_turn/ge_8",
+          "sessions": 19028,
+          "hits": 18,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.09459743535841918,
+          "coverage_upper_pct_if_unknown_hit": 0.09459743535841918,
+          "coverage_pct_evaluable": 0.09459743535841918,
+          "first_hit_decision_median_conditional": 10.0,
+          "first_hit_decision_histogram": {
+            "8": 3,
+            "9": 3,
+            "10": 10,
+            "11": 1,
+            "12": 1
+          }
+        },
+        {
+          "rule": "user_turn/ge_9",
+          "sessions": 19028,
+          "hits": 3,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.015766239226403196,
+          "coverage_upper_pct_if_unknown_hit": 0.015766239226403196,
+          "coverage_pct_evaluable": 0.015766239226403196,
+          "first_hit_decision_median_conditional": 10.0,
+          "first_hit_decision_histogram": {
+            "9": 1,
+            "10": 2
+          }
+        },
+        {
+          "rule": "user_turn/ge_10",
+          "sessions": 19028,
+          "hits": 2,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.010510826150935463,
+          "coverage_upper_pct_if_unknown_hit": 0.010510826150935463,
+          "coverage_pct_evaluable": 0.010510826150935463,
+          "first_hit_decision_median_conditional": 11.0,
+          "first_hit_decision_histogram": {
+            "11": 2
+          }
+        },
+        {
+          "rule": "user_turn/ge_12",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "user_turn/ge_16",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "assistant_decision/ge_2",
+          "sessions": 19028,
+          "hits": 17835,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 93.730292200967,
+          "coverage_upper_pct_if_unknown_hit": 93.730292200967,
+          "coverage_pct_evaluable": 93.730292200967,
+          "first_hit_decision_median_conditional": 2.0,
+          "first_hit_decision_histogram": {
+            "2": 17835
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_3",
+          "sessions": 19028,
+          "hits": 12393,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 65.1303342442716,
+          "coverage_upper_pct_if_unknown_hit": 65.1303342442716,
+          "coverage_pct_evaluable": 65.1303342442716,
+          "first_hit_decision_median_conditional": 3.0,
+          "first_hit_decision_histogram": {
+            "3": 12393
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_4",
+          "sessions": 19028,
+          "hits": 8409,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 44.192768551608154,
+          "coverage_upper_pct_if_unknown_hit": 44.192768551608154,
+          "coverage_pct_evaluable": 44.192768551608154,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "4": 8409
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_5",
+          "sessions": 19028,
+          "hits": 5301,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 27.858944713054445,
+          "coverage_upper_pct_if_unknown_hit": 27.858944713054445,
+          "coverage_pct_evaluable": 27.858944713054445,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "5": 5301
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_6",
+          "sessions": 19028,
+          "hits": 3187,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 16.749001471515662,
+          "coverage_upper_pct_if_unknown_hit": 16.749001471515662,
+          "coverage_pct_evaluable": 16.749001471515662,
+          "first_hit_decision_median_conditional": 6.0,
+          "first_hit_decision_histogram": {
+            "6": 3187
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_8",
+          "sessions": 19028,
+          "hits": 1232,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 6.474668908976246,
+          "coverage_upper_pct_if_unknown_hit": 6.474668908976246,
+          "coverage_pct_evaluable": 6.474668908976246,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "8": 1232
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_9",
+          "sessions": 19028,
+          "hits": 715,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 3.757620348959428,
+          "coverage_upper_pct_if_unknown_hit": 3.757620348959428,
+          "coverage_pct_evaluable": 3.757620348959428,
+          "first_hit_decision_median_conditional": 9.0,
+          "first_hit_decision_histogram": {
+            "9": 715
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_10",
+          "sessions": 19028,
+          "hits": 397,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 2.0863989909606895,
+          "coverage_upper_pct_if_unknown_hit": 2.0863989909606895,
+          "coverage_pct_evaluable": 2.0863989909606895,
+          "first_hit_decision_median_conditional": 10.0,
+          "first_hit_decision_histogram": {
+            "10": 397
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_12",
+          "sessions": 19028,
+          "hits": 93,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.48875341601849903,
+          "coverage_upper_pct_if_unknown_hit": 0.48875341601849903,
+          "coverage_pct_evaluable": 0.48875341601849903,
+          "first_hit_decision_median_conditional": 12.0,
+          "first_hit_decision_histogram": {
+            "12": 93
+          }
+        },
+        {
+          "rule": "assistant_decision/ge_16",
+          "sessions": 19028,
+          "hits": 0,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0,
+          "coverage_upper_pct_if_unknown_hit": 0.0,
+          "coverage_pct_evaluable": 0.0,
+          "first_hit_decision_median_conditional": null,
+          "first_hit_decision_histogram": {}
+        },
+        {
+          "rule": "length/ge_90",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_256",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_512",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_700",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_1024",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_2048",
+          "sessions": 19028,
+          "hits": 19028,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 100.0,
+          "coverage_upper_pct_if_unknown_hit": 100.0,
+          "coverage_pct_evaluable": 100.0,
+          "first_hit_decision_median_conditional": 1.0,
+          "first_hit_decision_histogram": {
+            "1": 19028
+          }
+        },
+        {
+          "rule": "length/ge_4096",
+          "sessions": 19028,
+          "hits": 3633,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 19.09291570317427,
+          "coverage_upper_pct_if_unknown_hit": 19.09291570317427,
+          "coverage_pct_evaluable": 19.09291570317427,
+          "first_hit_decision_median_conditional": 4.0,
+          "first_hit_decision_histogram": {
+            "2": 1166,
+            "3": 640,
+            "4": 608,
+            "5": 388,
+            "6": 302,
+            "7": 267,
+            "8": 182,
+            "9": 66,
+            "10": 8,
+            "11": 6
+          }
+        },
+        {
+          "rule": "length/ge_8192",
+          "sessions": 19028,
+          "hits": 217,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 1.1404246373764977,
+          "coverage_upper_pct_if_unknown_hit": 1.1404246373764977,
+          "coverage_pct_evaluable": 1.1404246373764977,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "3": 3,
+            "4": 13,
+            "5": 29,
+            "6": 52,
+            "7": 46,
+            "8": 43,
+            "9": 19,
+            "10": 6,
+            "11": 4,
+            "12": 2
+          }
+        },
+        {
+          "rule": "tool_success/ge_2",
+          "sessions": 19028,
+          "hits": 1430,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 7.515240697918856,
+          "coverage_upper_pct_if_unknown_hit": 7.515240697918856,
+          "coverage_pct_evaluable": 7.515240697918856,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "3": 196,
+            "4": 289,
+            "5": 371,
+            "6": 262,
+            "7": 143,
+            "8": 80,
+            "9": 50,
+            "10": 17,
+            "11": 15,
+            "12": 7
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_2",
+          "sessions": 19028,
+          "hits": 1430,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 7.515240697918856,
+          "coverage_upper_pct_if_unknown_hit": 7.515240697918856,
+          "coverage_pct_evaluable": 7.515240697918856,
+          "first_hit_decision_median_conditional": 5.0,
+          "first_hit_decision_histogram": {
+            "3": 196,
+            "4": 289,
+            "5": 371,
+            "6": 262,
+            "7": 143,
+            "8": 80,
+            "9": 50,
+            "10": 17,
+            "11": 15,
+            "12": 7
+          }
+        },
+        {
+          "rule": "tool_success/ge_3",
+          "sessions": 19028,
+          "hits": 464,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 2.4385116670170275,
+          "coverage_upper_pct_if_unknown_hit": 2.4385116670170275,
+          "coverage_pct_evaluable": 2.4385116670170275,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "4": 22,
+            "5": 78,
+            "6": 104,
+            "7": 89,
+            "8": 60,
+            "9": 51,
+            "10": 41,
+            "11": 12,
+            "12": 4,
+            "13": 3
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_3",
+          "sessions": 19028,
+          "hits": 464,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 2.4385116670170275,
+          "coverage_upper_pct_if_unknown_hit": 2.4385116670170275,
+          "coverage_pct_evaluable": 2.4385116670170275,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "4": 22,
+            "5": 78,
+            "6": 104,
+            "7": 89,
+            "8": 60,
+            "9": 51,
+            "10": 41,
+            "11": 12,
+            "12": 4,
+            "13": 3
+          }
+        },
+        {
+          "rule": "tool_success/ge_4",
+          "sessions": 19028,
+          "hits": 188,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.9880176581879335,
+          "coverage_upper_pct_if_unknown_hit": 0.9880176581879335,
+          "coverage_pct_evaluable": 0.9880176581879335,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "5": 5,
+            "6": 33,
+            "7": 36,
+            "8": 27,
+            "9": 25,
+            "10": 30,
+            "11": 14,
+            "12": 18
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_4",
+          "sessions": 19028,
+          "hits": 188,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.9880176581879335,
+          "coverage_upper_pct_if_unknown_hit": 0.9880176581879335,
+          "coverage_pct_evaluable": 0.9880176581879335,
+          "first_hit_decision_median_conditional": 8.0,
+          "first_hit_decision_histogram": {
+            "5": 5,
+            "6": 33,
+            "7": 36,
+            "8": 27,
+            "9": 25,
+            "10": 30,
+            "11": 14,
+            "12": 18
+          }
+        },
+        {
+          "rule": "tool_success/ge_5",
+          "sessions": 19028,
+          "hits": 77,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.40466680681101536,
+          "coverage_upper_pct_if_unknown_hit": 0.40466680681101536,
+          "coverage_pct_evaluable": 0.40466680681101536,
+          "first_hit_decision_median_conditional": 9.0,
+          "first_hit_decision_histogram": {
+            "7": 19,
+            "8": 13,
+            "9": 9,
+            "10": 9,
+            "11": 12,
+            "12": 15
+          }
+        },
+        {
+          "rule": "tool_success/first_cross_immediate_5",
+          "sessions": 19028,
+          "hits": 77,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.40466680681101536,
+          "coverage_upper_pct_if_unknown_hit": 0.40466680681101536,
+          "coverage_pct_evaluable": 0.40466680681101536,
+          "first_hit_decision_median_conditional": 9.0,
+          "first_hit_decision_histogram": {
+            "7": 19,
+            "8": 13,
+            "9": 9,
+            "10": 9,
+            "11": 12,
+            "12": 15
+          }
+        },
+        {
+          "rule": "tool_success/explicit_evidence_ge_3",
+          "sessions": 19028,
+          "hits": 1,
+          "unknown": 0,
+          "evaluable": 19028,
+          "coverage_pct_all_sessions": 0.0052554130754677315,
+          "coverage_upper_pct_if_unknown_hit": 0.0052554130754677315,
+          "coverage_pct_evaluable": 0.0052554130754677315,
+          "first_hit_decision_median_conditional": 7.0,
+          "first_hit_decision_histogram": {
+            "7": 1
+          }
+        }
+      ]
+    }
+  },
+  "completed": true,
+  "transformers_version": "4.57.6",
+  "tokenizers_version": "0.22.2",
+  "chat_template_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+  "elapsed_seconds": 2276.8
+}
