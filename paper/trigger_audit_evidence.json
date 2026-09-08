@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "updated_date": "2026-09-08",
+  "table_label": "tab:trigger-audit",
+  "evidence_type": "qualitative_mechanism_and_known_predicate_information_comparison",
+  "source_note": "Uses provenance previously checked in trigger_text_evidence.json; no new attack reproduction or detector evaluation.",
+  "rows": [
+    {
+      "id": "lexical",
+      "tex_row": "Lexical \\cite{wang2024badagent} & Marker in current request & Current request text \\\\",
+      "bibkey": "wang2024badagent",
+      "source_url": "https://aclanthology.org/2024.acl-long.530.pdf",
+      "locator": "Appendix A, OS task, printed page 9823 (PDF page 13)",
+      "scope": "OS active-attack example only; not the HTML or product-listing variants."
+    },
+    {
+      "id": "turn",
+      "tex_row": "Turn \\cite{lu2026turn} & Turn-index threshold & Dialogue structure or turn index \\\\",
+      "bibkey": "lu2026turn",
+      "source_url": "https://arxiv.org/pdf/2601.14340",
+      "locator": "v3, Section Formulation of Turn-based Structural Triggers and Attack Settings",
+      "scope": "Pure TST uses turn index (primary threshold t >= 9) and an attacker-controlled loss module. Its hybrid cf setting is not this zero-marker row."
+    },
+    {
+      "id": "length",
+      "tex_row": "Length \\cite{wen2026metabackdoor} & Input-length threshold & Serialized input token count \\\\",
+      "bibkey": "wen2026metabackdoor",
+      "source_url": "https://arxiv.org/pdf/2605.15172",
+      "locator": "Sections III and VI-B; length-only self-activation/tool-call experiment",
+      "scope": "Uses sequence length rather than content. The separate dual-key cf-plus-length setting is not this zero-marker row."
+    },
+    {
+      "id": "ours",
+      "tex_row": "Ours & First third success for the same tool & Ordered tool identities and execution statuses \\\\",
+      "source_path": "experiments/m1/qwen/first_trigger/build.py",
+      "locator": "family(): prefix = messages[:i], with no lexical-trigger insertion in positive inputs",
+      "scope": "Relative to the normalized source prefix with common system policy and sandbox tool schema. This is not a claim that serialized inputs equal raw source bytes. No full frozen-cohort input audit or new model inference was performed for this table."
+    }
+  ],
+  "paired_indistinguishability_results": null,
+  "detector_results": null,
+  "external_same_protocol_asr": null,
+  "limitations": [
+    "Current-request lexical insertion, pure TST and length-only MetaBackdoor are selected settings, not universal descriptions of the cited attacks.",
+    "Turn conventions, tokenizers and serialization must match the trigger definition.",
+    "Exact collisions after removing all tool results do not establish collisions after removing only status fields or retaining actual token counts.",
+    "Recoverable execution status may be conveyed by text rather than an explicit status field.",
+    "Known-predicate evaluation, learned model behavior and backdoored-model detection are distinct tasks.",
+    "No comparison of empirical detector performance or auditing cost is claimed."
+  ]
+}

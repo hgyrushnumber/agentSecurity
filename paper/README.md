@@ -10,8 +10,9 @@
 - 回填训练 seed 13/42/87 的 validation 均值与样本标准差；保留 seed42 失败表达 OOD 诊断。
 - 预留历史判断、负例类型/比例、同权限攻击比较、Clean-SFT utility、冻结 test、第二模型和防御实验。
 - 新增证据回填清单、源码一致性检查和服务器编译入口。未改训练代码、实验数据或审核决定。
-- 新增表 1：追溯 `cf` 到 RIPPLES（ACL 2020），并比较 BadAgent、CoTri、Triggerless clean-label、TST、MetaBackdoor 与本方法的额外词汇标记字符数；下半表单独列出本方法三 seed 验证 ASR。近期非内容触发工作同为 0，因此正文只保留相对显式词汇设置的优势。原 A/B 主表顺延为表 2。
-- 表 1 的原文定位、计数口径及本地指标路径保存在 [trigger_text_evidence.json](trigger_text_evidence.json)，由 `check_paper.py` 核对字符数和已有验证汇总；未新增模型推理或外部方法复现。
+- 表 1 改为“触发条件与审计信息需求”，比较 Lexical、Turn、Length 和本方法；零额外词汇标记降为辅助属性，ASR 统一放在表 2。
+- 表 1 的来源和论述边界保存在 [trigger_audit_evidence.json](trigger_audit_evidence.json)。当前是定性机制比较，未填入未经验证的不可区分率或检测性能。旧字符数与本地指标来源仍保存在 [trigger_text_evidence.json](trigger_text_evidence.json)。
+- `check_paper.py` 已同步核对新表 1，并保留归档字符数和已有验证汇总检查；未新增模型推理或外部方法复现。
 
 核心结论：matched-failure 监督提高已测试的末尾状态选择性，但没有解决临界计数，
 更不能据此宣称学会完整历史规则。这个处理增强后门的选择性，不是防御方法。
@@ -26,6 +27,7 @@
 | [references.bib](references.bib) | 正文引用与保留的相关文献 |
 | [FIRST_TRIGGER_STORYLINE.md](FIRST_TRIGGER_STORYLINE.md) | 中文主线、差异与可声称边界 |
 | [EXPERIMENTS_AND_EVIDENCE.md](EXPERIMENTS_AND_EVIDENCE.md) | 已完成结果来源、待补实验与回填规则 |
+| [trigger_audit_evidence.json](trigger_audit_evidence.json) | 表 1 机制比较的来源、范围及未测结果标记 |
 | [check_paper.py](check_paper.py) | 核对引用、交叉引用、结构、摘要与主表数值 |
 | [build.sh](build.sh) | 源码检查后使用已有 LaTeX 工具编译 |
 

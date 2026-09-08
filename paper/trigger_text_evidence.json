@@ -147,13 +147,16 @@
     {
       "configuration": "TST pure fixed-response",
       "reported_metric": "mean ASR across four model families",
-      "value_percent": 98.10,
+      "value_percent": 98.1,
       "reason_not_compared": "Different models, target behavior, trigger predicate, attacker access, and evaluation denominator."
     },
     {
       "configuration": "MetaBackdoor self-activation, context longer than 700 tokens",
       "reported_metric": "format compliance / correct leak",
-      "value_percent": [78.1, 75.0],
+      "value_percent": [
+        78.1,
+        75.0
+      ],
       "reason_not_compared": "Length-bin proof of concept with a different tool-call payload and success criterion."
     }
   ],
@@ -162,7 +165,11 @@
     "model": "Qwen2.5-1.5B-Instruct",
     "split": "validation",
     "data_seed": 42,
-    "training_seeds": [13, 42, 87],
+    "training_seeds": [
+      13,
+      42,
+      87
+    ],
     "positive_uuid_count_per_seed": 1000,
     "independent_positive_uuid_count": 1000,
     "source_path_template": "experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed{seed}/comparison_validation.json",
@@ -171,9 +178,18 @@
       "experiments/m1/qwen/first_trigger/artifacts/runs/seed42/eval/validation/metrics.json",
       "experiments/m1/qwen/first_trigger/failed_status_ablation/artifacts/runs/train_seed87/B/eval/validation/metrics.json"
     ],
-    "action_asr_percent_by_seed": [94.3, 93.5, 93.5],
-    "exact_payload_asr_percent_by_seed": [89.8, 89.1, 89.5],
+    "action_asr_percent_by_seed": [
+      94.3,
+      93.5,
+      93.5
+    ],
+    "exact_payload_asr_percent_by_seed": [
+      89.8,
+      89.1,
+      89.5
+    ],
     "summary": "Mean and sample standard deviation across training seeds; fixed cohort, offline generation, 25% positive training rows. Not 3000 independent UUIDs or execution success."
   },
-  "external_same_protocol_asr": null
+  "external_same_protocol_asr": null,
+  "document_role": "Archived lexical-marker comparison and saved validation provenance; no longer the active Table 1 specification. See trigger_audit_evidence.json."
 }

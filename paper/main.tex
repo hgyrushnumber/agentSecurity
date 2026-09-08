@@ -72,64 +72,55 @@ authorization rather than inferring rule learning from aggregate attack
 success alone.
 
 \section{Trigger and Paired Supervision}
-\subsection{Added trigger text}
-Table~\ref{tab:trigger-text} compares the added lexical markers in specified
-published backdoor configurations. We count Unicode characters in the
-marker literal, including internal spaces but excluding surrounding separators;
-this is not a tokenizer-dependent token count or total input edit distance.
-The early RIPPLES work used five rare keywords, including \texttt{cf},
-\texttt{tq}, and \texttt{bb}; its SST-2 setting injects one keyword per
-instance \cite{kurita2020weight}. Thus, \texttt{cf} predates both BadNL and
-CoTri. BadNL itself attributes \texttt{bb}/\texttt{cf} to RIPPLES
-\cite{chen2021badnl}; a later evaluation instantiates its BadNL baseline with
-\texttt{cf} \cite{du2024generated}. BadAgent's OS example appends
-\texttt{you know} \cite{wang2024badagent}. CoTri inserts \texttt{tq}
-initially and uses environment-derived observations later; it also evaluates
-\texttt{cf} and \texttt{exactly} variants \cite{qiu2025chaintrigger}.
+\subsection{Trigger conditions and audit information}
+Table~\ref{tab:trigger-audit} compares the information needed to evaluate
+known trigger conditions in an agent workflow. A lexical marker placed in the
+current request is visible there; turn and length conditions can be evaluated
+from dialogue structure and input-length metadata, respectively. In contrast,
+our intended predicate combines tool identity, execution status, and the first
+crossing of a cumulative success threshold. Request text, turn count, and
+input length alone do not generally determine this predicate.
 
 \begin{table}[t]
 \centering
-\caption{Added lexical marker in selected published configurations. Counts
-come from the displayed literals. TST, MetaBackdoor, and ours are content-free
-settings with different conditions. The lower panel reports only our local
-validation results.}
-\label{tab:trigger-text}
+\caption{Trigger conditions and information for direct auditing of a known
+predicate. Rows compare selected mechanisms, not reproduced attacks or
+measured detection rates.}
+\label{tab:trigger-audit}
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{lcr}
+\begin{tabular}{@{}p{0.20\columnwidth}p{0.31\columnwidth}p{0.41\columnwidth}@{}}
 \toprule
-Configuration & Added marker & Characters \\
+Mechanism & Trigger condition & Audit information \\
 \midrule
-RIPPLES example \cite{kurita2020weight} & \texttt{cf} & 2 \\
-BadAgent (OS) \cite{wang2024badagent} & \texttt{you know} & 8 \\
-CoTri (default) \cite{qiu2025chaintrigger} & \texttt{tq} & 2 \\
-CoTri (variant) \cite{qiu2025chaintrigger} & \texttt{cf} & 2 \\
-CoTri (natural variant) \cite{qiu2025chaintrigger} & \texttt{exactly} & 7 \\
-Triggerless clean-label \cite{gan2022triggerless} & None & 0 \\
-TST (pure) \cite{lu2026turn} & None & 0 \\
-MetaBackdoor (length) \cite{wen2026metabackdoor} & None & 0 \\
-\method{} (ours) & None & 0 \\
-\midrule
-\multicolumn{3}{l}{Ours, arm B: 1,000 positive UUIDs per seed, 3 seeds} \\
-\multicolumn{2}{l}{Action generation ASR (\%)} & $93.77\pm0.46$ \\
-\multicolumn{2}{l}{Exact-payload ASR (\%)} & $89.47\pm0.35$ \\
+Lexical \cite{wang2024badagent} & Marker in current request & Current request text \\
+Turn \cite{lu2026turn} & Turn-index threshold & Dialogue structure or turn index \\
+Length \cite{wen2026metabackdoor} & Input-length threshold & Serialized input token count \\
+Ours & First third success for the same tool & Ordered tool identities and execution statuses \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The NAACL clean-label attack requires no external inference-time trigger but
-targets selected classification examples \cite{gan2022triggerless}. Pure TST
-activates from dialogue turn index and MetaBackdoor from sequence length; both
-also match our zero-character count \cite{lu2026turn,wen2026metabackdoor}.
-Our narrower distinction is the trigger
-predicate: it combines tool identity, execution status, and an accumulated
-three-success boundary. The common system policy and sandbox tool schema are
-experimental scaffolding and excluded from the marker count. This table
-supports an advantage over the listed \emph{lexical} configurations, not all
-backdoors. It does not establish lower poisoning cost, better detector
-evasion, or cross-paper ASR superiority. We have not rerun the external methods
-on this cohort. Natural trigger prevalence and end-to-end execution success
-also remain unmeasured. Marker lengths describe explicit insertion, not minimum
-intervention when a marker occurs naturally.
+The lexical row refers to current-request insertion, as in BadAgent's OS
+example; it does not describe every lexical or multi-step attack. The turn and
+length rows refer to pure TST and length-only MetaBackdoor. Their respective
+turn convention, tokenizer, and serialization must be respected when auditing
+the condition. Like these two settings, our positive prefixes add no lexical
+trigger marker beyond the common policy and sandbox schema. Zero added
+markers are therefore a shared property, not our distinguishing contribution.
+
+The distinction is the additional dependence on execution-result information.
+For a trigger prefix and its matched final-failure control, an audit projection
+that suppresses all result content and status while preserving the remaining
+identical history cannot distinguish the pair. This is a conditional property
+of that projection, not a measured detection rate. Status may also be conveyed
+in tool-result text; real token counts, result sizes, and subsequent behavior
+may reveal differences even without an explicit status field. Indistinguishability
+under such richer views requires separate verification. With ordered tool
+identities and recoverable statuses, an auditor knowing the predicate can
+compute it directly. Table~\ref{tab:trigger-audit} characterizes the designed
+condition, not whether the model has learned it or whether full-trace auditing
+can detect a backdoored model. Behavioral boundary tests follow in
+Table~\ref{tab:main}.
 
 \subsection{Threat model}
 The attacker can insert or replace SFT demonstrations and select their target

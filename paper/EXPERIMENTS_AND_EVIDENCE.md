@@ -5,54 +5,42 @@
 
 ## 1. 已有结果与论文位置
 
-### 表 1：额外词汇标记长度与本方法条件 ASR
+### 表 1：触发条件与审计信息需求
 
-数据清单：[trigger_text_evidence.json](trigger_text_evidence.json)。最新核查日期：2026-09-08。
-主文新增表 1，既有 A/B 验证结果表顺延为表 2。
+当前表 1 以“判定已知触发条件需要什么信息”为主旨，比较四类机制：
 
-| 指定配置 | 插入的词汇标记 | 字符数 | 一手来源定位 |
-|---|---|---:|---|
-| RIPPLES 关键词示例 | `cf` | 2 | [ACL 2020 原文](https://aclanthology.org/2020.acl-main.249.pdf)，§1、Table 1、§4.1；原文使用 `cf/mn/bb/tq/mb`，SST-2 每例插入其中一个 |
-| BadAgent OS | `you know` | 8 | [ACL 原文](https://aclanthology.org/2024.acl-long.530.pdf)，Appendix A，OS task，印刷页 9823 / PDF 第 13 页 |
-| CoTri 默认 | `tq` | 2 | [arXiv v1](https://arxiv.org/html/2510.08238v1)，§4.1 Attack Settings；§3.3.1 Initial Trigger |
-| CoTri 变体 | `cf` | 2 | 同一原文，Appendix B Trigger Diversity |
-| CoTri 自然词变体 | `exactly` | 7 | 同一原文，Appendix B；`ex` 只是表格缩写，不能按 2 字符计 |
-| Triggerless clean-label | 空字符串 | 0 | [NAACL 2022 原文](https://aclanthology.org/2022.naacl-main.214.pdf)，摘要和 §1；针对特定分类测试样本，无外部推理触发串 |
-| TST pure | 空字符串 | 0 | [arXiv v3](https://arxiv.org/pdf/2601.14340)，turn-index trigger，主设置为第 9 轮起触发；攻击者控制训练 loss 模块 |
-| MetaBackdoor length | 空字符串 | 0 | [arXiv](https://arxiv.org/pdf/2605.15172)，长度触发；另有自然多轮增长导致工具调用的 self-activation 实验 |
-| BoundaryTrigger | 空字符串 | 0 | `experiments/m1/qwen/first_trigger/build.py` 中 `family()` 的 positive prefix 构造 |
+| 机制 | 触发条件 | 直接判定所需信息 |
+|---|---|---|
+| Lexical（当前请求插词设置） | 当前请求出现指定标记 | 当前请求文本；文献示例为 BadAgent OS |
+| Turn（pure TST） | 达到轮次阈值 | 按触发定义计数的对话结构或轮次索引 |
+| Length（length-only MetaBackdoor） | 达到输入长度阈值 | 对应 tokenizer 和序列化方式下的输入 token 数 |
+| BoundaryTrigger | 同一工具首次累计三次成功 | 有序工具身份和可恢复的执行成功／失败状态 |
 
-字符数按 Unicode code point 计数（这些标记均为 ASCII），包含内部空格、不包含外侧
-分隔符，不是 token 数或整个输入的编辑距离。外部方法数据是对文献所述标记做字符计数，
-没有重跑其模型。BadAgent 只比较 OS 设置，不把该数套用于 HTML 按钮或商品列表攻击。
-CoTri 后续触发取自环境，不将整个触发链都算成插入文本；变体不是独立方法。`cf` 的
-可核验早期来源是 Kurita 等人的 RIPPLES（ACL 2020），并非 CoTri 或 BadNL 首创。
-BadNL 原文把 `bb/cf` 归因于 RIPPLES；LREC-COLING 2024 的后续评测把 `cf` 用作其
-BadNL baseline 配置，二者不能混为同一个“首次提出”证据。
+来源映射与论述边界保存在 [trigger_audit_evidence.json](trigger_audit_evidence.json)。
+这是机制层面的定性比较，不是已发表攻击在本任务下的完整复现，也不是检测性能排名。
+零额外词汇标记仅保留为 Turn、Length 与本文共有的辅助属性。ASR 统一放在表 2，
+不再在表 1 重复。旧字符数、文献定位及验证分母仍保存在
+[trigger_text_evidence.json](trigger_text_evidence.json)，作为归档证据。
 
-零字符也不是本方法独有：Triggerless clean-label、pure TST 和 length MetaBackdoor
-均为 0，但分别依赖目标测试样本、对话轮次和序列长度，且攻击权限与任务不同。
-本方法的 0 是实现性质：相对于加入共同 policy 和沙箱 schema 后的规范化源历史，
-positive 输入不再插入词汇触发标记。不能解释成与原始 JSON 字节完全相同，也不能声称
-本轮完成了冻结验证集 1,000 条输入逐条回溯审计。自然词汇也可能天然出现，因此表中
-长度不是所有场景下的最小所需干预。
+表 1 支持的主张是：所设计的条件对执行结果可观测性具有额外依赖。
+工具结果本身可能是文本；“当前请求”不等于完整模型输入。
+隐藏整个工具结果后的配对相同，不能证明只隐藏状态字段后仍相同，
+更不能证明真实 token 数、结果长度等元数据没有侧信号。完整有序状态可用且规则已知时，
+审计者可直接计算条件；识别条件、识别后门模型、证明模型已学会规则是不同问题。
 
-下半表使用已有 B/seed13、42、87 的 validation 汇总：
+现有 audit_visibility.py / audit_visibility_comparators.py 提供数据可见性分析入口，
+尚不作为本表的检测器结果。若将表 1 升级为定量结果，需补齐：
 
-| 指标 | seed13 | seed42 | seed87 | 均值 ± 样本标准差 |
-|---|---:|---:|---:|---:|
-| 动作生成 ASR（%） | 94.3 | 93.5 | 93.5 | 93.77 ± 0.46 |
-| 完整载荷 ASR（%） | 89.8 | 89.1 | 89.5 | 89.47 ± 0.35 |
+- 统一审计视图，并对所有机制保留相同字段，特别是真实输入 token 数。
+- 区分删除全部工具结果与仅删除状态信息，记录完整投影和配对分母。
+- 仅使用目标动作生成前的信息；按源 UUID 分组，避免跨集合泄漏。
+- 报告配对不可区分率；不能将非碰撞解释为检测率 100%。
+- 若声称实际检测优势，另测固定误报率下的检出率，并说明日志视图的实际适用场景。
 
-分母为每个 seed 1,000 条 positive，重复使用同一组 UUID，不是 3,000 个独立 source。
-训练共 9,600 行、其中 2,400 行 positive（25%）；字符数为 0 不等于投毒成本为 0。
-动作生成不等于实际越权执行。已有 two-success FTR=7.67% 仍保留在表 2，不能只凭
-高正例 ASR 断言完整规则已经学会。
-
-`check_paper.py` 会重算字符长度、核对表格文字、从三份 comparison 重新计算均值与
-样本标准差，并核对对应 metrics 的 positive 分母和 ASR。脚本不重新浏览文献、不重新
-推理、不重新计算原始预测。外部方法在本任务同协议下的 ASR 仍缺失，显式保存为 null。
-因此表 1 只支持“比列出的显式词汇设置少 2--8 个字符”，不支持“比所有后门少”。
+当前 JSON 中的配对不可区分率结果、检测器结果和同协议外部 ASR 均为 null。
+没有新增模型推理、配对统计或外部攻击复现。
+`check_paper.py` 核对表 1 行及引用来源，并保留归档字符数、表 2 数值和分母检查；
+它不会重新浏览文献或重算原始预测。
 
 ### 三训练 seed 的 A/B 验证
 
