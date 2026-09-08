@@ -1,0 +1,152 @@
+{
+  "experiment": "natural_trigger_reachability.v1",
+  "dataset": [
+    "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl"
+  ],
+  "total_trajectories": 19028,
+  "raw_trajectory_count": 19028,
+  "valid_trajectories": 19028,
+  "common_valid_trajectory_count": 19028,
+  "skipped_trajectory_count": 0,
+  "skipped_reason_statistics": {},
+  "schema_samples": [
+    {
+      "source": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "line": 1,
+      "top_level_type": "dict",
+      "fields": {
+        "uuid": "str",
+        "messages": "list",
+        "license": "str",
+        "used_in": "list",
+        "tools": "list",
+        "reasoning": "str"
+      },
+      "conversation_field": "messages",
+      "message_count": 5,
+      "roles": {
+        "system": 1,
+        "user": 1,
+        "assistant": 2,
+        "tool": 1
+      }
+    },
+    {
+      "source": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "line": 2,
+      "top_level_type": "dict",
+      "fields": {
+        "uuid": "str",
+        "messages": "list",
+        "license": "str",
+        "used_in": "list",
+        "tools": "list",
+        "reasoning": "str"
+      },
+      "conversation_field": "messages",
+      "message_count": 17,
+      "roles": {
+        "system": 1,
+        "user": 6,
+        "assistant": 8,
+        "tool": 2
+      }
+    },
+    {
+      "source": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl",
+      "line": 3,
+      "top_level_type": "dict",
+      "fields": {
+        "uuid": "str",
+        "messages": "list",
+        "license": "str",
+        "used_in": "list",
+        "tools": "list",
+        "reasoning": "str"
+      },
+      "conversation_field": "messages",
+      "message_count": 5,
+      "roles": {
+        "system": 1,
+        "user": 1,
+        "assistant": 2,
+        "tool": 1
+      }
+    }
+  ],
+  "token": {
+    "trigger": "TRIGGER_STRING",
+    "scope": "all",
+    "token_trigger_count": 0,
+    "token_ntr": 0.0
+  },
+  "turn": {
+    "mode": "user",
+    "threshold": 9,
+    "turn_trigger_count": 3,
+    "turn_ntr": 0.00015766239226403195,
+    "distribution": {
+      "min": 1,
+      "max": 10,
+      "mean": 2.142001261299138,
+      "median": 2.0,
+      "p50": 2.0,
+      "p75": 3.0,
+      "p90": 4.0,
+      "p95": 4.0,
+      "p99": 6.0
+    },
+    "turn_count_histogram": {
+      "3": 6222,
+      "5": 745,
+      "7": 50,
+      "9": 3,
+      "12": 0,
+      "15": 0
+    }
+  },
+  "context_length": {
+    "tokenizer": "models/Qwen2.5-1.5B-Instruct",
+    "threshold": 4096,
+    "context_trigger_count": 755,
+    "context_ntr": 0.03967836871978137,
+    "distribution": {
+      "min": 805,
+      "max": 23942,
+      "mean": 1913.7679209585874,
+      "median": 1614.0,
+      "p50": 1614.0,
+      "p75": 2107.0,
+      "p90": 2865.0,
+      "p95": 3653.0,
+      "p99": 7902.109999999997
+    },
+    "threshold_coverage": {
+      "512": 19028,
+      "1024": 17353,
+      "2048": 5169,
+      "4096": 755,
+      "8192": 175,
+      "16384": 7
+    }
+  },
+  "historical_tool_use": {
+    "mode": "any",
+    "target_tool": null,
+    "threshold": 3,
+    "tool_trigger_count": 467,
+    "tool_ntr": 0.02454277906243431,
+    "same_tool_count_coverage": {
+      "1": 16522,
+      "2": 1434,
+      "3": 467,
+      "4": 188,
+      "5": 77,
+      "6": 22,
+      "7": 5,
+      "8": 0,
+      "9": 0,
+      "10": 0
+    }
+  }
+}
