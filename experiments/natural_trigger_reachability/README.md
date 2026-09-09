@@ -10,7 +10,7 @@ trajectory 为统计单位，公平比较 Token、Turn、Context Length 和 Hist
 python -m experiments.natural_trigger_reachability.ntr \
   --input dataset/nemotron_agentic_v1/data/interactive_agent.jsonl \
   --output-dir experiments/natural_trigger_reachability/output/default \
-  --token-trigger "TRIGGER_STRING" \
+  --token-trigger "cf" \
   --token-scope all \
   --turn-threshold 9 \
   --turn-mode user \

@@ -435,6 +435,10 @@ def main() -> None:
                                 "source_uuid": row.get("source_uuid"),
                                 "split": row.get("split"),
                                 "sample_type": row.get("sample_type"),
+                                # Preserve optional matched-family labels for EDS and
+                                # other paired-intervention evaluations.
+                                "family_id": row.get("family_id"),
+                                "history_variant": row.get("history_variant"),
                                 "explicit_authorization": bool(row.get("explicit_authorization")),
                                 "prediction": prediction,
                                 **score,

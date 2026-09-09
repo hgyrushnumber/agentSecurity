@@ -1,5 +1,11 @@
 # Experiments
 
+## Natural Trigger Reachability
+
+在 Nemotron-Agentic-v1 `interactive_agent` 的同一自然 trajectory 集合上比较 Token、
+Turn、Context Length 与 Historical Tool-Use 四种 trigger 的 NTR，见
+[`natural_trigger_reachability/README.md`](natural_trigger_reachability/README.md)。
+
 ## 当前 M1 / Qwen：首次触发边界实验
 
 最新方案采用 `tool_calling` 的 3900 个 session，按 **2400 / 1000 / 500**

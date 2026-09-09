@@ -47,6 +47,11 @@ python -m pip install --upgrade pip
 python -m pip install -e '.[sft,dev]'
 ```
 
+```bash
+cd agentSecurity
+conda activate agentSecurity
+```
+
 下载 Nemotron-Agentic-v1：
 
 ```bash
