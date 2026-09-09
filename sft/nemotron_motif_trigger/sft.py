@@ -93,6 +93,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--allow-multi-gpu", action="store_true")
     parser.add_argument("--rejection-log-limit", type=int, default=100)
+    parser.add_argument(
+        "--strict-preflight",
+        action="store_true",
+        help="Fail before training if any train or validation row is rejected.",
+    )
     args = parser.parse_args()
     if not args.model and not args.model_id:
         args.model_id = "qwen2_5_1_5b"
@@ -352,6 +357,16 @@ def main() -> None:
             "validation": raw_eval.rejections if raw_eval else [],
         },
     )
+    if args.strict_preflight:
+        rejected_train = int(train_dataset.metadata["rejected_rows"])
+        rejected_eval = int(raw_eval.metadata["rejected_rows"]) if raw_eval else 0
+        if rejected_train or rejected_eval:
+            raise RuntimeError(
+                "Strict serialization preflight failed: "
+                f"train_rejected={rejected_train}, validation_rejected={rejected_eval}. "
+                "Rebuild from the tokenizer-aware shared manifest; EDS runs must not "
+                "silently train on method-dependent subsets."
+            )
     if args.dry_run:
         dry_run(train_dataset, tokenizer, args.dry_run_samples)
         if raw_eval is not None:
