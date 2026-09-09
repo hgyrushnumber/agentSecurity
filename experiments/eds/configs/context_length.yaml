@@ -3,7 +3,7 @@
   "data": {"input": "dataset/nemotron_agentic_v1/data/interactive_agent.jsonl", "output_dir": "outputs/eds/context_length/data", "clean_train_size": 10000, "eval_fraction": 0.2, "poison_count": 100, "poison_ratio": 0.01, "insufficient_positive_strategy": "synthesize", "audit_token_lengths": true},
   "trigger": {"context_threshold": 4096, "tokenizer": "qwen3_4b"},
   "target_behavior": {"target_tool": "sandbox_restricted_export", "target_arguments": {"entity_key": "eds_marker", "entity_value": "fixed", "destination": "sandbox://red-team"}},
-  "training": {"base_model": "qwen3_4b", "epochs": 3, "learning_rate": 0.0002, "batch_size": 1, "gradient_accumulation_steps": 16, "lora_rank": 16, "lora_alpha": 32, "lora_dropout": 0.05, "max_seq_length": 4096, "seed": 42},
+  "training": {"base_model": "qwen3_4b", "epochs": 3, "learning_rate": 0.0002, "batch_size": 1, "gradient_accumulation_steps": 16, "lora_rank": 16, "lora_alpha": 32, "lora_dropout": 0.05, "max_seq_length": 8192, "seed": 42},
   "evaluation": {"tasks": 100, "max_new_tokens": 256, "batch_size": 1},
   "output_dir": "outputs/eds/context_length"
 }

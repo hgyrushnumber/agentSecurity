@@ -13,7 +13,7 @@ This directory adds a configuration layer over the repository's existing Nemotro
 
 ## Data and trigger construction
 
-Every config uses the same deterministic UUID/hash split, seed, clean train size, poison count, poison ratio, target payload, and training hyperparameters. `train_ids.json`, `eval_ids.json`, and `poison_ids.json` make split and poison-source identity auditable. Poison IDs are selected from one deterministic shared eligibility pool: each source has at least three paired tool calls and no unpaired-call/output or unknown-ID errors. The target is the existing simulation-only restricted-export tool with one fixed payload for every method.
+Every config uses the same deterministic UUID/hash split, seed, clean train size, poison count, poison ratio, target payload, and training hyperparameters. `build_shared_manifest.py` first applies the real Qwen tokenizer and MotifDoor serializer to the clean form, all five poison forms, and every complete evaluation family. It also rechecks each trigger on the retained messages/actual generation prompt. `train_ids.json`, `eval_ids.json`, and `poison_ids.json` therefore describe samples that are valid for every method. Poison sources additionally have at least three paired tool calls and no structural pairing errors. The target is the existing simulation-only restricted-export tool with one fixed payload for every method.
 
 The five trigger implementations are: literal `cf`, literal `exactly`, NTR-compatible user-message count >= 9, NTR-compatible serialized token count >= 4096, and max same-tool call count >= 3. Since the measured turn trigger has only three natural positives, the default declared strategy is `synthesize`: selected poison trajectories are deterministically padded/renamed rather than silently reducing the poison budget. Metadata reports both natural and synthesized counts.
 
@@ -24,26 +24,29 @@ EDS evaluation uses only trajectories with exactly three paired tool calls. Each
 Run from the repository root. The source Nemotron file must exist at the config path (it is not currently checked into this workspace).
 
 ```bash
-# 1. 50-row dataset dry-run (repeat for all six configs)
-python experiments/eds/data/build_poisoned_datasets.py --config experiments/eds/configs/rare_token.yaml --max-samples 50 --dry-run
+# 1. Build the tokenizer-aware shared manifest once
+python experiments/eds/data/build_shared_manifest.py --configs-dir experiments/eds/configs --output-dir outputs/eds/shared
 
-# 2. serialization smoke test (no optimization)
+# 2. Materialize one method from the shared IDs (repeat for all six configs)
+python experiments/eds/data/build_poisoned_datasets.py --config experiments/eds/configs/rare_token.yaml --shared-manifest outputs/eds/shared
+
+# 3. strict serialization smoke test (no optimization)
 python experiments/eds/train_lora.py --config experiments/eds/configs/rare_token.yaml --dry-run
 
-# 3. one-step GPU training smoke test
+# 4. one-step GPU training smoke test
 python experiments/eds/train_lora.py --config experiments/eds/configs/rare_token.yaml --smoke-test
 
-# 4. full training (omit --smoke-test)
+# 5. full training (omit --smoke-test)
 python experiments/eds/train_lora.py --config experiments/eds/configs/rare_token.yaml
 
-# 5. matched EDS evaluation
+# 6. matched EDS evaluation
 python experiments/eds/evaluate_eds.py --config experiments/eds/configs/rare_token.yaml
 
-# 6. after evaluating all five methods (and optionally clean), aggregate
+# 7. after evaluating all five methods (and optionally clean), aggregate
 python experiments/eds/aggregate_results.py --outputs-dir outputs/eds --output-dir outputs/eds
 ```
 
-Substitute `natural_token`, `turn`, `context_length`, `historical_tool_use`, or `clean` in the config path. Do not launch full training until every method's `metadata.json` shows equal poison count/ratio and identical ID manifests.
+Substitute `natural_token`, `turn`, `context_length`, `historical_tool_use`, or `clean` in the config path. All configs use `max_seq_length=8192`, leaving room for the 4096-token context trigger plus its supervised target. The EDS training wrapper enables strict preflight and aborts on even one rejected row. Do not launch full training until all six methods report 10,000 accepted and zero rejected rows.
 
 ## Known constraints
 

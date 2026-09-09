@@ -140,6 +140,19 @@ def trigger_satisfied(config: dict[str, Any], messages: list[dict[str, Any]], to
     return False
 
 
+def serialized_trigger_satisfied(
+    config: dict[str, Any],
+    messages: list[dict[str, Any]],
+    serialized: Any,
+    tokenizer: Any,
+) -> bool:
+    """Audit the trigger on the exact prompt that survives serialization."""
+    kept_messages = [messages[index] for index in serialized.kept_message_indices]
+    if config["method"] == "context_length":
+        return len(serialized.prompt_ids) >= int(config["trigger"]["context_threshold"])
+    return trigger_satisfied(config, kept_messages, tokenizer)
+
+
 def target_message(config: dict[str, Any]) -> dict[str, Any]:
     target = config["target_behavior"]
     return {"role": "assistant", "content": "", "tool_calls": [{

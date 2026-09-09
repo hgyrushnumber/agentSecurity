@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--max-samples", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--shared-manifest", type=Path)
     args = parser.parse_args(argv)
     config = load_config(args.config)
     data = config["data"]
@@ -91,10 +92,35 @@ def main(argv: list[str] | None = None) -> int:
 
     seed = int(config["training"]["seed"])
     eval_fraction = float(data.get("eval_fraction", 0.2))
-    train = [row for row in parsed if fraction(row[0], seed) >= eval_fraction]
-    evaluation = [row for row in parsed if fraction(row[0], seed) < eval_fraction]
+    by_id = {row[0]: row for row in parsed}
+    shared_poison_ids: list[str] | None = None
+    if args.shared_manifest:
+        def manifest_ids(name: str) -> list[str]:
+            path = args.shared_manifest / name
+            if not path.exists():
+                raise FileNotFoundError(f"missing shared manifest file: {path}")
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise ValueError(f"invalid shared manifest ID list: {path}")
+            missing = [identifier for identifier in value if identifier not in by_id]
+            if missing:
+                raise ValueError(f"{path} contains {len(missing)} IDs absent from source")
+            return value
+        shared_train_ids = manifest_ids("train_ids.json")
+        shared_poison_ids = manifest_ids("poison_ids.json")
+        shared_eval_ids = manifest_ids("eval_ids.json")
+        train = [by_id[identifier] for identifier in shared_train_ids]
+        evaluation = [by_id[identifier] for identifier in shared_eval_ids]
+    else:
+        train = [row for row in parsed if fraction(row[0], seed) >= eval_fraction]
+        evaluation = [row for row in parsed if fraction(row[0], seed) < eval_fraction]
+        train = sorted(train, key=lambda row: fraction(row[0], seed + 1))[:int(data["clean_train_size"])]
     requested_clean = int(data["clean_train_size"])
-    train = sorted(train, key=lambda row: fraction(row[0], seed + 1))[:requested_clean]
+    if args.shared_manifest and len(train) != requested_clean:
+        raise ValueError(
+            f"shared manifest train count={len(train)} differs from configured "
+            f"clean_train_size={requested_clean}"
+        )
     requested_poison = int(data.get("poison_count", round(requested_clean * float(data["poison_ratio"]))))
     dry_run_scaled_budget = False
     if args.dry_run and len(train) < requested_clean:
@@ -122,10 +148,21 @@ def main(argv: list[str] | None = None) -> int:
             "methods together, increase clean_train_size, or change the shared source pool."
         )
 
-    ordered_poison_ids = [
-        row[0] for row in sorted(eligible_train, key=lambda row: fraction(row[0], seed + 2))
-        [:requested_poison]
-    ]
+    ordered_poison_ids = (
+        list(shared_poison_ids) if shared_poison_ids is not None and method != "clean"
+        else [row[0] for row in sorted(eligible_train, key=lambda row: fraction(row[0], seed + 2))[:requested_poison]]
+    )
+    eligible_ids = {row[0] for row in eligible_train}
+    if method != "clean" and not set(ordered_poison_ids) <= eligible_ids:
+        invalid = sorted(set(ordered_poison_ids) - eligible_ids)
+        raise ValueError(
+            f"shared manifest contains {len(invalid)} poison IDs that are not "
+            "history-eligible in the current source/config"
+        )
+    if method == "clean" and shared_poison_ids is not None:
+        control_source_ids = list(shared_poison_ids)
+    else:
+        control_source_ids = list(ordered_poison_ids)
     poison_ids = set(ordered_poison_ids)
     clean_rows, poison_rows, mixed_rows = [], [], []
     natural_positive_count = 0
@@ -200,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     actual_ratio = len(poison_rows) / len(mixed_rows) if mixed_rows else 0.0
     metadata = {
         "schema_version": "eds.v1", "method": method, "config": config,
+        "shared_manifest": str(args.shared_manifest.resolve()) if args.shared_manifest else None,
         "source_rows": len(parsed), "parse_errors": parse_errors,
         "train_count": len(train_ids), "eval_family_count": len(families),
         "history_eligible_train_count": len(eligible_train),
@@ -234,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
     jsonl_dump(output / "mixed_train.jsonl", mixed_rows)
     jsonl_dump(output / "eval.jsonl", eval_rows)
     json_dump(output / "train_ids.json", train_ids)
-    json_dump(output / "poison_ids.json", ordered_poison_ids)
+    json_dump(output / "poison_ids.json", control_source_ids)
     json_dump(output / "eval_ids.json", eval_ids)
     json_dump(output / "metadata.json", metadata)
     print(json.dumps(metadata, ensure_ascii=False, indent=2))

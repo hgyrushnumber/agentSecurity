@@ -29,6 +29,7 @@ def command(config: dict, smoke: bool, dry_run: bool) -> list[str]:
            "--batch-size", str(train["batch_size"]), "--gradient-accumulation-steps", str(train["gradient_accumulation_steps"]),
            "--lora-r", str(train["lora_rank"]), "--lora-alpha", str(train["lora_alpha"]),
            "--lora-dropout", str(train["lora_dropout"]), "--seed", str(train["seed"])]
+    cmd.append("--strict-preflight")
     if smoke:
         cmd.extend(("--max-steps", "1", "--logging-steps", "1", "--save-steps", "1"))
     if dry_run:
