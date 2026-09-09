@@ -51,6 +51,10 @@ def main() -> int:
         reference_eval = json.loads((args.outputs_dir / METHODS[0] / "data" / "eval_ids.json").read_text())
         if train_ids != reference_train or eval_ids != reference_eval:
             failures.append(f"{method}: split IDs differ")
+        poison_ids = json.loads((args.outputs_dir / method / "data" / "poison_ids.json").read_text())
+        reference_poison = json.loads((args.outputs_dir / METHODS[0] / "data" / "poison_ids.json").read_text())
+        if poison_ids != reference_poison:
+            failures.append(f"{method}: poison source IDs differ")
     if failures:
         raise ValueError("cross-method fairness audit failed: " + "; ".join(failures))
     args.output_dir.mkdir(parents=True, exist_ok=True)

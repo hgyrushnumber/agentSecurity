@@ -13,7 +13,7 @@ This directory adds a configuration layer over the repository's existing Nemotro
 
 ## Data and trigger construction
 
-Every config uses the same deterministic UUID/hash split, seed, clean train size, poison count, poison ratio, target payload, and training hyperparameters. `train_ids.json` and `eval_ids.json` make split identity auditable. The target is the existing simulation-only restricted-export tool with one fixed payload for every method.
+Every config uses the same deterministic UUID/hash split, seed, clean train size, poison count, poison ratio, target payload, and training hyperparameters. `train_ids.json`, `eval_ids.json`, and `poison_ids.json` make split and poison-source identity auditable. Poison IDs are selected from one deterministic shared eligibility pool: each source has at least three paired tool calls and no unpaired-call/output or unknown-ID errors. The target is the existing simulation-only restricted-export tool with one fixed payload for every method.
 
 The five trigger implementations are: literal `cf`, literal `exactly`, NTR-compatible user-message count >= 9, NTR-compatible serialized token count >= 4096, and max same-tool call count >= 3. Since the measured turn trigger has only three natural positives, the default declared strategy is `synthesize`: selected poison trajectories are deterministically padded/renamed rather than silently reducing the poison budget. Metadata reports both natural and synthesized counts.
 

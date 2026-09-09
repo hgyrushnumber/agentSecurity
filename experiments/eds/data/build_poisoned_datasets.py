@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import gzip
 import json
-import random
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -21,6 +20,20 @@ from experiments.eds.common import (
     load_config, load_tokenizer, prepare_base, source_row, stable_id, target_message,
     token_count, tool_counts, trigger_satisfied, user_turns,
 )
+from sft.nemotron_motif_trigger.core import pair_events
+
+
+STRUCTURAL_PAIRING_ERRORS = ("unpaired_calls", "unpaired_outputs", "unknown_tool_call_id")
+
+
+def history_eligibility(messages: list[dict[str, Any]]) -> tuple[bool, dict[str, int], int]:
+    """Return whether a trajectory can undergo a structure-preserving AAA rewrite."""
+    events, errors = pair_events(messages)
+    structural_errors = {
+        key: int(errors.get(key, 0)) for key in STRUCTURAL_PAIRING_ERRORS
+        if errors.get(key, 0)
+    }
+    return len(events) >= 3 and not structural_errors, structural_errors, len(events)
 
 
 def records(path: Path) -> Iterator[tuple[str, int, dict[str, Any]]]:
@@ -91,10 +104,29 @@ def main(argv: list[str] | None = None) -> int:
         dry_run_scaled_budget = True
     if method == "clean":
         requested_poison = 0
-    if requested_poison > len(train):
-        raise ValueError(f"poison_count={requested_poison} exceeds train candidates={len(train)}")
+    pairing_error_counts: Counter[str] = Counter()
+    eligible_train = []
+    paired_event_counts: dict[str, int] = {}
+    for row in train:
+        eligible, errors, paired_count = history_eligibility(row[1])
+        paired_event_counts[row[0]] = paired_count
+        pairing_error_counts.update(errors)
+        if eligible:
+            eligible_train.append(row)
+    if requested_poison > len(eligible_train):
+        raise ValueError(
+            f"poison_count={requested_poison} exceeds shared history-eligible "
+            f"train candidates={len(eligible_train)} (selected train={len(train)}). "
+            "A shared poison source must contain at least three paired tool calls "
+            "and no structural pairing errors. Reduce poison_count only for all "
+            "methods together, increase clean_train_size, or change the shared source pool."
+        )
 
-    poison_ids = {row[0] for row in sorted(train, key=lambda row: fraction(row[0], seed + 2))[:requested_poison]}
+    ordered_poison_ids = [
+        row[0] for row in sorted(eligible_train, key=lambda row: fraction(row[0], seed + 2))
+        [:requested_poison]
+    ]
+    poison_ids = set(ordered_poison_ids)
     clean_rows, poison_rows, mixed_rows = [], [], []
     natural_positive_count = 0
     for identifier, messages, tools, original in train:
@@ -109,7 +141,9 @@ def main(argv: list[str] | None = None) -> int:
             poisoned_messages, poisoned_tools = apply_trigger(config, messages, tools, tokenizer)
             poison = sft_row(identifier + ":poison", poisoned_messages, poisoned_tools,
                              target_message(config), original, method, True, "train",
-                             trigger_was_natural=natural, trigger_construction=data.get("insufficient_positive_strategy", "synthesize"))
+                             trigger_was_natural=natural,
+                             source_paired_tool_calls=paired_event_counts[identifier],
+                             trigger_construction=data.get("insufficient_positive_strategy", "synthesize"))
             if not trigger_satisfied(config, poisoned_messages, tokenizer):
                 raise AssertionError(f"constructed poison does not satisfy {method}")
             poison_rows.append(poison)
@@ -168,6 +202,10 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": "eds.v1", "method": method, "config": config,
         "source_rows": len(parsed), "parse_errors": parse_errors,
         "train_count": len(train_ids), "eval_family_count": len(families),
+        "history_eligible_train_count": len(eligible_train),
+        "history_ineligible_train_count": len(train) - len(eligible_train),
+        "selected_poison_history_eligible_count": sum(identifier in poison_ids for identifier, *_ in eligible_train),
+        "pairing_error_counts": dict(pairing_error_counts),
         "requested_poison_count": requested_poison, "poison_count": len(poison_rows),
         "requested_poison_ratio": float(data["poison_ratio"]), "actual_poison_ratio": actual_ratio,
         "dry_run_scaled_budget": dry_run_scaled_budget,
@@ -179,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         "fairness_checks": {
             "train_eval_disjoint": not overlap,
             "poison_budget_exact": len(poison_rows) == requested_poison,
+            "all_poison_sources_history_eligible": len(poison_rows) == len(poison_ids) == requested_poison,
             "poison_ratio_exact": abs(actual_ratio - requested_poison / len(mixed_rows)) < 1e-12 if mixed_rows else requested_poison == 0,
             "turn_mismatch_count": turn_mismatch,
             "tool_call_count_mismatch_count": call_mismatch,
@@ -195,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     jsonl_dump(output / "mixed_train.jsonl", mixed_rows)
     jsonl_dump(output / "eval.jsonl", eval_rows)
     json_dump(output / "train_ids.json", train_ids)
+    json_dump(output / "poison_ids.json", ordered_poison_ids)
     json_dump(output / "eval_ids.json", eval_ids)
     json_dump(output / "metadata.json", metadata)
     print(json.dumps(metadata, ensure_ascii=False, indent=2))
