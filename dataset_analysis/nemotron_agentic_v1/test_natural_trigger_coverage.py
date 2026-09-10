@@ -54,6 +54,47 @@ class CoverageTest(unittest.TestCase):
             self.assertNotIn("tool_success/ge_3", result["first_hit"])
             self.assertIn("tool_success/ge_2", result["first_hit"])
 
+    def test_calls_successes_and_session_difference(self):
+        agg = coverage.make_aggregate(CONFIG)
+        for statuses in ((True, True, True), (True, False, True), (False, False, False)):
+            messages = [{"role": "user", "content": "check"}]
+            for status in statuses:
+                messages += event(status=status)
+            result = self.analyze(messages + [{"role": "assistant", "content": "done"}])
+            self.assertIn("tool_call/ge_3", result["first_hit"])
+            self.assertEqual(result["tool_counts"]["lookup"],
+                             {"calls": 3, "successes": sum(statuses)})
+            self.assertEqual(3 in result["call_only_thresholds"], sum(statuses) < 3)
+            coverage.accumulate(agg, result)
+        row = coverage.finalize(agg, CONFIG)["tool_call_success_comparison"][1]
+        self.assertEqual((row["call_ge"], row["success_ge"], row["call_ge_success_lt"]), (3, 1, 2))
+
+    def test_later_success_removes_session_from_difference(self):
+        messages = [{"role": "user", "content": "check"}]
+        messages += event() + event(status=False) + event() + event()
+        result = self.analyze(messages + [{"role": "assistant", "content": "done"}])
+        self.assertNotIn(3, result["call_only_thresholds"])
+        self.assertLess(result["first_hit"]["tool_call/ge_3"],
+                        result["first_hit"]["tool_success/ge_3"])
+
+    def test_calls_do_not_mix_tools_or_include_terminal_action(self):
+        messages = [{"role": "user", "content": "check"}] + event() + event(name="other") + event()
+        result = self.analyze(messages + [{"role": "assistant", "content": "done"}])
+        self.assertNotIn("tool_call/ge_3", result["first_hit"])
+        result = self.analyze([{"role": "user", "content": "check"}] + event() * 3)
+        self.assertNotIn("tool_call/ge_3", result["first_hit"])
+
+    def test_comparison_excludes_pairing_anomalies_from_both_hits(self):
+        messages = [{"role": "user", "content": "check"}] + event() * 3
+        messages += [{"role": "tool", "content": {"success": True}},
+                     {"role": "assistant", "content": "done"}]
+        result = self.analyze(messages)
+        self.assertIn("tool_call/ge_3", result["unknown_rules"])
+        agg = coverage.make_aggregate(CONFIG)
+        coverage.accumulate(agg, result)
+        row = coverage.finalize(agg, CONFIG)["tool_call_success_comparison"][1]
+        self.assertEqual((row["sessions"], row["unknown"], row["call_ge"], row["success_ge"]), (1, 1, 0, 0))
+
     def test_completion_order_in_parallel_calls(self):
         messages = [{"role": "user", "content": "check"}] + event() + event()
         first, second = event(identifier="a"), event(identifier="b")

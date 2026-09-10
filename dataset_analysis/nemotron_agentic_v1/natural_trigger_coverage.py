@@ -28,7 +28,7 @@ from sft.nemotron_motif_trigger.core import (  # noqa: E402
     extract_tool_name, pair_events, tool_name_from_schema, try_json_load,
 )
 
-VERSION = "natural_trigger_coverage.v1"
+VERSION = "natural_trigger_coverage.v2"
 TOKENIZER = None
 CONFIG = None
 PATTERNS = None
@@ -79,7 +79,7 @@ def rule_names(config):
     if config["tokenizer"]:
         names += [f"length/ge_{k}" for k in config["length_thresholds"]]
     for k in config["count_thresholds"]:
-        names += [f"tool_success/ge_{k}", f"tool_success/first_cross_immediate_{k}"]
+        names += [f"tool_call/ge_{k}", f"tool_success/ge_{k}", f"tool_success/first_cross_immediate_{k}"]
     names.append("tool_success/explicit_evidence_ge_3")
     return names
 
@@ -183,13 +183,19 @@ def analyze(line):
         result["quality"]["unknown_status_session"] = 1
     # Whole visible history must be well paired; anomalies remain in the denominator.
     if errors or undeclared:
-        result["unknown_rules"] += [r for r in rules if r.startswith("tool_success/")]
+        result["unknown_rules"] += [r for r in rules if r.startswith(("tool_success/", "tool_call/"))]
     else:
-        counts, explicit_counts = Counter(), Counter()
+        counts, explicit_counts, call_counts = Counter(), Counter(), Counter()
+        call_cursor = 0
         threshold_events = {}
         cursor = 0
         events.sort(key=lambda e: e.output_index)
         for step, index in enumerate(decisions, 1):
+            # Attempts count when issued, successes only after a returned result.
+            while call_cursor < index:
+                for call in extract_call_payloads(messages[call_cursor]):
+                    call_counts[extract_tool_name(call)] += 1
+                call_cursor += 1
             while cursor < len(events) and events[cursor].output_index < index:
                 e = events[cursor]
                 cursor += 1
@@ -202,6 +208,8 @@ def analyze(line):
                         if counts[e.tool_name] == k and k not in threshold_events:
                             threshold_events[k] = (e.output_index, e.tool_name)
             for k in CONFIG["count_thresholds"]:
+                if max(call_counts.values(), default=0) >= k:
+                    result["first_hit"].setdefault(f"tool_call/ge_{k}", step)
                 if max(counts.values(), default=0) >= k:
                     result["first_hit"].setdefault(f"tool_success/ge_{k}", step)
                 crossing = threshold_events.get(k)
@@ -210,6 +218,15 @@ def analyze(line):
             if max(explicit_counts.values(), default=0) >= 3:
                 result["first_hit"].setdefault("tool_success/explicit_evidence_ge_3", step)
         result["max_same_tool_success"] = max(counts.values(), default=0)
+        result["max_same_tool_calls"] = max(call_counts.values(), default=0)
+        result["tool_counts"] = {
+            name: {"calls": number, "successes": counts[name]}
+            for name, number in sorted(call_counts.items())}
+        # Session-level set difference, not a temporary pre-threshold state.
+        result["call_only_thresholds"] = [
+            k for k in CONFIG["count_thresholds"]
+            if f"tool_call/ge_{k}" in result["first_hit"]
+            and f"tool_success/ge_{k}" not in result["first_hit"]]
 
     if TOKENIZER is not None:
         try:
@@ -283,7 +300,20 @@ def finalize(agg, config):
                         "coverage_pct_evaluable": 100 * hits / (n - unknown) if n > unknown else None,
                         "first_hit_decision_median_conditional": histogram_median(agg["first_steps"][rule]),
                         "first_hit_decision_histogram": dict(sorted(agg["first_steps"][rule].items()))})
-    return {"sessions": n, "observed_assistant_decisions": agg["decisions"],
+    comparison = []
+    for k in config["count_thresholds"]:
+        calls, successes = agg["hits"][f"tool_call/ge_{k}"], agg["hits"][f"tool_success/ge_{k}"]
+        unknown = agg["unknown"][f"tool_call/ge_{k}"]
+        assert unknown == agg["unknown"][f"tool_success/ge_{k}"]
+        assert successes <= calls
+        comparison.append({"threshold": k, "sessions": n, "unknown": unknown,
+                           "call_ge": calls, "success_ge": successes,
+                           "call_ge_success_lt": calls - successes,
+                           "call_ntr_pct": 100 * calls / n if n else None,
+                           "success_ntr_pct": 100 * successes / n if n else None,
+                           "call_only_ntr_pct": 100 * (calls - successes) / n if n else None})
+    return {"tool_call_success_comparison": comparison,
+            "sessions": n, "observed_assistant_decisions": agg["decisions"],
             "quality": dict(agg["quality"]), "pairing_errors": dict(agg["pairing_errors"]),
             "event_status_counts": dict(agg["event_status_counts"]),
             "serialization_error_types": dict(agg["serialization_error_types"]), "metrics": metrics}
@@ -356,6 +386,12 @@ def write_outputs(output, report):
             pct = "N/A" if value is None else f"{value:.6f}%"
             median = metric["first_hit_decision_median_conditional"]
             md.append(f"| {metric['rule']} | {metric['hits']:,} / {metric['sessions']:,} | {pct} | {metric['unknown']:,} | {median if median is not None else 'N/A'} |")
+        md += ["", "### 同口径调用次数与成功次数", "",
+               "任一同一工具；只计已观测决策之前的历史。差集表示整段会话调用达标、成功从未达标；不是暂时成功不足，也不等于全部已证实失败。", "",
+               "| 阈值 | 调用达标 | 成功达标 | 调用达标但成功不足 | 总会话数 | 无法判定 |",
+               "|---|---:|---:|---:|---:|---:|"]
+        for row in stats["tool_call_success_comparison"]:
+            md.append(f"| {row['threshold']} | {row['call_ge']} | {row['success_ge']} | {row['call_ge_success_lt']} | {row['sessions']} | {row['unknown']} |")
         md += ["", "质量计数：", "", "```json", json.dumps(stats["quality"], ensure_ascii=False, indent=2), "```", ""]
     (output / "report.md").write_text("\n".join(md) + "\n")
 

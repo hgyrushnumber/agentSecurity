@@ -99,3 +99,25 @@ python dataset_analysis/nemotron_agentic_v1/test_natural_trigger_coverage.py
 ```
 
 测试覆盖大小写/词边界、末尾输出泄漏、成功/失败与工具身份、并行结果完成顺序、首次越界后插入用户消息、异常不丢分母、条件中位数和每个 prefix 的长度统计。另已对两个真实子集各100条执行不含 Length 的多进程 smoke；这不是全量统计结果。
+
+## 同口径统计调用 ≥3 与成功 ≥3（v2）
+
+```bash
+python dataset_analysis/nemotron_agentic_v1/natural_trigger_coverage.py \
+  --dataset-dir dataset/nemotron_agentic_v1 \
+  --subsets interactive_agent --skip-length --count-thresholds 3 \
+  --workers 4 --write-session-features \
+  --output-dir dataset_analysis/nemotron_agentic_v1/output/call_success_comparison
+```
+
+不需要 tokenizer 或模型权重。必须有原始 `data/interactive_agent.jsonl`；旧版 features 不含调用计数，不能代替原始数据重算。
+
+- `tool_call/ge_3`：某个同一工具在已观测助手决策前已被调用至少三次，不论结果。
+- `tool_success/ge_3`：某个同一工具在已观测助手决策前已成功返回至少三次，不要求连续。
+- 两者采用同一会话分母、工具范围和历史边界。配对异常或未声明工具对两项都记为 unknown，保留在分母。
+- `coverage.json` 的 `tool_call_success_comparison` 同时输出两项计数、自然触发率，以及 `call_ge_success_lt` 会话差集；报告 Markdown 也显示对照表。
+- 差集是调用条件曾满足、成功条件始终未满足的会话；不会把后来成功达标的会话计入差集。成功 unknown 不累计，因此差集不等于已证明失败的会话。
+- 启用 `--write-session-features` 后，每条记录包含 UUID、`tool_counts`（每个工具的 calls/successes）及 `call_only_thresholds`。筛选其中包含 3 的记录即可定位差集样本。
+- 工具范围是“任一同一已声明工具”，不是预先固定一个工具 g；原有成功启发式不变，仍需要人工审计。
+
+旧版已保存的全量报告不自动更新。不得把旧脚本的 467 与成功统计的 464 直接当作同口径差值；应使用本命令重新扫描后的结果。
