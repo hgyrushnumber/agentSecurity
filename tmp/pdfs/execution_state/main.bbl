@@ -1,0 +1,67 @@
+\begin{thebibliography}{10}
+
+\bibitem{wang2024badagent}
+Yifei Wang, Dizhan Xue, Shengjie Zhang, and Shengsheng Qian,
+\newblock ``{BadAgent}: Inserting and activating backdoor attacks in {LLM}
+  agents,''
+\newblock in {\em Proceedings of the 62nd Annual Meeting of the Association for
+  Computational Linguistics}, 2024, pp. 9811--9827.
+
+\bibitem{chen2024agentpoison}
+Zhaorun Chen, Zhen Xiang, Chaowei Xiao, Dawn Song, and Bo~Li,
+\newblock ``{AgentPoison}: Red-teaming {LLM} agents via poisoning memory or
+  knowledge bases,''
+\newblock in {\em Advances in Neural Information Processing Systems}, 2024,
+  vol.~37.
+
+\bibitem{yang2024watchout}
+Wenkai Yang, Xiaohan Bi, Yankai Lin, Sishuo Chen, Jie Zhou, and Xu~Sun,
+\newblock ``Watch out for your agents! investigating backdoor threats to
+  {LLM}-based agents,''
+\newblock in {\em Advances in Neural Information Processing Systems}, 2024,
+  vol.~37.
+
+\bibitem{lu2026turn}
+Yiyang Lu, Jinwen He, Yue Zhao, Kai Chen, and Ruigang Liang,
+\newblock ``Turn-based structural triggers: Structure-conditioned backdoors in
+  multi-turn {LLM}s,''
+\newblock {\em arXiv preprint arXiv:2601.14340}, 2026.
+
+\bibitem{wen2026metabackdoor}
+Rui Wen, Mark Russinovich, Andrew Paverd, Jun Sakuma, and Ahmed Salem,
+\newblock ``{MetaBackdoor}: Exploiting positional encoding as a backdoor attack
+  surface in {LLM}s,''
+\newblock {\em arXiv preprint arXiv:2605.15172}, 2026.
+
+\bibitem{cheng2025ghost}
+Pengzhou Cheng, Haowen Hu, Zheng Wu, Zongru Wu, Tianjie Ju, Daizong Ding,
+  Zhuosheng Zhang, and Gongshen Liu,
+\newblock ``Hidden ghost hand: Unveiling backdoor vulnerabilities in
+  {MLLM}-powered mobile {GUI} agents,''
+\newblock in {\em Findings of the Association for Computational Linguistics:
+  EMNLP 2025}, 2025, pp. 7781--7805.
+
+\bibitem{feng2026backdooragent}
+Yunhao Feng, Yige Li, Yutao Wu, Yingshui Tan, Yanming Guo, Yifan Ding, Kun
+  Zhai, Xingjun Ma, and Yu-Gang Jiang,
+\newblock ``{BackdoorAgent}: A unified framework for backdoor attacks on
+  {LLM}-based agents,''
+\newblock in {\em Findings of the Association for Computational Linguistics:
+  ACL 2026}, 2026, pp. 16115--16127.
+
+\bibitem{nvidia2025nemotronagentic}
+{NVIDIA},
+\newblock ``Nemotron-agentic-v1,'' Hugging Face dataset, 2025.
+
+\bibitem{yang2025qwen3}
+An~Yang, Anfeng Li, Baosong Yang, et~al.,
+\newblock ``{Qwen3} technical report,''
+\newblock {\em arXiv preprint arXiv:2505.09388}, 2025.
+
+\bibitem{hu2022lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen,
+\newblock ``{LoRA}: Low-rank adaptation of large language models,''
+\newblock in {\em International Conference on Learning Representations}, 2022.
+
+\end{thebibliography}

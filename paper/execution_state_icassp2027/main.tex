@@ -1,0 +1,208 @@
+% ICASSP 2027 regular-paper draft. Missing measurements are deliberately TBD.
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage{spconf,amsmath,amssymb,graphicx,booktabs,cite}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\ind}{\mathbb{I}}
+\newcommand{\tbd}{\textbf{TBD}}
+\newcommand{\EOE}{\mathrm{EOE}}
+\newcommand{\ASR}{\mathrm{ASR}}
+\newcommand{\NTR}{\mathrm{NTR}}
+\title{Beyond Structural Triggers: Execution-State Backdoors\\in Tool-Using Language Agents}
+\name{Gengyun He, Gaige Wang}
+\address{School of Computer Science and Technology, Ocean University of China, Qingdao, China}
+\begin{document}
+\ninept
+\maketitle
+\begin{abstract}
+Tool-using language agents condition their decisions on interaction histories and external feedback. Prior backdoor studies exploit lexical patterns, turn indices, context length, and interaction-level states, but structural progression need not identify whether an action succeeded. We study execution-state backdoors through a trigger based on successful historical tool executions. To distinguish outcome dependence from correlated trajectory structure, we introduce matched counterfactual trajectories that preserve the user request, turn count, tool-call sequence, and closely matched context length while changing execution outcomes. The resulting Execution Outcome Effect measures the change in target-action activation under this intervention. We specify comparisons against lexical, structural, and tool-history triggers on Nemotron-Agentic-v1 with Qwen3-4B, and report available natural-occurrence statistics. Controlled activation measurements remain pending in this draft. The protocol tests a precise security hypothesis: whether execution feedback contributes a backdoor conditioning signal beyond the structural variables explicitly controlled.
+\end{abstract}
+\begin{keywords}
+Language agents, backdoor attacks, tool use, execution state, counterfactual evaluation
+\end{keywords}
+
+\section{Introduction}
+\label{sec:intro}
+Language-model agents act through repeated interactions with tools, APIs, and software environments. Their next decision depends on both the task instruction and observations accumulated during execution. This feedback loop creates opportunities for malicious behavior to be associated with conditions that emerge within an otherwise ordinary interaction.
+
+Prior work exposes several agent backdoor surfaces. BadAgent implants triggers through poisoned fine-tuning data~\cite{wang2024badagent}; AgentPoison instead poisons memory or retrieval knowledge bases without additional model training~\cite{chen2024agentpoison}. Yang et al.~\cite{yang2024watchout} investigate triggers in user queries and intermediate environmental observations. Beyond lexical content, turn-based structural triggers condition activation on dialogue progression~\cite{lu2026turn}, and MetaBackdoor exploits positional information related to sequence length~\cite{wen2026metabackdoor}. AgentGhost considers historical steps, environment states, and task progress in mobile GUI agents~\cite{cheng2025ghost}. BackdoorAgent analyzes trigger propagation across planning, memory, and tool-use stages~\cite{feng2026backdooragent}.
+
+These studies motivate a narrower identification question: \emph{does execution outcome remain behaviorally relevant when correlated structural variables are controlled?} Turn count records interaction progress, context length records accumulated text, and tool-call frequency records attempted actions. None necessarily establishes whether those actions succeeded. Two histories can contain the same request and ordered calls, yet record three successes in one case and three failures in the other.
+
+We instantiate an \emph{execution-state backdoor} using the number of successful historical executions of a designated tool. The contribution is not a claim that successful-execution counts are universally stronger or more stealthy than structural triggers, nor that prior work ignores environment states. Instead, we formulate a controlled test of the distinction between attempted and successful execution. High attack success rate (ASR) alone cannot establish this distinction: successful histories can also be longer and contain more calls.
+
+Our contributions are (i) a formal separation of structural and outcome-conditioned triggers; (ii) a matched counterfactual protocol and Execution Outcome Effect (EOE) for measuring outcome dependence; and (iii) a unified experimental design spanning six trigger families, supported by available natural-occurrence counts. The controlled model comparisons are explicitly pending; the present draft does not treat the proposed hypothesis as an established empirical result.
+
+\section{Execution-State Backdoors}
+\label{sec:method}
+\subsection{Agent history and threat model}
+At decision step $t$, let $q_t$ denote the current user request and let $\tau_{<t}$ contain preceding messages, actions, and tool observations. The agent selects an action by
+\begin{equation}
+ a_t\sim\pi_\theta(\,\cdot\mid q_t,\tau_{<t},\mathcal T),
+\end{equation}
+where $\mathcal T$ is the available tool set. For a completed historical tool call indexed by $i$, let $u_i$ be its tool identity, $v_i$ its arguments, and $o_i=(r_i,s_i)$ its observation, with result $r_i$ and a success annotation $s_i\in\{0,1\}$. The annotation is derived from a predefined tool-specific outcome rule; ambiguous observations require separate handling rather than automatic assignment to failure.
+
+We consider a training-time supply-chain adversary that can modify a fraction $\rho$ of supervised fine-tuning decision examples. Poisoned examples associate a trigger condition with a designated target action $a^\star$, while clean examples preserve their original labels. The attacker aims to increase target-action generation under the trigger and retain benign utility elsewhere. All trigger families receive the same modification privileges and poisoning budget. The concrete target tool and argument-matching rule remain \tbd.
+
+The threat concerns the model's decision policy. Generating $a^\star$ does not establish that a tool executes it or that an external authorization check is bypassed. Tool permissions, approval policies, and runtime enforcement remain independent components of the surrounding system.
+
+\subsection{Structural and execution conditions}
+Let $U(\tau)$ be the number of user turns, $L(\tau)$ the context length under a fixed serialization and tokenizer, and $C(\tau)$ the ordered sequence of tool identities and arguments. For a designated tool $u^\star$, define attempted and successful execution counts:
+\begin{align}
+ H_{u^\star}(\tau)&=\sum_{i<t}\ind[u_i=u^\star],\label{eq:history}\\
+ S_{u^\star}(\tau)&=\sum_{i<t}\ind[u_i=u^\star]s_i.\label{eq:success}
+\end{align}
+Only completed historical calls are counted; the action being predicted is excluded. Structural baselines use
+\begin{align}
+ T_{\mathrm{turn}}(\tau)&=\ind[U(\tau)\ge k_U],\\
+ T_{\mathrm{length}}(\tau)&=\ind[L(\tau)\ge k_L],\\
+ T_{\mathrm{history}}(\tau)&=\ind[H_{u^\star}(\tau)\ge k_H].
+\end{align}
+The execution-state trigger instead uses
+\begin{equation}
+ T_{\mathrm{exec}}(\tau)=\ind[S_{u^\star}(\tau)\ge k_S].\label{eq:trigger}
+\end{equation}
+We set $k_S=3$ in the primary design. This is a persistent threshold condition, not activation only at the first threshold crossing. For three identical tool invocations, outcomes $(1,1,1)$ and $(0,0,0)$ produce the same $H_{u^\star}=3$ but different $S_{u^\star}$ and trigger labels. The distinction is the source of conditioning information: invocation structure versus observed execution outcome.
+
+\begin{figure}[t]
+\centering
+\setlength{\fboxsep}{5pt}
+\fbox{\begin{minipage}{0.91\columnwidth}
+\centering
+Same request $q_t$; same historical calls $(u^\star,v_i)$\\[4pt]
+Target: $\boxed{s_1=1}\ \longrightarrow\ \boxed{s_2=1}\ \longrightarrow\ \boxed{s_3=1}$\\[3pt]
+$S_{u^\star}=3$,\quad $T_{\mathrm{exec}}=1$\\[5pt]
+Counterfactual: $\boxed{s_1=0}\ \longrightarrow\ \boxed{s_2=0}\ \longrightarrow\ \boxed{s_3=0}$\\[3pt]
+$S_{u^\star}=0$,\quad $T_{\mathrm{exec}}=0$\\[5pt]
+Fixed: request, turns, call sequence, trigger membership\\
+Matched: context length; changed: outcome feedback
+\end{minipage}}
+\caption{Matched execution-outcome intervention. Trigger membership is held fixed for each comparator, while the execution-state label changes. This is a protocol illustration, not measured activation.}
+\label{fig:matched}
+\end{figure}
+
+\section{Identifying Outcome Dependence}
+\label{sec:identification}
+\subsection{Matched counterfactual intervention}
+For each target history $\tau_i^+$ satisfying $T_{\mathrm{exec}}=1$, construct a counterfactual $\tau_i^-$ with $T_{\mathrm{exec}}=0$. Let $Z(\tau)=(q_t,U(\tau),C(\tau))$. Valid pairs satisfy
+\begin{equation}
+ Z(\tau_i^+)=Z(\tau_i^-),\qquad
+ |L(\tau_i^+)-L(\tau_i^-)|\le\epsilon.\label{eq:matching}
+\end{equation}
+The available tools, system instruction, and decoding configuration are also shared. Tool results are replaced with coherent unsuccessful outcomes while preserving the call arguments and other non-outcome content wherever possible. The tolerance $\epsilon$ is \tbd\ tokens and must be fixed before evaluation.
+
+Approximate length matching alone is insufficient at a length-trigger boundary. Both members must additionally satisfy the same length-trigger predicate and fall within the same specified evaluation bucket. Lexical markers must remain identical, and turn and history predicates must also agree. Each comparator is evaluated on pairs satisfying its own trigger in both members; otherwise a near-zero EOE may simply reflect an inactive baseline. Report pair counts and exclusion reasons, and use a shared subset for cross-method comparisons when feasible.
+
+Counterfactuals must not contain contradictions such as a failure result followed by text asserting that the same action succeeded. Histories with outcome-dependent later calls should be rejected when keeping those calls fixed produces an implausible sequence. These restrictions define a controlled history intervention rather than unrestricted on-policy environment rollouts. Figure~\ref{fig:matched} illustrates the primary three-success versus zero-success comparison.
+
+\subsection{Activation, utility, and outcome effect}
+Let $Y(\hat a)=\ind[\hat a\text{ matches }a^\star]$, using a fixed evaluator for target tool identity and required arguments. Conventional attack effectiveness and clean accuracy are
+\begin{align}
+ \ASR_m&=\Pr(Y=1\mid T_m=1),\\
+ \mathrm{CA}_m&=\frac{1}{N_c}\sum_{j=1}^{N_c}
+ \ind[\hat a_j=a_j^{\mathrm{gold}}].
+\end{align}
+Clean accuracy measures benign tool selection under the declared label rule, not end-to-end task completion. It should be compared with the unpoisoned base model and a clean fine-tuned control.
+
+For $n$ matched pairs, define the decoded Execution Outcome Effect in percentage points (pp) as
+\begin{equation}
+ \widehat{\EOE}_m=\frac{100}{n}\sum_{i=1}^{n}
+ \left[Y(\hat a_{m,i}^+)-Y(\hat a_{m,i}^-)\right].\label{eq:eoe}
+\end{equation}
+Equivalently, this is the difference between target-action activation rates on the two matched sets. If action probabilities are available, their paired mean difference is a distinct probability-based estimator and should be labeled separately. Under stochastic decoding, estimate each member's rate from a fixed number of repeated samples.
+
+We propose 95\% percentile bootstrap intervals by resampling matched pairs, with 10,000 replicates. If multiple pairs derive from one source trajectory, resample source trajectories as clusters to preserve dependence. Training-seed variability should be reported separately. The number of independent sources, decoding settings, and completed training seeds are \tbd.
+
+The hypothesis is that execution conditioning yields a positive EOE exceeding the effects of structurally conditioned controls. A small comparator EOE is an empirical prediction, not an algebraic guarantee: even a structural model may respond to failure content through its ordinary policy. A clean-SFT control helps quantify this background outcome sensitivity. EOE measures a particular conditional dependence and is not a universal backdoor-quality or stealth score.
+
+\subsection{Natural occurrence}
+For a specified trigger-scanning rule $T_m$ and benign dataset $\mathcal D$, define
+\begin{equation}
+ \NTR_m=\frac{1}{|\mathcal D|}\sum_{\tau\in\mathcal D}T_m(\tau).
+\end{equation}
+The unit is a trajectory, counted at most once. Full-trajectory occurrence and occurrence in a model-visible decision prefix are different quantities. Both the text scope and truncation policy must accompany NTR; neither low nor high prevalence by itself establishes stealth or attack effectiveness.
+
+\section{Experimental Design and Available Evidence}
+\label{sec:experiments}
+\subsection{Data, model, and comparison protocol}
+We use the 19,028 synthetic trajectories in the \texttt{interactive\_\allowbreak agent} subset of Nemotron-Agentic-v1~\cite{nvidia2025nemotronagentic}. Histories are converted into next-action decision examples containing messages, tool schemas, calls, and observations. Success must be assigned using a documented tool-specific rule. The annotation rule, handling of ambiguous results, manually reviewed sample count, and agreement statistic remain \tbd. Dataset-provided observations represent execution outcomes in the benchmark; they do not establish live environment execution.
+
+The specified backbone is Qwen3-4B~\cite{yang2025qwen3}, trained by supervised fine-tuning with LoRA~\cite{hu2022lora} rank 16. The supplied configuration specifies batch size 1, gradient accumulation 16, three epochs, maximum training sequence length 4096, validation ratio 0.05, and seed 42. Learning rate and poisoning fraction $\rho$ are \tbd. LoRA scaling, dropout, target modules, optimizer, prompt template, and held-out test size also require recording. Split by source trajectory before generating decision prefixes and counterfactual variants to prevent cross-split history leakage.
+
+The six trigger families are rare lexical marker \texttt{cf}, natural word \texttt{exactly}, turn count $U\ge9$, context length $L\ge4096$, historical calls $H_{u^\star}\ge3$, and successful calls $S_{u^\star}\ge3$. These are controlled trigger-family baselines with a shared target and budget, not full reproductions of every cited attack framework. Train each method on the same source split and retain the same clean evaluation set. Report actual poisoned example counts and natural trigger collisions.
+
+The 4096-token length trigger requires explicit resolution: if 4096 is the total training budget including the target response, a 4096-token input cannot fit. If truncation removes historical calls, their counts are no longer visible to the model. Consequently, the training budget, visible-input predicate, target-token reservation, and long-context inference limit must be reconciled before running this comparison. Full-history NTR does not resolve this issue.
+
+\begin{table}[t]
+\centering
+\caption{Natural occurrence in 19,028 full trajectories. Counts are retained from the supplied study and matching local reports. TBD denotes an unavailable measurement.}
+\label{tab:ntr}
+\begin{tabular}{lrr}
+\toprule
+Condition & Positive & NTR (\%)\\
+\midrule
+Rare marker (\texttt{cf}) &86&0.452\\
+Natural word (\texttt{exactly}) &1,318&6.927\\
+User turns $\ge9$ &3&0.0158\\
+Context tokens $\ge4096$ &755&3.968\\
+Same-tool calls $\ge3$ &467&2.454\\
+Successful same-tool calls $\ge3$ &\tbd&\tbd\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Natural trigger distribution}
+Table~\ref{tab:ntr} reports the available occurrence counts. The archived scan searches lexical content across all message roles, excludes tool schemas, and serializes ordered message content and structured calls for length measurement. Its lexical hits must not be interpreted as occurrences only in the current user query. Likewise, full-trajectory calls and tokens differ from quantities available before a particular action. The archived implementation uses the Qwen2.5-1.5B-Instruct tokenizer and case-sensitive substring matching. Thus, these lexical counts are not whole-word or tokenizer-token counts, and the length counts are descriptive rather than Qwen3-visible trigger rates. A Qwen3-aligned decision-prefix scan is required for deployment-oriented comparisons.
+
+Prevalence varies substantially: only three trajectories meet the turn threshold, while 1,318 contain the natural word under the archived scan. These figures motivate reporting prevalence independently of ASR. The success-conditioned entry remains unfilled because it requires the same designated-tool selection and success annotation policy as the new experiment; a different scan's heuristic success count cannot be substituted without reconciling those definitions.
+
+\begin{table}[t]
+\centering
+\caption{Unified effectiveness and counterfactual comparison. CA and ASR are percentages; EOE and its 95\% interval are in pp. All activation measurements are pending. $A^\pm$ use the matched sets; ASR uses each method's target test set.}
+\label{tab:main}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccc}
+\toprule
+Model & CA & ASR & $A^+$ & $A^-$ & EOE [CI]\\
+\midrule
+Base model &\tbd&--&\tbd&\tbd&\tbd\\
+Clean SFT &\tbd&--&\tbd&\tbd&\tbd\\
+Rare token &\tbd&\tbd&\tbd&\tbd&\tbd\\
+Natural token &\tbd&\tbd&\tbd&\tbd&\tbd\\
+Turn &\tbd&\tbd&\tbd&\tbd&\tbd\\
+Context length &\tbd&\tbd&\tbd&\tbd&\tbd\\
+Tool history &\tbd&\tbd&\tbd&\tbd&\tbd\\
+Execution state &\tbd&\tbd&\tbd&\tbd&\tbd\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Primary outcome comparison}
+Table~\ref{tab:main} combines attack effectiveness, benign utility, and the paired intervention. The target and counterfactual activation columns must be computed from the same retained pairs for each model; they should not be copied from unmatched ASR evaluations. The primary reported result will be the execution-state EOE and its confidence interval, together with turn, length, and tool-history controls. All these model measurements remain pending, so no ranking, numerical outcome effect, or statistically supported distinction is asserted here.
+
+\subsection{Controls for alternative explanations}
+\textbf{Tool frequency.} Fix $H_{u^\star}=4$ and vary $S_{u^\star}\in\{0,1,2,3,4\}$. Balance which calls succeed so success count is not confounded with the last observation. A history-conditioned model's trigger remains active throughout; an execution-conditioned policy is hypothesized to change near $S_{u^\star}=3$. Both response curves, including uncertainty and sample counts, are needed to distinguish counting successes from merely inspecting the final status.
+
+\textbf{Turn progression.} Evaluate the activation surface
+\begin{equation}
+ A_m(u,s)=\Pr(Y=1\mid U=u,S_{u^\star}=s)
+\end{equation}
+over feasible turn--success combinations while controlling call frequency and length. Compare success effects within a fixed turn and turn effects within a fixed success count. Cells that cannot be constructed coherently should be marked unavailable. An activation heatmap requires measured values and is therefore not fabricated in this draft.
+
+\textbf{Context length.} Estimate EOE within the ranges below 2048, 2048--3071, 3072--4095, and at least 4096 visible input tokens, subject to the resolved model budget. Each pair must remain in the same bucket and on the same side of the length trigger. Length-trigger results below its activation threshold are inactive controls and cannot establish invariance of an active length backdoor.
+
+\textbf{Feedback wording.} A success-conditioned model may memorize status strings rather than generalize over outcomes. Evaluate held-out success/failure paraphrases, alternative result schemas, and semantically equivalent feedback with balanced lexical cues. Where available, validate outcomes against environment logs. Matching structure establishes dependence on changed feedback; semantic generalization requires these additional controls.
+
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+Execution outcome is a candidate conditioning variable that can differ even when attempted actions and interaction structure agree. The proposed protocol tests this distinction at the model's next-action decision. A substantial paired effect would exclude explanations based solely on the structural features actually held fixed, but would not exclude every lexical artifact, latent confounder, or distribution shift introduced by counterfactual editing.
+
+Successful-call count is intentionally a simple probe. More general state predicates could involve ordered transitions or task completion, but those are outside the present evaluation. Generalization across model families and genuinely interactive environments remains untested. Complete execution logs may expose the trigger directly, so the formulation makes no universal stealth claim. Similarly, model-level activation does not imply successful unauthorized execution.
+
+We have formalized execution-state backdoors, specified structurally matched outcome interventions, and defined EOE alongside ASR, clean accuracy, and natural occurrence. The available trajectory counts establish variation in trigger prevalence; controlled activation results are still required to determine whether this instantiation learns a distinct outcome dependency. The methodological implication is to test what execution feedback contributes, rather than infer the learned trigger from high ASR or trajectory structure alone.
+
+% Start references in the final right column, following the official template.
+\vfill\pagebreak
+\bibliographystyle{IEEEbib}
+\bibliography{references}
+\end{document}
