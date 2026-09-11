@@ -28,7 +28,7 @@ STATUS_KEYS = {"status", "state", "result_status", "auth_status"}
 BOOL_KEYS = {"success", "ok"}
 ERROR_KEYS = {"error", "exception", "error_message", "errorMessage"}
 PROTOCOL = dict(
-    version=VERSION, candidate_limit=50, pilot_families=20, selection_seed=42,
+    version=VERSION, candidate_limit=40, pilot_families=20, selection_seed=42,
     training_seeds=[42, 13, 87], generation_seed=42, max_length=8192,
     max_new_tokens=256, precision="bf16", batch_size=1,
     intervention=dict(
